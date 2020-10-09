@@ -29,7 +29,6 @@ This is for my University FYP for my degree at the University of Reading
 - [ ] Send and receive custom UDS Commands
 - [ ] Realtime performance data viewer for certain views
 - [ ] DTC View and clearer
-- [ ] 
 ### Macchina J2534 driver
 - [ ] Support J2534-2 API Passthru functions
 - [ ] packet Logger
