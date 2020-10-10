@@ -42,9 +42,15 @@ This is for my University FYP for my degree at the University of Reading
 
 *NOTE* SAE J2610 and J1939 are not going to be implimented due to their niche use cases  (I don't have enough time)
 
+## IMPORTANT
+**Run `git submodule init` on first clone!**
+
 ## Repository structure
 ### CBFParser
 Parses Mercedes CBF Files into JSON
 
 ### Common
 Common library for both parser and GUI Application
+
+### MacchinaM2-J2534-Rust
+Contains Common J2534 API references and Driver code for Macchina M2 Under the dash
