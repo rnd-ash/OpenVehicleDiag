@@ -117,7 +117,6 @@ impl UDSCommandID {
             UDSCommandID::RequestTransferExit => 0x37,
             UDSCommandID::RequestFileTransfer => 0x38,
             UDSCommandID::NegativeResponse => panic!("Cannot send Negative response to ECU!")
-
         }
     }
 

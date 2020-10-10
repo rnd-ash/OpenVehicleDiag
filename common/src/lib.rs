@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 pub mod uds;
+pub mod odb2;
 
 // Contains common data types and structures
 
@@ -20,6 +21,8 @@ pub enum Protocol {
     ISO9141,
     /// Single CAN Frames
     CAN,
+    /// Universal diagnostic services (ISO15765 payloads with extra data)
+    UDS,
 }
 
 enum SecurityLevel {
