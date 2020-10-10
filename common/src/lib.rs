@@ -1,9 +1,8 @@
-use serde::{Serialize, Deserialize};
-pub mod uds;
+use serde::{Deserialize, Serialize};
 pub mod odb2;
+pub mod uds;
 
 // Contains common data types and structures
-
 
 #[derive(Serialize, Deserialize, Debug)]
 /// ECU Type
@@ -11,7 +10,6 @@ struct ECU {
     pub name: String,
     pub protocol: Protocol,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Protocol {
@@ -28,22 +26,21 @@ pub enum Protocol {
 enum SecurityLevel {
     ALWAYS = 0,
     TESTER_PRESENT = 1,
-    KEY_REQUIRED = 2
+    KEY_REQUIRED = 2,
 }
-
 
 pub struct UDSPayload {
     pub id: uds::UDSCommandID,
-    pub args: Vec<u8>
+    pub args: Vec<u8>,
 }
 
 struct Function {
     name: String,
     //securityLevel: SecurityLevel
-    payload: Vec<u8>
+    payload: Vec<u8>,
 }
 
 struct DTC {
     name: String,
-    desc: String
+    desc: String,
 }

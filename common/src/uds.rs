@@ -1,10 +1,7 @@
-
 // Universal diagnostic services library
-
 
 /// Contains a list of all known UDS Commands
 pub enum UDSCommandID {
-
     SessionControl,
     ECUReset,
     SecurityAccess,
@@ -21,7 +18,7 @@ pub enum UDSCommandID {
     ReadScalingDataById,
     ReadDataByIdPeriodic,
 
-    /// 
+    ///
     DynamicDefineDataId,
 
     /// Write data to the ECU given a Data ID (DID) specified in DynmicDefineDataId
@@ -51,13 +48,13 @@ pub enum UDSCommandID {
     RoutineControl,
 
     /// Tell the ECU to receive data from the host client,
-    /// This SID must contain additional args 
+    /// This SID must contain additional args
     /// regarding data size and location of the data
     /// to be downloaded from the client
     ReqDownload,
 
     /// Tell the ECU to upload data to the host client,
-    /// This SID must contain additional args 
+    /// This SID must contain additional args
     /// regarding data size and location of the data
     /// to be uploaded to the client
     ReqUpload,
@@ -81,7 +78,7 @@ pub enum UDSCommandID {
     /// Negative response from an ECU
     /// This can ONLY be received from an ECU, never sent.
     /// If received, it implies the ECU Failed to process the sent command
-    NegativeResponse
+    NegativeResponse,
 }
 
 impl UDSCommandID {
@@ -116,8 +113,8 @@ impl UDSCommandID {
             UDSCommandID::TransferData => 0x36,
             UDSCommandID::RequestTransferExit => 0x37,
             UDSCommandID::RequestFileTransfer => 0x38,
-            UDSCommandID::NegativeResponse => panic!("Cannot send Negative response to ECU!")
-        }
+            UDSCommandID::NegativeResponse => panic!("Cannot send Negative response to ECU!"),
+        };
     }
 
     /// Processes the response SID from the ECU,
@@ -152,7 +149,7 @@ impl UDSCommandID {
             0x77 => Some(UDSCommandID::RequestTransferExit),
             0x78 => Some(UDSCommandID::RequestFileTransfer),
             0x7F => Some(UDSCommandID::NegativeResponse),
-            _ => None
-        }
+            _ => None,
+        };
     }
 }

@@ -5,7 +5,6 @@ mod cbf;
 extern crate xml;
 use xml::reader::{EventReader, XmlEvent};
 
-
 fn help(err: String) -> ! {
     println!("Error: {}", err);
     println!("Usage:");
@@ -17,15 +16,16 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     match args.len() {
         2 => read_file(&args[1]),
-        _ => help(format!("Invalid number of args: {}", args.len()-1))
+        _ => help(format!("Invalid number of args: {}", args.len() - 1)),
     }
     println!("Hello, world!");
 }
 
 fn indent(size: usize) -> String {
     const INDENT: &'static str = "    ";
-    (0..size).map(|_| INDENT)
-             .fold(String::with_capacity(size*INDENT.len()), |r, s| r + s)
+    (0..size)
+        .map(|_| INDENT)
+        .fold(String::with_capacity(size * INDENT.len()), |r, s| r + s)
 }
 
 fn print_xml(s: &String) {
@@ -53,8 +53,8 @@ fn print_xml(s: &String) {
 }
 
 fn read_file(path: &String) {
-    let end_block : [u8; 2] = [0x00, 0x00];
-    let end_block_single : [u8; 1] = [0x00];
+    let end_block: [u8; 2] = [0x00, 0x00];
+    let end_block_single: [u8; 1] = [0x00];
     let f = File::open(path);
     if let Err(_) = f {
         help(format!("File {} does not exist", path));
@@ -63,16 +63,18 @@ fn read_file(path: &String) {
     let mut cbf = cbf::CbfFile::from_buf_reader(reader);
     println!("CBF HEADER:");
     println!("{}", cbf.read_header().unwrap());
-    cbf.read_until_str("ORIGINAL").expect("Could not find Header block in CBF");
+    cbf.read_until_str("ORIGINAL")
+        .expect("Could not find Header block in CBF");
     //println!("XML 1!");
-    let str  = cbf.read_string().unwrap();
+    let str = cbf.read_string().unwrap();
     //print_xml(&str);
-    println!("CBF VERSION: {}", cbf.read_string().unwrap());// SKIP Version 2??
+    println!("CBF VERSION: {}", cbf.read_string().unwrap()); // SKIP Version 2??
     println!("GPD VERSION: {}", cbf.read_string().unwrap()); // SKIP Version
-    //println!("XML 2!");
+                                                             //println!("XML 2!");
     let str2 = cbf.read_string().unwrap();
     //print_xml(&str2);
-    cbf.read_until_str("ORIGINAL").expect("Could not find Header block in CBF");
+    cbf.read_until_str("ORIGINAL")
+        .expect("Could not find Header block in CBF");
     println!("STRINGS");
     let mut i = 0;
     while cbf.peek_next_bytes(2) != end_block {
