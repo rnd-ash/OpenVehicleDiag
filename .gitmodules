@@ -1,0 +1,3 @@
+[submodule "MacchinaM2-J2534-Rust"]
+	path = MacchinaM2-J2534-Rust
+	url = https://github.com/rnd-ash/MacchinaM2-J2534-Rust
