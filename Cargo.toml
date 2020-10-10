@@ -2,5 +2,6 @@
 
 members = [
     "common",
-    "CBFParser"
+    "CBFParser",
+    "MacchinaM2-J2534-Rust/J2534Common"
 ]

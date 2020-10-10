@@ -1,4 +1,3 @@
-
 /// ODB-II Modes (SAE J1979)
 ///
 /// OEM's are **NOT** Required to impliment
@@ -9,7 +8,7 @@
 pub enum Mode {
     /// Show current data
     ShowCurrentData = 0x01,
-    
+
     /// Show freeze frame data
     ShowFreezeFrame = 0x02,
 
@@ -35,12 +34,11 @@ pub enum Mode {
     RequestInfo = 0x09,
 
     /// Permanent Diagnostic trouble codes
-    PermanentDTC = 0x0A
+    PermanentDTC = 0x0A,
 }
 
-
 pub struct Mode01 {
-    id: u8, // PID
+    id: u8,        // PID
     args: Vec<u8>, // Returned Bytes
 }
 
@@ -51,11 +49,9 @@ pub struct ParsedPid {
 
 impl ToString for ParsedPid {
     fn to_string(&self) -> String {
-        return format!("{}{}", self.value, self.unit)
+        return format!("{}{}", self.value, self.unit);
     }
 }
-
-
 
 pub enum Mode01Pids {
     PidSupportRange00 = 0x00,
@@ -160,7 +156,6 @@ pub enum Mode01Pids {
     EnginePercentTorqueData,
 }
 
-
 /// Enumeration for Mode 1 PID 51 (Fuel Type)
 enum FuelType {
     /// Not applicable / Not avaliable
@@ -193,9 +188,9 @@ enum FuelType {
     BifuelCNG = 0x0D,
     /// Bifuel engine with Propane as primary fuel
     BifuelPropane = 0x0E,
-    /// Bifuel with Electric and combustion engine as primary 
+    /// Bifuel with Electric and combustion engine as primary
     BifuelElectricCombustion = 0x0F,
-    /// Bifuel with a hybrid system as primary 
+    /// Bifuel with a hybrid system as primary
     BifuelHybrid = 0x10,
     /// Hybrid with petrol engine
     HybridGasoline = 0x11,
@@ -210,9 +205,8 @@ enum FuelType {
     /// Hybrid with regenerative system
     HybridRegenerative = 0x16,
     /// Bifuel engine with Diesel as primary fuel
-    BifuelDiesel = 0x17
+    BifuelDiesel = 0x17,
 }
-
 
 impl Mode01 {
     fn validate(&self, size: usize, pid: Mode01Pids) -> Option<&Self> {
@@ -223,29 +217,28 @@ impl Mode01 {
         }
     }
 
-
     /// Returns Calcualted engine load as a float from 0-100%
     pub fn get_engine_load(&self) -> Option<ParsedPid> {
-        self.validate(4, Mode01Pids::EngineLoad).map(|load| ParsedPid {
-            value: load.args[0] as f32 / 2.55,
-            unit: "%".to_string()
-        })
+        self.validate(4, Mode01Pids::EngineLoad)
+            .map(|load| ParsedPid {
+                value: load.args[0] as f32 / 2.55,
+                unit: "%".to_string(),
+            })
     }
 
     fn get_coolant_temp(&self) -> Option<ParsedPid> {
         return Some(ParsedPid {
             value: (self.args[0] as f32 - 40.0),
-            unit: "°C".to_string()
-        })
+            unit: "°C".to_string(),
+        });
     }
 }
-
 
 #[test]
 fn test_engine_load() {
     let resp = Mode01 {
         id: Mode01Pids::EngineLoad as u8,
-        args: vec![0x10]
+        args: vec![0x10],
     };
 
     if let Some(parsed) = resp.get_engine_load() {
@@ -253,5 +246,4 @@ fn test_engine_load() {
         assert!(parsed.value == 6.27451);
         assert!(parsed.unit == "%");
     }
-    
 }
