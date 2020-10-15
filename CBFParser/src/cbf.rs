@@ -1,5 +1,6 @@
 use std::io::BufReader;
 use std::io::Read;
+use byteorder::LittleEndian;
 
 #[derive(Debug, Clone)]
 pub enum CbfError {
@@ -11,89 +12,87 @@ pub enum CbfError {
 pub type Result<T> = std::result::Result<T, CbfError>;
 
 pub struct CbfFile {
-    data: Vec<u8>,
+    bytes: Vec<u8>,
     pos: usize,
-    lim: usize,
+    lim: usize
 }
 
+
 impl CbfFile {
-    pub fn from_buf_reader<R: Read>(mut r: BufReader<R>) -> CbfFile {
-        let mut cbf = CbfFile {
-            data: Vec::new(),
+    pub fn fromFile<T: Read>(f: &mut BufReader<T>) -> std::io::Result<CbfFile> {
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf)?;
+        let len = buf.len();
+        Ok(CbfFile {
+            bytes: buf,
             pos: 0,
-            lim: 0,
+            lim: len
+        })
+    }
+
+    /// Attempts to reads [numBytes] bytes from the file
+    fn readFile(&mut self, numBytes: usize) -> Option<Vec<u8>> {
+        if self.pos + numBytes >= self.lim {
+            eprintln!("Out of bounds reading! Pos: {} - {} ({} bytes). Max: {}", self.pos, self.pos+numBytes, numBytes, self.lim);
+            return None
+        }
+        let buf = Vec::from(&self.bytes[self.pos..self.pos+numBytes]);
+        self.pos += numBytes;
+        Some(buf)
+    }
+
+    /// Reads [num_bytes] from the file, starting at position [distance_to_move]
+    pub fn readData(&mut self, distance_to_move: usize, num_bytes: usize) -> Option<Vec<u8>> {
+        self.seekFile( distance_to_move, false)?;
+        self.readFile(num_bytes)
+    }
+
+    /// Seeks to a virtual address within the data
+    ///
+    /// # Params
+    /// * move_current - True - Offset will be added to the current file offset
+    ///                  False - Offset will be from start of the file
+    /// * move_amount - offset in bytes to seek
+    fn seekFile(&mut self, move_amount: usize, move_current: bool) -> Option<()> {
+        let target_pos = match move_current {
+            false => move_amount,
+            true => move_amount + self.pos
         };
-        r.read_to_end(&mut cbf.data).unwrap();
-        cbf.lim = cbf.data.len();
-        cbf
+        if target_pos >= self.lim { 
+            eprintln!("Seek out of range of file!");
+            return None 
+        }
+        self.pos = target_pos;
+        return Some(())
     }
 
-    /// Reads the header text from CBF File
-    /// Ignores the padding which results in 0x3FF bytes being read
-    pub fn read_header(&mut self) -> Result<String> {
-        let buf = self.read_bytes(0x3FF)?;
-        return match std::str::from_utf8(&buf) {
-            Ok(x) => Ok(String::from(x.trim_matches(char::from(0)))),
-            Err(_) => Err(CbfError::UtfParseFail),
-        };
-    }
+    pub fn getOffset(&mut self, a1: i16, a2: i16, a3: i32) -> i16 {
+        let mut v8: [i16; 6] = [0,1,2,3,4,5];
+        let mut v3 = 0;
+        let mut v4 = 1;
+        let mut v7 = v8[0];
+        let mut v5 = 1;
 
-    // Skips [count] bytes in the CBF File
-    //pub fn skip_bytes(&mut self, count: usize) {
-    //let mut tmp: Vec<u8> = vec![0x00; count];
-    //self.reader.read_exact(&mut tmp).unwrap();
-    //println!("SKIP: {:?}", tmp);
-    //}
 
-    pub fn read_until(&mut self, dilemer: u8) -> Result<Vec<u8>> {
-        self.read_until_bytes(&mut vec![dilemer])
-    }
-
-    pub fn read_until_str(&mut self, dilema: &str) -> Result<Vec<u8>> {
-        self.read_until_bytes(dilema.as_bytes())
-    }
-
-    pub fn read_until_bytes(&mut self, matcher: &[u8]) -> Result<Vec<u8>> {
-        let mut tmpbuf = Vec::with_capacity(matcher.len());
-
-        loop {
-            if tmpbuf.len() >= matcher.len()
-                && &matcher[..] == &tmpbuf[tmpbuf.len() - matcher.len()..]
-            {
-                return Ok(tmpbuf);
+        if a1 >= 1 {
+            loop {
+                if v4 & a3+v3 != 0 {
+                    if a1 != v5 {
+                        v7 += v8[v5 as usize];
+                    }
+                } else if a1 == v5 && !(v4 & a3+v3 == 1) {
+                    v7 = 0;
+                }
+                if v4 == 128 {
+                    v3 += 1;
+                    v4 = 1;
+                } else {
+                    v4 *= 2;
+                }
+                v5 += 1;
+                if a1 < v5 { break }
             }
-            tmpbuf.push(*self.read_bytes(1)?.get(0).unwrap());
         }
-    }
-
-    /// Peeks at the next byte in the file
-    pub fn peek_next_bytes(&mut self, size: usize) -> &[u8] {
-        let s = self.pos;
-        &self.data[s..s + size]
-    }
-
-    /// Reads [count] bytes from the CBF File
-    pub fn read_bytes(&mut self, count: usize) -> Result<Vec<u8>> {
-        let start = self.pos;
-        if start + count > self.lim {
-            return Err(CbfError::OutOfBounds);
-        }
-        self.pos += count;
-        return Ok(Vec::from(&self.data[start..start + count]));
-    }
-
-    ///Reads a null terminated UTF-8 String from CBF File
-    pub fn read_string(&mut self) -> Result<String> {
-        let mut pos = self.pos;
-        while self.data[pos] == 0x00 {
-            pos += 1;
-        }
-        self.pos = pos;
-        let mut bytes = self.read_until(0x00)?;
-        bytes.pop();
-        return match String::from_utf8(bytes) {
-            Ok(s) => Ok(s),
-            Err(_) => Err(CbfError::UtfParseFail),
-        };
+        return v7;
     }
 }
