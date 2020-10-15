@@ -3,7 +3,11 @@ use std::fs::File;
 use std::io::BufReader;
 mod cbf;
 extern crate xml;
+mod log;
+use log::Logger;
 use xml::reader::{EventReader, XmlEvent};
+extern crate byteorder;
+use byteorder::{ByteOrder, LittleEndian};
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);
@@ -59,26 +63,19 @@ fn read_file(path: &String) {
     if let Err(_) = f {
         help(format!("File {} does not exist", path));
     }
-    let reader = BufReader::new(f.unwrap());
-    let mut cbf = cbf::CbfFile::from_buf_reader(reader);
-    println!("CBF HEADER:");
-    println!("{}", cbf.read_header().unwrap());
-    cbf.read_until_str("ORIGINAL")
-        .expect("Could not find Header block in CBF");
-    //println!("XML 1!");
-    let str = cbf.read_string().unwrap();
-    //print_xml(&str);
-    println!("CBF VERSION: {}", cbf.read_string().unwrap()); // SKIP Version 2??
-    println!("GPD VERSION: {}", cbf.read_string().unwrap()); // SKIP Version
-                                                             //println!("XML 2!");
-    let str2 = cbf.read_string().unwrap();
-    //print_xml(&str2);
-    cbf.read_until_str("ORIGINAL")
-        .expect("Could not find Header block in CBF");
-    println!("STRINGS");
-    let mut i = 0;
-    while cbf.peek_next_bytes(2) != end_block {
-        println!("{} - {}", i, cbf.read_string().unwrap());
-        i += 1;
-    }
+    let mut reader = BufReader::new(f.unwrap());
+    let mut cbf = cbf::CbfFile::fromFile(&mut reader).expect("Couldn't open CBF File!");
+    
+    
+    let buf = cbf.readData(1040, 4).expect("CBF Metadata size could not be read");
+    let bytes_to_read = LittleEndian::read_u32(&buf);
+    let metadata = cbf.readData(1044, bytes_to_read as usize).expect("Could not read metadata portion");
+    let temp_buffer = cbf.readData(0, 0x410).expect("Could not read CBF Header");
+    let cbf_header = String::from_utf8_lossy(&temp_buffer);
+    let metadata_str = String::from_utf8_lossy(&metadata);
+    println!("{}", cbf_header);
+    println!("{}", metadata_str);
+
+    //println!("{:?}", header);
+    //println!("{}", cbf.getOffset(0x07, 0x1D, 8));
 }
