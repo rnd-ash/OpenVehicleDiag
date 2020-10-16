@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 pub mod odb2;
+pub mod raf;
 pub mod uds;
 
 // Contains common data types and structures
