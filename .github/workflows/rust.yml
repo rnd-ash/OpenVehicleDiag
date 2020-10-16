@@ -15,11 +15,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout submodules
-      uses: srt32/git-actions@v0.0.3
-      with:
-        args: git submodule update --init --recursive
     - uses: actions/checkout@v2
+    - uses: snickerbockers/submodules-init@v4
     - name: Build
       run: cargo build --verbose
     - name: Run tests
