@@ -1,13 +1,12 @@
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
-mod cbf;
+mod cxf;
 extern crate xml;
 mod log;
-use log::Logger;
+mod caesar;
+use cxf::*;
 use xml::reader::{EventReader, XmlEvent};
-extern crate byteorder;
-use byteorder::{ByteOrder, LittleEndian};
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);
@@ -64,18 +63,10 @@ fn read_file(path: &String) {
         help(format!("File {} does not exist", path));
     }
     let mut reader = BufReader::new(f.unwrap());
-    let mut cbf = cbf::CbfFile::fromFile(&mut reader).expect("Couldn't open CBF File!");
-    
-    
-    let buf = cbf.readData(1040, 4).expect("CBF Metadata size could not be read");
-    let bytes_to_read = LittleEndian::read_u32(&buf);
-    let metadata = cbf.readData(1044, bytes_to_read as usize).expect("Could not read metadata portion");
-    let temp_buffer = cbf.readData(0, 0x410).expect("Could not read CBF Header");
-    let cbf_header = String::from_utf8_lossy(&temp_buffer);
-    let metadata_str = String::from_utf8_lossy(&metadata);
-    println!("{}", cbf_header);
-    println!("{}", metadata_str);
-
-    //println!("{:?}", header);
-    //println!("{}", cbf.getOffset(0x07, 0x1D, 8));
+    // No clue on type
+    let mut cxf = CxfFile::from_file(&mut reader).expect("Couldn't open CXF File!");
+    match cxf.f_type {
+        CxfType::CBF => println!("{:#?}", CbfFile::from_cxf(cxf).unwrap().read_header()),
+        CxfType::CFF => println!("{:#?}", CbfFile::from_cxf(cxf).unwrap().read_header())
+    }
 }
