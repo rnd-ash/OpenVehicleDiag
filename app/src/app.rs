@@ -30,6 +30,9 @@ impl App {
         window.set_title("Open Vehicle Diagnostics");
         window.set_wmclass("ovd", "Open Vehicle Diagnostics");
         window.set_default_size(1280, 720);
+        if let Err(_) = window.set_icon_from_file("icon.png") {
+            eprintln!("Error setting icon!");
+        }
         window.connect_delete_event(move |_,_| {
             main_quit();
             Inhibit(false)
