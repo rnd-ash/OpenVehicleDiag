@@ -1,0 +1,13 @@
+[package]
+name = "SMRParser"
+version = "0.1.0"
+authors = ["Ashcon Mohseninia <ashconm@outlook.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+byteorder="1.3.4"
+nettle="7.0.0"
+binary-reader="0.3.0"
+flate2="1.0.6"

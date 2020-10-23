@@ -9,6 +9,12 @@ use crate::passthru::*;
 #[cfg(unix)]
 use serde_json;
 
+#[cfg(windows)]
+use winreg::enums::*;
+
+#[cfg(windows)]
+use winreg::{RegKey, RegValue};
+
 pub struct DrvSelect {
     pub window: Window,
     pub header: Header,
@@ -132,12 +138,10 @@ pub struct PassthruDevice {
     name: String,
     /// Device vendor name
     vendor: String,
-    /// Device driver
-    drv: PassthruDrv
 }
 
 #[cfg(unix)]
-fn get_pt_list<'a>() -> Result<Vec<PassthruDevice>> {
+fn get_pt_list() -> Result<Vec<PassthruDevice>> {
     // Ensure passthru JSON directory exists
     if !std::path::Path::new("/usr/share/passthru/").is_dir() {
         return Err(Error::new(ErrorKind::NotFound, "Path not found"));
@@ -184,36 +188,70 @@ fn read_device(s: &String) -> Option<PassthruDevice> {
             eprintln!("PTLOCATE -> JSON does not have either NAME, FUNCTION_LIB, or VENDOR field");
             return None;
         }
-        println!("Loading library from {}", f_lib.unwrap().to_string());
-        let lib = PassthruDrv::load_lib(f_lib.unwrap().to_string());
-        if let Ok(l) = lib {
-            if let Ok(v) = l.get_version() {
-                println!("PTLOCATE -> Library Load OK!");
-                println!("FW Version: {}", v.fw_version);
-                println!("API Version: {}", v.api_version);
-                println!("DLL Version: {}", v.dll_version);
-            }
-            return Some(PassthruDevice {
-                name: name.unwrap().to_string(),
-                vendor: vend.unwrap().to_string(),
-                can: get_json_bool("CAN", &json),
-                iso14230: get_json_bool("ISO14230", &json),
-                iso15765: get_json_bool("ISO15765", &json),
-                iso9141: get_json_bool("ISO9141", &json),
-                j1850vpw: get_json_bool("J1850VPW", &json),
-                j1850pwm: get_json_bool("J1850PWM", &json),
-                function_lib: f_lib.unwrap().to_string(),
-                drv: l
-            })
-        } else {
-            eprintln!("ERROR Loading library {:?}", lib.err());
-        }
+        return Some(PassthruDevice {
+            name: name.unwrap().to_string(),
+            vendor: vend.unwrap().to_string(),
+            can: get_json_bool("CAN", &json),
+            iso14230: get_json_bool("ISO14230", &json),
+            iso15765: get_json_bool("ISO15765", &json),
+            iso9141: get_json_bool("ISO9141", &json),
+            j1850vpw: get_json_bool("J1850VPW", &json),
+            j1850pwm: get_json_bool("J1850PWM", &json),
+            function_lib: f_lib.unwrap().to_string(),
+        });
     }
     None
 }
 
 #[cfg(windows)]
-fn get_pt_list() -> Option<Vec<PassthruDevice>> {
-    None
+fn get_pt_list() -> Result<Vec<PassthruDevice>> {
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let pt = hklm.open_subkey("SOFTWARE\\WOW6432Node\\PassThruSupport.04.04")?;
+
+    let mut res: Vec<PassthruDevice> = Vec::new();
+    for key in pt.enum_keys().map(|x| x.unwrap()) {
+        let key_temp = hklm.open_subkey(format!("SOFTWARE\\WOW6432Node\\PassThruSupport.04.04\\{}", key))?;
+        if let Ok(dev) = read_device(key_temp) {
+            res.push(dev);
+        }
+    }
+
+    if !res.is_empty() {
+        return Ok(res)
+    }
+    Err(Error::new(ErrorKind::NotFound, "No devices found"))
     // TODO
+}
+
+
+#[cfg(windows)]
+fn read_key_to_bool(name: &str, key: &RegKey) -> bool {
+    let f: std::io::Result<u32> = key.get_value(name.to_string());
+    if let Ok(b) = f {
+        if b == 1 {
+            return true
+        }
+    }
+    false
+}
+
+#[cfg(windows)]
+fn read_device(r: RegKey) -> std::io::Result<PassthruDevice> {
+    let func_lib: String = r.get_value("FunctionLibrary")?;
+    let name: String = r.get_value("Name")?;
+    let vendor: String = r.get_value("Vendor")?;
+
+    println!("PTLOCATE -> Found device {} - Lib path: {}", name, func_lib);
+    return Ok(PassthruDevice {
+        can: read_key_to_bool("CAN", &r),
+        iso15765: read_key_to_bool("ISO15765", &r),
+        iso14230: read_key_to_bool("ISO14230", &r),
+        iso9141: read_key_to_bool("ISO9141", &r),
+        j1850pwm: false,
+        j1850vpw: false,
+        function_lib: func_lib,
+        name: name,
+        vendor: vendor,
+    });
+    Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Could not find critical keys"))
 }

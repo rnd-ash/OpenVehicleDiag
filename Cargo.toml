@@ -3,5 +3,11 @@
 members = [
     "common",
     "CBFParser",
-    "MacchinaM2-J2534-Rust/J2534Common"
+    "MacchinaM2-J2534-Rust/J2534Common",
+    "app"
+]
+
+exclude = [
+    "MacchinaM2-J2534-Rust/Driver",
+	
 ]
