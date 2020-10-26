@@ -3,6 +3,8 @@ use gtk::prelude::*;
 use gtk::{ButtonsType, DialogFlags, MessageType, MessageDialog, Window, Settings};
 mod drv_select;
 mod passthru;
+mod ovd;
+mod log;
 
 fn main() {
     gtk::init().expect("Error loading GTK!");
@@ -13,7 +15,6 @@ fn main() {
     get_theme();
 
     app.window.show_all();
-    println!("{:?}", app.get_selected_device());
     gtk::main();
 }
 

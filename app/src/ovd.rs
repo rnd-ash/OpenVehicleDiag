@@ -1,31 +1,31 @@
 extern crate gtk;
 use gtk::*;
 
-pub struct App {
+pub struct OvdApp {
     pub window: Window,
-    pub header: Header
+    pub header: OvdHeader
 }
 
-pub struct Header {
+pub struct OvdHeader {
     pub container: HeaderBar,
     pub voltage: Label,
 }
 
-impl Header {
-    fn new() -> Header {
+impl OvdHeader {
+    fn new() -> OvdHeader {
         let container = HeaderBar::new();
         container.set_title(Some("Open Vehicle Diagnostics"));
         container.set_show_close_button(true);
         let voltage = Label::new(Some("Battery: 12.0V"));
         container.pack_end(&voltage);
-        Header { container, voltage }
+        OvdHeader { container, voltage }
     }
 }
 
-impl App {
-    pub fn new() -> App {
+impl OvdApp {
+    pub fn new() -> OvdApp {
         let window = Window::new(WindowType::Toplevel);
-        let header = Header::new();
+        let header = OvdHeader::new();
         window.set_titlebar(Some(&header.container));
         window.set_title("Open Vehicle Diagnostics");
         window.set_wmclass("ovd", "Open Vehicle Diagnostics");
@@ -37,6 +37,6 @@ impl App {
             main_quit();
             Inhibit(false)
         });
-        return App { window, header }
+        return OvdApp { window, header }
     }
 }

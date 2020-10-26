@@ -2,6 +2,16 @@ use J2534Common::*;
 use libc;
 use libloading::{Library, Symbol};
 use std::ffi::*;
+use crate::log;
+
+#[cfg(unix)]
+use serde_json;
+
+#[cfg(windows)]
+use winreg::enums::*;
+
+#[cfg(windows)]
+use winreg::{RegKey, RegValue};
 
 type Result<T> = std::result::Result<T, J2534Common::PassthruError>;
 
@@ -34,7 +44,18 @@ type PassThruGetLastErrorFn = unsafe extern fn(error_description: *mut libc::c_c
 type PassThruIoctlFn = unsafe extern fn(handle_id: u32, ioctl_id: u32, input: *mut libc::c_void, output: *mut libc::c_void) -> i32;
 
 #[derive(Debug)]
+pub struct DrvVersion {
+    /// Library (DLL) Version
+    pub dll_version: String,
+    /// Passthru API Version (Only V04.04 is supported currently!)
+    pub api_version: String,
+    /// Device Firmware version
+    pub fw_version: String
+}
+
+#[derive(Debug)]
 pub struct PassthruDrv {
+    /// Loaded library to interface with the device
     lib: libloading::Library,
     open_fn: PassThruOpenFn,
     close_fn: PassThruCloseFn,
@@ -50,13 +71,6 @@ pub struct PassthruDrv {
     get_last_err_fn: PassThruGetLastErrorFn,
     ioctl_fn: PassThruIoctlFn,
     read_version_fn: PassThruReadVersionFn,
-}
-
-#[derive(Debug)]
-pub struct DrvVersion {
-    pub dll_version: String,
-    pub api_version: String,
-    pub fw_version: String
 }
 
 impl PassthruDrv {
@@ -123,3 +137,236 @@ impl PassthruDrv {
     }
 }
 
+#[derive(Debug)]
+pub struct PassthruDevice {
+    /// Driver struct
+    //drv: PassthruDrv,
+    /// Driver path
+    pub drv_path: String,
+
+    /// Name of passthru device
+    pub name: String,
+    /// Vendor of passthru device
+    pub vendor: String,
+    
+    /// Device CAN support?
+    pub can: bool,
+    /// Device ISO15765 (Over CAN) support
+    pub iso15765: bool,
+
+    /// Device ISO9141 support
+    pub iso9141: bool,
+    /// Device ISO14230 support (KWP2000)
+    pub iso14230: bool,
+
+    /// Device SCI A Transmission support
+    pub sci_a_trans: bool,
+    /// Device SCI A Engine support
+    pub sci_a_engine: bool,
+
+    /// Device SCI B Transmission support
+    pub sci_b_trans: bool,
+    /// Device SCI B Engine support
+    pub sci_b_engine: bool,
+
+    /// Device J1850VPW support
+    pub j1850vpw: bool,
+    /// Device J1850PWM support
+    pub j1850pwm: bool
+}
+
+#[derive(Debug)]
+pub enum LoadDeviceError {
+    /// Device entry contains no name
+    NoName,
+    /// Device entry contains no vendor
+    NoVendor,
+    /// Device entry contains no library
+    NoFunctionLib,
+    /// Permission error reading JSON (UNIX Only)
+    NoPermission,
+    /// Malformed JSON (UNIX Only)
+    InvalidJSON,
+    /// Unknown IO Error
+    IoError(std::io::Error),
+    /// library load failed
+    LibLoadError(libloading::Error),
+    /// No Passthru devices found
+    NoDeviceFound
+}
+
+type DeviceError<T> = std::result::Result<T, LoadDeviceError>;
+
+impl PassthruDevice {
+    
+    #[cfg(unix)]
+    /// Finds all devices present in /usr/share/passthru/*.jsonS
+    pub fn find_all() -> DeviceError<Vec<PassthruDevice>> {
+        return match std::fs::read_dir("/usr/share/passthru") {
+            Ok(list) => {
+                // Read Dir into vector of files
+                let dev_list: Vec<PassthruDevice> = list.into_iter()
+                // Remove files that cannot be read
+                .filter_map(|p| p.ok())
+                // Filter any files that are not json files
+                .filter(|p| p.file_name().to_str().unwrap().ends_with(".json"))
+                // Attempt to read a PassthruDevice from each json file found
+                .map(|p| PassthruDevice::read_device(&p.path()))
+                // Keep Oks that were found, any entries that ended with errors are discarded
+                .filter_map(|s| s.ok())
+                // Convert result into vector
+                .collect();
+                
+                match dev_list.is_empty() {
+                    true => Err(LoadDeviceError::NoDeviceFound),
+                    false => Ok(dev_list)
+                }
+            }
+            Err(e) => Err(LoadDeviceError::IoError(e))
+        }
+    }
+
+    #[cfg(windows)]
+    /// Finds all devices present in /usr/share/passthru/*.json
+    pub fn find_all() -> DeviceError<Vec<PassthruDevice>> {
+        let reg = match RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("SOFTWARE\\WOW6432Node\\PassThruSupport.04.04") {
+            Ok(r) => r,
+            Err(x) => return Err(LoadDeviceError::IoError(x))
+        };
+
+        let dev_list: Vec<PassthruDevice> = reg.enum_keys()
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .map(|key| reg.open_subkey(key))
+            .map(|x| PassthruDevice::read_device(&x.unwrap()))
+            .filter_map(|d| d.ok())
+            .collect();
+
+        match dev_list.is_empty() {
+            true => Err(LoadDeviceError::NoDeviceFound),
+            false => Ok(dev_list)
+        }
+    }
+
+    #[cfg(unix)]
+    #[inline]
+    pub fn read_bool(j: &serde_json::Value, s: &str) -> bool {
+        match j[s].as_bool() {
+            Some(x) => x,
+            None => false
+        }
+    }
+
+    #[cfg(unix)]
+    /// Loads Unix passthru JSON into a passthru device
+    pub fn read_device(p: &std::path::PathBuf) -> DeviceError<PassthruDevice> {
+        log::logDebug("Read_Device", format!("Reading JSON {:?}", p.as_path()));
+        return if let Ok(s) = std::fs::read_to_string(&p) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(s.as_str()) {
+                let lib = match json["FUNCTION_LIB"].as_str() {
+                    Some(s) => s,
+                    None => return Err(LoadDeviceError::NoFunctionLib)
+                };
+                let name = match json["NAME"].as_str() {
+                    Some(s) => s,
+                    None => return Err(LoadDeviceError::NoName)
+                };
+                let vend = match json["VENDOR"].as_str() {
+                    Some(s) => s,
+                    None => return Err(LoadDeviceError::NoVendor)
+                };
+
+                log::logDebug("Read_Device", format!("Found device {} by {}. Library: {}", name, vend, lib));
+                // Load library to ensure it exists
+                let driver = match Library::new(lib.clone()) {
+                    Ok(l) => l,
+                    Err(x) => {
+                        log::logError("Read_Device", format!("Cannot load DLL! ({:?})", x));
+                        return Err(LoadDeviceError::LibLoadError(x))
+                    }
+                };
+                // We can unload it, will re-load once OVD starts
+                driver.close().unwrap();
+                Ok(PassthruDevice{
+                    drv_path: String::from(lib),
+                    name: String::from(name),
+                    vendor: String::from(vend),
+                    can: PassthruDevice::read_bool(&json, "CAN"),
+                    iso15765: PassthruDevice::read_bool(&json, "ISO15765"),
+                    iso14230: PassthruDevice::read_bool(&json, "ISO14230"),
+                    iso9141: PassthruDevice::read_bool(&json, "ISO9141"),
+                    j1850pwm: PassthruDevice::read_bool(&json, "J1850PWM"),
+                    j1850vpw: PassthruDevice::read_bool(&json, "J1850VPW"),
+                    sci_a_engine: PassthruDevice::read_bool(&json, "SCI_A_ENGINE"),
+                    sci_a_trans: PassthruDevice::read_bool(&json, "SCN_A_TRANS"),
+                    sci_b_engine: PassthruDevice::read_bool(&json, "SCI_B_ENGINE"),
+                    sci_b_trans: PassthruDevice::read_bool(&json, "SCI_B_TRANS"),
+                    //drv: driver
+                })
+            } else {
+                return Err(LoadDeviceError::InvalidJSON)
+            }
+        } else {
+            Err(LoadDeviceError::NoPermission)
+        }
+    }
+
+    #[cfg(windows)]
+    #[inline]
+    fn read_bool(k: &RegKey, name: &str) -> bool {
+        let val: u32 = match k.get_value(name.to_string()) {
+            Ok(b) => b,
+            Err(_) => return false
+        };
+        return val != 0
+    }
+
+    #[cfg(windows)]
+    /// Reads a device entry from windows registry and loads it into a Passthru device
+    pub fn read_device(r: &RegKey) -> DeviceError<PassthruDevice> {
+        let lib: String = match r.get_value("FunctionLibrary") {
+            Ok (s) => s,
+            Err(_) => return Err(LoadDeviceError::NoFunctionLib)
+        };
+
+        let name: String = match r.get_value("Name") {
+            Ok (s) => s,
+            Err(_) => return Err(LoadDeviceError::NoName)
+        };
+
+        let vend: String = match r.get_value("Vendor") {
+            Ok (s) => s,
+            Err(_) => return Err(LoadDeviceError::NoVendor)
+        };
+
+        log::logDebug("Read_Device", format!("Found device {} by {}. Library: {}", name, vend, lib));
+
+        // Load library to ensure it exists
+        let driver = match Library::new(lib.clone()) {
+            Ok(l) => l,
+            Err(x) => {
+                log::logError("Read_Device", format!("Cannot load DLL! ({:?})", x));
+                return Err(LoadDeviceError::LibLoadError(x))
+            }
+        };
+        // We can unload it, will re-load once OVD starts
+        driver.close().unwrap();
+
+        Ok(PassthruDevice{
+            drv_path: String::from(lib),
+            name: String::from(name),
+            vendor: String::from(vend),
+            can: PassthruDevice::read_bool(&r, "CAN"),
+            iso15765: PassthruDevice::read_bool(&r, "ISO15765"),
+            iso14230: PassthruDevice::read_bool(&r, "ISO14230"),
+            iso9141: PassthruDevice::read_bool(&r, "ISO9141"),
+            j1850pwm: PassthruDevice::read_bool(&r, "J1850PWM"),
+            j1850vpw: PassthruDevice::read_bool(&r, "J1850VPW"),
+            sci_a_engine: PassthruDevice::read_bool(&r, "SCI_A_ENGINE"),
+            sci_a_trans: PassthruDevice::read_bool(&r, "SCN_A_TRANS"),
+            sci_b_engine: PassthruDevice::read_bool(&r, "SCI_B_ENGINE"),
+            sci_b_trans: PassthruDevice::read_bool(&r, "SCI_B_TRANS"),
+            //drv: driver
+        })
+    }
+}
