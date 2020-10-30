@@ -8,4 +8,6 @@ edition = "2018"
 
 [dependencies]
 xml-rs = "0.8.3"
+binary-reader="0.3.0"
+encoding_rs = "0.8.24"
 common = { path = "../common" }
