@@ -7,6 +7,7 @@ mod log;
 mod caesar;
 use cxf::*;
 use xml::reader::{EventReader, XmlEvent};
+use binary_reader::{BinaryReader, Endian};
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);
@@ -56,17 +57,7 @@ fn print_xml(s: &String) {
 }
 
 fn read_file(path: &String) {
-    let end_block: [u8; 2] = [0x00, 0x00];
-    let end_block_single: [u8; 1] = [0x00];
-    let f = File::open(path);
-    if let Err(_) = f {
-        help(format!("File {} does not exist", path));
-    }
-    let mut reader = BufReader::new(f.unwrap());
-    // No clue on type
-    let mut cxf = CxfFile::from_file(&mut reader).expect("Couldn't open CXF File!");
-    match cxf.f_type {
-        CxfType::CBF => println!("{:#?}", CbfFile::from_cxf(cxf).unwrap().read_header()),
-        CxfType::CFF => println!("{:#?}", CbfFile::from_cxf(cxf).unwrap().read_header())
-    }
+    let mut f = File::open(path).expect("Cannot open input file");
+    let mut br = BinaryReader::from_file(&mut f);
+    let container = caesar::CContainer::new(&mut br);
 }
