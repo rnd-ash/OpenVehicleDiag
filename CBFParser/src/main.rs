@@ -1,13 +1,13 @@
 use std::env;
 use std::fs::File;
-use std::io::BufReader;
+use common::raf::Raf;
 mod cxf;
 extern crate xml;
 mod log;
 mod caesar;
 use cxf::*;
 use xml::reader::{EventReader, XmlEvent};
-use binary_reader::{BinaryReader, Endian};
+use std::io::Read;
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);
@@ -58,6 +58,8 @@ fn print_xml(s: &String) {
 
 fn read_file(path: &String) {
     let mut f = File::open(path).expect("Cannot open input file");
-    let mut br = BinaryReader::from_file(&mut f);
+    let mut buffer = vec![0; f.metadata().unwrap().len() as usize];
+    f.read(&mut buffer).expect("Error reading file");
+    let mut br = Raf::from_bytes(&buffer, common::raf::RafByteOrder::LE);
     let container = caesar::CContainer::new(&mut br);
 }

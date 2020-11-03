@@ -1,5 +1,5 @@
 
-use binary_reader::{Endian, BinaryReader};
+use common::raf;
 use crate::caesar::CReader;
 
 pub const STUB_HEADER_SIZE: usize = 0x410;
@@ -39,12 +39,12 @@ pub struct CFFHeader {
 }
 
 impl CFFHeader {
-    pub fn new(reader: &mut BinaryReader) -> Self {
-        reader.jmp(STUB_HEADER_SIZE);
+    pub fn new(reader: &mut raf::Raf) -> Self {
+        reader.seek(STUB_HEADER_SIZE);
         let cff_header_size = reader.read_i32().expect("Error reading header size");
         let base_address = reader.pos as i64;
         let mut bitflag = reader.read_u16().expect("Error reading bitflag") as u64;
-
+        println!("Bitflag : {:08x}", bitflag);
         Self {
             caser_version: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             gpd_version: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
@@ -76,9 +76,9 @@ pub struct CTFLanguage {
 }
 
 impl CTFLanguage {
-    pub fn new(reader: &mut BinaryReader, base_addr: i64, header: &CFFHeader) -> Self {
+    pub fn new(reader: &mut raf::Raf, base_addr: i64, header: &CFFHeader) -> Self {
         
-        reader.jmp(base_addr as usize);
+        reader.seek(base_addr as usize);
         
         let mut language_entry_bitflag = reader.read_u16().expect("Failed to read language entry bitflag") as u64;
         let lang_name = CReader::read_bitflag_string(&mut language_entry_bitflag, reader, 0);
@@ -98,14 +98,14 @@ impl CTFLanguage {
         }
     }
 
-    fn load_strings(reader: &mut BinaryReader, header: &CFFHeader, str_count: usize) -> Vec<String> {
+    fn load_strings(reader: &mut raf::Raf, header: &CFFHeader, str_count: usize) -> Vec<String> {
         let str_table_offset = (header.cff_header_size + 0x410 + 4) as usize;
 
         (0..str_count)
             .map(|i| {
-                reader.jmp(str_table_offset + (i*4));
+                reader.seek(str_table_offset + (i*4));
                 let offset = reader.read_i32().expect("Error reading String offset") as usize;
-                reader.jmp(str_table_offset + offset);
+                reader.seek(str_table_offset + offset);
                 CReader::read_string(reader)
             })
             .collect()
@@ -126,9 +126,9 @@ pub struct CTFHeader {
 }
 
 impl CTFHeader {
-    pub fn new(reader: &mut BinaryReader, base_addr: i64, header: CFFHeader) -> Self {
+    pub fn new(reader: &mut raf::Raf, base_addr: i64, header: CFFHeader) -> Self {
         let base_addr = base_addr;
-        reader.jmp(base_addr as usize);
+        reader.seek(base_addr as usize);
 
         let mut bitflag = reader.read_u16().expect("Error reading CTF Bit flag") as u64;
 
@@ -144,7 +144,7 @@ impl CTFHeader {
 
         let ctf_langs = (0..ctf_lang_count as i64).map(|lang_entry| {
             let lang_table_offset_entry = ctf_lang_table_offset_relative + (lang_entry * 4);
-            reader.jmp(lang_table_offset_entry as usize);
+            reader.seek(lang_table_offset_entry as usize);
             CTFLanguage::new(reader, lang_table_offset_entry, &header)
         })
         .collect();
