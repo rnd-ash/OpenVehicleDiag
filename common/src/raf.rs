@@ -13,7 +13,7 @@ pub struct Raf {
     /// Max size of buffer
     size: usize,
     /// Current pos in buffer
-    pos: usize,
+    pub pos: usize,
     /// Byte order
     bo: RafByteOrder,
 }
@@ -93,6 +93,13 @@ impl Raf {
         }
     }
 
+    pub fn adv(&mut self, pos: usize) -> Result<()> {
+        match pos {
+            x if self.pos + x > self.size => Err(RafError::StartOutOfRange),
+            _ => Ok(self.pos += pos),
+        }
+    }
+
     /// Seeks to a position within the file prior to running [func].
     ///
     /// The position in the buffer will be subsequently set to the location
@@ -128,6 +135,22 @@ impl Raf {
         }
     }
 
+    /// Reads a C String (Ends in 0x00)
+    pub fn read_cstr(&mut self) -> Result<String> {
+        let mut bytes: Vec<u8> = Vec::new();
+        
+        let mut read = self.read_u8()?;
+        while read != 0x00 {
+            bytes.push(read);
+            read = self.read_u8()?;
+        }
+        println!("BYTES: {}", bytes.len());
+        match String::from_utf8(bytes) {
+            Err(_) => Err(RafError::StrParseError),
+            Ok(s) => Ok(s)
+        }
+    }
+
     /// Reads f32 from data at current position in buffer
     pub fn read_f32(&mut self) -> Result<f32> {
         self.read_primitive(4, LittleEndian::read_f32, BigEndian::read_f32)
@@ -154,8 +177,13 @@ impl Raf {
     }
 
     /// Reads a single byte from data at current position in buffer
-    pub fn read_byte(&mut self) -> Result<u8> {
+    pub fn read_u8(&mut self) -> Result<u8> {
         self.read_range(self.pos, 1).map(|x| x[0])
+    }
+
+    /// Reads a single byte from data at current position in buffer
+    pub fn read_i8(&mut self) -> Result<i8> {
+        self.read_range(self.pos, 1).map(|x| x[0]  as i8)
     }
 
     /// Reads [len] bytes from data at current position in buffer

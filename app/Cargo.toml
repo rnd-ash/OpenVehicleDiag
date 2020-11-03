@@ -1,0 +1,12 @@
+[package]
+name = "ovd"
+version = "0.1.0"
+authors = ["Ashcon Mohseninia <ashcon50@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type=["cdylib"]
+
+[dependencies]
+nodejs-sys = "0.2.0"
+common = {path = "../common" }
