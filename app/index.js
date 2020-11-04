@@ -1,19 +1,19 @@
- 
+
 const { app, BrowserWindow } = require('electron')
 const path = require('path');
 const url = require('url');
-var native = require('./libovd.node');
 
-function createWindow () {
+function createWindow() {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 500,
+    height: 200,
     webPreferences: {
-      nodeIntegration: true
+      nodeIntegration: true,
+      //devTools: false
     }
   })
   win.setMenuBarVisibility(false);
-  win.loadFile('index.html')
+  win.loadFile('./index.html')
   win.webContents.openDevTools()
 }
 

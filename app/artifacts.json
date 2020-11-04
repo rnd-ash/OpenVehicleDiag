@@ -1,0 +1,1 @@
+{"active":"release","targets":{"release":{"rustc":"","nodeVersion":null,"env":{"npm_config_target":"10.1.5","npm_config_arch":"x64","npm_config_target_arch":"x64","npm_config_disturl":"https://atom.io/download/electron","npm_config_runtime":"electron","npm_config_build_from_source":"true","npm_config_devdir":"/home/ashcon/.electron-gyp"}}}}

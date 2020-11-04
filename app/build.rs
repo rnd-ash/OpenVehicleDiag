@@ -1,6 +1,5 @@
+extern crate napi_build;
+
 fn main() {
-    println!("cargo:rustc-cdylib-link-arg=-undefined");
-    if cfg!(target_os = "macos") {
-        println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
-    }
+  napi_build::setup();
 }

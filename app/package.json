@@ -3,17 +3,42 @@
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpus": [
+    "i686"
+  ],
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "scripts": {
+    "start": "electron .",
+    "build": "cargo build && napi build",
+    "build-win": "rustup default stable-i686-pc-windows-msvc && cargo +stable-i686-pc-windows-msvc build && napi build",
+    "build-release": "cargo build --release && napi build --release"
+  },
+  "engines": {
+    "node": ">= 8.9"
+  },
   "devDependencies": {
-    "electron": "^10.1.5"
+    "electron": "^10.1.5",
+    "eslint": "^6.8.0",
+    "napi-rs": "latest"
   },
   "dependencies": {
-    "@material-ui/core": "^4.11.0"
+    "bootstrap": "^4.1.3",
+    "bootstrap-material-design": "^4.1.3",
+    "jquery": "^3.3.1",
+    "popper.js": "^1.14.4",
+    "eslint": "^6.8.0",
+    "@node-rs/helper": "latest"
+  },
+  "eslintConfig": {
+    "rules": {
+      "import/no-unresolved": "off"
+    }
   }
 }
