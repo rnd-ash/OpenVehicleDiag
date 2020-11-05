@@ -45,7 +45,11 @@ jobs:
       run: cd app/
     
     - name: NPM install
-      run: npm install
+      run: |
+        cd app/
+        npm install
       
     - name: Node build
-      run: npm run build-win
+      run: |
+        cd app/
+        npm run build-win
