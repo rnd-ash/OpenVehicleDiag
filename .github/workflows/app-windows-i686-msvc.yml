@@ -1,0 +1,51 @@
+name: Windows i686 App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: stable - windows-latest - i686 - node@14
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Init Macchina module
+      run: git submodule init
+      
+    - name: Setup node
+      uses: actions/setup-node@v1
+      with:
+        node-version: 14
+      
+    - name: Install LLVM
+      run: choco install -y llvm
+      
+    - name: Set llvm path
+      run: echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $GITHUB_ENV
+      shell: bash
+      
+    - name: Install
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Install i686 toolchain
+      run: rustup target add i686-pc-windows-msvc
+      
+    - name: changedir
+      run: cd app/
+    
+    - name: NPM install
+      run: npm install
+      
+    - name: Node build
+      run: npm run build-win
