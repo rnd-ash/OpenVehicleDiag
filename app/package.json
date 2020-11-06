@@ -17,7 +17,7 @@
   "scripts": {
     "start": "electron .",
     "build": "cargo build && napi build",
-    "build-win": "rustup default stable-i686-pc-windows-msvc && cargo +stable-i686-pc-windows-msvc build && napi build",
+    "build-win": "cargo build --target i686-pc-windows-msvc && napi build --target-triple i686-pc-windows-msvc",
     "build-release": "cargo build --release && napi build --release"
   },
   "engines": {

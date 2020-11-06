@@ -266,7 +266,7 @@ impl PassthruDevice {
     pub fn find_all() -> DeviceError<Vec<PassthruDevice>> {
         let reg = match RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("SOFTWARE\\WOW6432Node\\PassThruSupport.04.04") {
             Ok(r) => r,
-            Err(x) => return Err(LoadDeviceError::IoError(x))
+            Err(x) => return Err(LoadDeviceError::IoError(x.to_string()))
         };
 
         let dev_list: Vec<PassthruDevice> = reg.enum_keys()
@@ -370,14 +370,14 @@ impl PassthruDevice {
             Err(_) => return Err(LoadDeviceError::NoVendor)
         };
 
-        log::logDebug("Read_Device", format!("Found device {} by {}. Library: {}", name, vend, lib));
+        //log::logDebug("Read_Device", format!("Found device {} by {}. Library: {}", name, vend, lib));
 
         // Load library to ensure it exists
         let driver = match Library::new(lib.clone()) {
             Ok(l) => l,
             Err(x) => {
-                log::logError("Read_Device", format!("Cannot load DLL! ({:?})", x));
-                return Err(LoadDeviceError::LibLoadError(x))
+                //log::logError("Read_Device", format!("Cannot load DLL! ({:?})", x));
+                return Err(LoadDeviceError::LibLoadError(x.to_string()))
             }
         };
         // We can unload it, will re-load once OVD starts
