@@ -13,7 +13,7 @@ function createWindow() {
     }
   })
   win.setMenuBarVisibility(false);
-  win.loadFile('./index.html')
+  win.loadFile('./app/renderer/selector.html')
   win.webContents.openDevTools()
 }
 
