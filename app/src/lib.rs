@@ -38,6 +38,18 @@ pub fn get_device_list(mut ctx: CallContext) -> Result<JsUnknown> {
 }
 
 #[js_function(1)]
+pub fn get_version(mut ctx: CallContext) -> Result<JsUnknown> {
+  let idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
+  if passthru::DRIVER.read().unwrap().is_none() {
+    return ctx.env.to_js_value(&LoadErr{ err: "No driver!".to_string() });
+  }
+  Ok(match &passthru::DRIVER.write().unwrap().as_ref().unwrap().get_version(idx) {
+    Ok(v) => ctx.env.to_js_value(v)?,
+    Err(e) => ctx.env.to_js_value(&0)?,
+  })
+}
+
+#[js_function(1)]
 pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
   let v = ctx.get::<JsUnknown>(0)?;
   let deser: PassthruDevice = ctx.env.from_js_value(v)?;
@@ -63,11 +75,6 @@ pub fn get_vbatt(mut ctx: CallContext) -> Result<JsUnknown> {
     return ctx.env.to_js_value(&LoadErr{ err: "No driver!".to_string() });
   }
 
-
-  /*
-  let input_arr: *mut c_void = &mut input as *mut _ as *mut c_void;
-  let output_arr: *mut c_void = &mut output as *mut _ as *mut c_void;
-  */
   let mut voltage = 0;
 
   match &passthru::DRIVER.write().unwrap().as_ref().unwrap().ioctl(idx, IoctlID::READ_VBATT, std::ptr::null_mut::<c_void>(), (&mut voltage) as *mut _ as *mut c_void) {
@@ -83,5 +90,6 @@ fn init(module: &mut Module) -> Result<()> {
   module.create_named_method("get_device_list", get_device_list)?;
   module.create_named_method("connect_device", connect_device)?;
   module.create_named_method("get_vbatt", get_vbatt)?;
+  module.create_named_method("get_version", get_version)?;
   Ok(())
 }
