@@ -32,12 +32,15 @@
   "build": {
     "appId": "com.rndash.ovd",
     "mac": {
-      "category": "Diagnostics"
+      "category": "Diagnostics",
+      "publish": ["github"]
     },
     "win": {
-      "target": "NSIS"
+      "target": "NSIS",
+      "publish": ["github"]
     },
     "linux": {
+      "publish": ["github"],
       "target": [
         "AppImage",
         "pacman",
