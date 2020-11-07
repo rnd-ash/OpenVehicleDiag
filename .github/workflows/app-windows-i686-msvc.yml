@@ -8,6 +8,10 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+defaults:
+  run:
+    working-directory: "app"
+
 jobs:
   build:
     name: stable - windows-latest - i686 - node@14
@@ -42,11 +46,15 @@ jobs:
       run: rustup target add i686-pc-windows-msvc
     
     - name: NPM install
-      run: |
-        cd app/
-        npm install
+      run: npm install
       
-    - name: Node build
-      run: |
-        cd app/
-        npm run build-win
+    - name: Build/release Electron app
+      uses: samuelmeuli/action-electron-builder@v1
+      with:
+        # GitHub token, automatically provided to the action
+        # (No need to define this secret in the repo settings)
+        github_token: ${{ secrets.github_token }}
+        build_script_name: "build-win"
+        # If the commit is tagged with a version (e.g. "v1.0.0"),
+        # release the app after building
+        release: ${{ startsWith(github.ref, 'refs/tags/v') }}
