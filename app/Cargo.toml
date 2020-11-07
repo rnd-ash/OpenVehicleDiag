@@ -23,4 +23,4 @@ J2534Common = { path = "../MacchinaM2-J2534-Rust/J2534Common/"}
 winreg = "0.7"
 
 [build-dependencies]
-napi-build="0.2.1"
+napi-build={git="https://github.com/napi-rs/napi-rs"}

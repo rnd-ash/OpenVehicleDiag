@@ -1,6 +1,8 @@
-let passthru_lib = require(__dirname + '../../index.node');
+console.log("Test");
+let passthru_lib = require('../../index.node');
 var selected_elm = null;
-window.onload = function() {
+
+function onWindowCreated(win) {
     console.log('Current directory: ' + process.cwd());
     var dropdown = document.getElementById('select-dev');
     var launch_btn = document.getElementById('launch-btn');
@@ -23,5 +25,28 @@ window.onload = function() {
 
     launch_btn.onclick = function() {
         console.log("Launching!");
+        let idx = dropdown.selectedIndex;
+        let res = passthru_lib.connect_device(dev_list[idx]);
+        if (res.hasOwnProperty("dev_id")) { // OK! We have a device ID!
+            let dev_id = res["dev_id"];
+            const { dialog } = require('electron').remote;
+            
+            return;
+        } else { // Error in library - Display popup saying Boo boo
+            const { dialog } = require('electron').remote;
+            let err = res["err"];
+            const options = {
+                type: 'error',
+                buttons: ["OK"],
+                title: 'Adapter init failed',
+                message: 'Error: '+err,
+            };
+            dialog.showMessageBox(win, options);
+            //console.log(d);
+        }
+
+        console.log(res);
     }
 }
+
+module.exports.onWindowCreated = onWindowCreated;
