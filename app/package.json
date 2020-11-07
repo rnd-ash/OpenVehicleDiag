@@ -25,8 +25,26 @@
   },
   "devDependencies": {
     "electron": "^10.1.5",
+    "electron-builder": "latest",
     "eslint": "^6.8.0",
     "napi-rs": "latest"
+  },
+  "build": {
+    "appId": "com.rndash.ovd",
+    "mac": {
+      "category": "Diagnostics"
+    },
+    "win": {
+      "target": "NSIS"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "pacman",
+        "deb",
+        "rpm"
+      ]
+    }
   },
   "dependencies": {
     "@node-rs/helper": "latest",
