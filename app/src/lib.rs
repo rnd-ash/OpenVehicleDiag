@@ -59,12 +59,16 @@ pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
   }
 
   match PassthruDrv::load_lib(deser.drv_path) {
-    Ok (d) => passthru::DRIVER.write().unwrap().replace(d),
+    Ok (d) => { // Library load OK?
+      match d.open() { // Was the device able to be opened?
+        Ok(idx) => { // Yes - Now we keep the library in static ref and return the idx
+          DRIVER.write().unwrap().replace(d);
+          ctx.env.to_js_value(&Device{ dev_id: idx })
+        },
+        Err(_) => ctx.env.to_js_value(&LoadErr{ err: "ERR_FAILED".to_string() })
+      }
+    }
     Err(x) => return ctx.env.to_js_value(&LoadErr{ err: x.to_string() })
-  };
-  match &passthru::DRIVER.write().unwrap().as_ref().unwrap().open() {
-    Ok(idx) => ctx.env.to_js_value(&Device{ dev_id: *idx }),
-    Err(_) => ctx.env.to_js_value(&LoadErr{ err: "ERR_FAILED".to_string() })
   }
 }
 

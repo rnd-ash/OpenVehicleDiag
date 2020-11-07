@@ -2,7 +2,7 @@
   "name": "ovd",
   "version": "0.0.1",
   "description": "",
-  "main": "main.js",
+  "main": "index.js",
   "os": [
     "darwin",
     "linux",
@@ -17,7 +17,7 @@
   "scripts": {
     "start": "electron .",
     "build": "cargo build && napi build",
-    "build-win": "cargo build --target i686-pc-windows-msvc && napi build --target-triple i686-pc-windows-msvc",
+    "build-win": "cargo build --target i686-pc-windows-msvc && node -e \"require('fs').copyFileSync('target/i686-pc-windows-msvc/debug/ovd.dll', 'index.node')\"",
     "build-release": "cargo build --release && napi build --release"
   },
   "engines": {
@@ -29,12 +29,12 @@
     "napi-rs": "latest"
   },
   "dependencies": {
+    "@node-rs/helper": "latest",
     "bootstrap": "^4.1.3",
     "bootstrap-material-design": "^4.1.3",
-    "jquery": "^3.3.1",
-    "popper.js": "^1.14.4",
     "eslint": "^6.8.0",
-    "@node-rs/helper": "latest"
+    "jquery": "^3.3.1",
+    "popper.js": "^1.14.4"
   },
   "eslintConfig": {
     "rules": {
