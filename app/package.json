@@ -2,7 +2,7 @@
   "name": "ovd",
   "version": "0.0.1",
   "description": "",
-  "main": "./index.js",
+  "main": "./main.js",
   "os": [
     "darwin",
     "linux",
@@ -33,14 +33,20 @@
     "appId": "com.rndash.ovd",
     "mac": {
       "category": "Diagnostics",
-      "publish": ["github"]
+      "publish": [
+        "github"
+      ]
     },
     "win": {
       "target": "NSIS",
-      "publish": ["github"]
+      "publish": [
+        "github"
+      ]
     },
     "linux": {
-      "publish": ["github"],
+      "publish": [
+        "github"
+      ],
       "target": [
         "AppImage",
         "pacman",
@@ -66,6 +72,5 @@
     "type": "git",
     "url": "https://github.com/rnd-ash/OpenVehicleDiag.git",
     "directory": "app"
-
   }
 }

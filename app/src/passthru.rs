@@ -230,6 +230,21 @@ pub enum LoadDeviceError {
     NoDeviceFound
 }
 
+impl LoadDeviceError {
+    pub fn get_err_desc(&self) -> String {
+        match &self {
+            LoadDeviceError::NoName => "No device name attribute".to_string(),
+            LoadDeviceError::NoVendor => "No device vendor attribute".to_string(),
+            LoadDeviceError::NoFunctionLib => "No device function library attribute".to_string(),
+            LoadDeviceError::NoPermission => "No permission reading device attributes".to_string(),
+            LoadDeviceError::InvalidJSON => "Device JSON File malformed".to_string(),
+            LoadDeviceError::IoError(e) => format!("IO Error: {}", e),
+            LoadDeviceError::LibLoadError(e) => format!("Library load error: {}", e),
+            LoadDeviceError::NoDeviceFound => "No devices found on machine".to_string()
+        }
+    }
+}
+
 pub type DeviceError<T> = std::result::Result<T, LoadDeviceError>;
 
 impl PassthruDevice {

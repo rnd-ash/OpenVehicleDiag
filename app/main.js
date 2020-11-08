@@ -4,20 +4,19 @@ const path = require('path');
 const url = require('url');
 
 function createWindow() {
-  var selector = require('./app/renderer/selector.js');
-  const win = new BrowserWindow({
+  const selectorWin = new BrowserWindow({
+    resizable: false,
     width: 500,
-    height: 200,
+    height: 230,
     webPreferences: {
       nodeIntegration: true,
       enableRemoteModule: true,
       //devTools: false
     }
   })
-  win.webContents.openDevTools()
-  win.setMenuBarVisibility(false);
-  win.loadFile('./app/renderer/selector.html');
-  win.webContents.executeJavaScript(selector.onWindowCreated(win));
+  //selectorWin.webContents.openDevTools()
+  selectorWin.setMenuBarVisibility(false);
+  selectorWin.loadFile('./app/renderer/selector.html');
 }
 
 app.whenReady().then(createWindow)

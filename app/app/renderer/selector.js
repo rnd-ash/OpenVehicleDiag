@@ -1,52 +1,34 @@
-console.log("Test");
 let passthru_lib = require('../../index.node');
 var selected_elm = null;
 
-function onWindowCreated(win) {
-    console.log('Current directory: ' + process.cwd());
-    var dropdown = document.getElementById('select-dev');
-    var launch_btn = document.getElementById('launch-btn');
+var dev_list = passthru_lib.get_device_list();
 
-    var dev_list = passthru_lib.get_device_list();
-
-    if (dev_list.length == 0) {
-        dropdown.disabled = true;
-        opt.text = "No devices found";
-        dropdown.options.add(opt);
-
-        launch_btn.disabled = true;
+window.onload = function() {
+    console.log("Ready");
+    let title = document.getElementById("title");
+    let body = document.getElementById("body");
+    if (dev_list.hasOwnProperty("err")) { // Error getting device list!?
+        let text = `Native function returned error. Message: ${dev_list['err']}`;
+        title.textContent = "No Passthru Devices detected";
+        body.innerHTML += "<p class='card-text' id='msg'>$text</p>";
+        document.getElementById('msg').innerText = text;
     } else {
-        for (var i = 0; i < dev_list.length; i++) {
-            var opt = document.createElement("option");
+        title.textContent = "Select Passthru device";
+        body.innerHTML += "<select class='browser-default custom-select' id='select-dev' style='margin: 5px'>";
+        body.innerHTML += "<button type='button' class='btn btn-outline-info' id='btn' style='margin: 5px'>Launch OVD</button>";
+
+        let btn = document.getElementById("btn");
+        let dropdown = document.getElementById("select-dev");
+
+        for (let i = 0; i < dev_list.length; i++) {
+            let opt = document.createElement("option");
             opt.text = dev_list[i]["name"] + " by " + dev_list[i]["vendor"];
             dropdown.options.add(opt);
         }
-    }
-
-    launch_btn.onclick = function() {
-        console.log("Launching!");
-        let idx = dropdown.selectedIndex;
-        let res = passthru_lib.connect_device(dev_list[idx]);
-        if (res.hasOwnProperty("dev_id")) { // OK! We have a device ID!
-            let dev_id = res["dev_id"];
-            const { dialog } = require('electron').remote;
-            
-            return;
-        } else { // Error in library - Display popup saying Boo boo
-            const { dialog } = require('electron').remote;
-            let err = res["err"];
-            const options = {
-                type: 'error',
-                buttons: ["OK"],
-                title: 'Adapter init failed',
-                message: 'Error: '+err,
-            };
-            dialog.showMessageBox(win, options);
-            //console.log(d);
+        btn.onclick = function() {
+            console.log("Clicked "+dropdown.selectedIndex);
         }
-
-        console.log(res);
     }
 }
 
-module.exports.onWindowCreated = onWindowCreated;
+console.log(dev_list);

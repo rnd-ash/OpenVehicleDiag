@@ -33,7 +33,7 @@ struct Voltage {
 pub fn get_device_list(mut ctx: CallContext) -> Result<JsUnknown> {
   Ok(match passthru::PassthruDevice::find_all() {
     Ok(dev) => ctx.env.to_js_value(&dev)?,
-    Err(e) =>  ctx.env.to_js_value(&e)?,
+    Err(e) =>  ctx.env.to_js_value(&LoadErr{ err: e.get_err_desc() })?,
   })
 }
 
