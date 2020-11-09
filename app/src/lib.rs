@@ -109,6 +109,5 @@ fn test_connect() {
   let dev = &tmp[1];
   println!("{:?}", dev);
   let res = passthru::PassthruDrv::load_lib(dev.drv_path.clone()).unwrap();
-  println!("{:?}", res);
   println!("{:?}", res.open());
 }
