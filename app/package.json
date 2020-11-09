@@ -8,9 +8,6 @@
     "linux",
     "win32"
   ],
-  "cpus": [
-    "i686"
-  ],
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -21,13 +18,8 @@
     "build-release": "cargo build --release && napi build --release"
   },
   "engines": {
-    "node": ">= 8.9"
-  },
-  "devDependencies": {
-    "electron": "^10.1.5",
-    "electron-builder": "latest",
-    "eslint": "^6.8.0",
-    "napi-rs": "latest"
+    "node": ">= 14.0.0",
+    "npm": ">=6.0.0"
   },
   "build": {
     "appId": "com.rndash.ovd",
@@ -62,6 +54,11 @@
     "eslint": "^6.8.0",
     "jquery": "^3.3.1",
     "popper.js": "^1.14.4"
+  },
+  "devDependencies": {
+    "electron": "^10.1.5",
+    "electron-builder": "latest",
+    "napi-rs": "latest"
   },
   "eslintConfig": {
     "rules": {

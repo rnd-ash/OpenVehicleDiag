@@ -1,10 +1,10 @@
 let passthru_lib = require('../../index.node');
-var selected_elm = null;
+let selected_elm = null;
 
-var dev_list = passthru_lib.get_device_list();
 
 window.onload = function() {
     console.log("Ready");
+    let dev_list = passthru_lib.get_device_list();
     let title = document.getElementById("title");
     let body = document.getElementById("body");
     if (dev_list.hasOwnProperty("err")) { // Error getting device list!?
@@ -26,7 +26,9 @@ window.onload = function() {
             dropdown.options.add(opt);
         }
         btn.onclick = function() {
-            console.log("Clicked "+dropdown.selectedIndex);
+            let dev = dev_list[dropdown.selectedIndex];
+            console.log(passthru_lib.connect_device(dev));
+
         }
     }
 }

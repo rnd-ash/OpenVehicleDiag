@@ -32,7 +32,7 @@ struct Voltage {
 #[js_function]
 pub fn get_device_list(mut ctx: CallContext) -> Result<JsUnknown> {
   Ok(match passthru::PassthruDevice::find_all() {
-    Ok(dev) => ctx.env.to_js_value(&dev)?,
+    Ok(dev) => { ctx.env.to_js_value(&dev)? },
     Err(e) =>  ctx.env.to_js_value(&LoadErr{ err: e.get_err_desc() })?,
   })
 }
@@ -60,8 +60,11 @@ pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
 
   match PassthruDrv::load_lib(deser.drv_path) {
     Ok (d) => { // Library load OK?
-      match d.open() { // Was the device able to be opened?
+      let dev = d.open();
+      println!("{:?}", dev);
+      match dev { // Was the device able to be opened?
         Ok(idx) => { // Yes - Now we keep the library in static ref and return the idx
+          println!("Opened");
           DRIVER.write().unwrap().replace(d);
           ctx.env.to_js_value(&Device{ dev_id: idx })
         },
@@ -96,4 +99,16 @@ fn init(module: &mut Module) -> Result<()> {
   module.create_named_method("get_vbatt", get_vbatt)?;
   module.create_named_method("get_version", get_version)?;
   Ok(())
+}
+
+#[test]
+
+#[cfg(windows)]
+fn test_connect() {
+  let tmp = passthru::PassthruDevice::find_all().unwrap();
+  let dev = &tmp[1];
+  println!("{:?}", dev);
+  let res = passthru::PassthruDrv::load_lib(dev.drv_path.clone()).unwrap();
+  println!("{:?}", res);
+  println!("{:?}", res.open());
 }
