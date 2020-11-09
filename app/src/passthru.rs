@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use std::sync::{Arc, RwLock};
 
 lazy_static! {
-    pub static ref DRIVER: Arc<RwLock<Option<PassthruDrv>>> = Arc::new(RwLock::new(None));
+    pub static ref DRIVER: &'static Option<Device> = None;
 }
 
 #[cfg(unix)]
@@ -60,6 +60,10 @@ pub struct DrvVersion {
     pub fw_version: String
 }
 
+pub struct Device<'a> {
+    iface: &'a PassthruDrv,
+}
+
 #[derive(Debug, Clone)]
 pub struct PassthruDrv {
     /// Loaded library to interface with the device
@@ -82,8 +86,9 @@ pub struct PassthruDrv {
 
 impl PassthruDrv {
     pub fn load_lib(path: String) -> std::result::Result<PassthruDrv, libloading::Error> {
+        let lib = Library::new(path)?;
+        println!("{:?}", lib);
         unsafe {
-            let lib = Library::new(path)?;
             let open_fn = *lib.get::<PassThruOpenFn>(b"PassThruOpen\0")?.into_raw();
             let close_fn = *lib.get::<PassThruCloseFn>(b"PassThruClose\0")?.into_raw();
             let connect_fn = *lib.get::<PassThruConnectFn>(b"PassThruConnect\0")?.into_raw();
@@ -114,26 +119,28 @@ impl PassthruDrv {
                 set_prog_v_fn,
                 get_last_err_fn,
                 ioctl_fn,
-                read_version_fn
+                read_version_fn,
             })
         }
     }
+}
 
+impl<'a> Device<'a> {
     pub fn open(&self) -> Result<u32> {
-        let mut test = "Dev1".to_string();
-        let mut v = 0;
-        let mut name = unsafe { test.as_bytes_mut() };
+        let mut id : u32 = 0;
+        let name = CString::new("test").unwrap();
         let res = unsafe {
-            (&self.open_fn)(
-                name.as_mut_ptr() as *mut libc::c_void,
-                &mut v
+            (&self.iface.open_fn)(
+                name.as_ptr() as *const libc::c_void,
+                &mut id as *mut u32
             )
         };
-        if res == PassthruError::STATUS_NOERROR as u32 {
-            return Ok(v)
-        } else {
-            Err(PassthruError::ERR_TIMEOUT)
+
+        if res != 0 {
+            return Err(PassthruError::ERR_TIMEOUT);
         }
+        println!("{:?}, {}, {}", name , id, res);
+        Ok(id)
     }
 
     pub fn get_version(&self, dev_id: u32) ->  Result<DrvVersion> {
@@ -142,7 +149,7 @@ impl PassthruDrv {
         let mut dll_version: [u8; 80] = [0; 80];
         let mut api_version: [u8; 80] = [0; 80];
         let res = unsafe {
-            (&self.read_version_fn)(
+            (&self.iface.read_version_fn)(
                 dev_id,
                 firmware_version.as_mut_ptr() as *mut libc::c_char,
                 dll_version.as_mut_ptr() as *mut libc::c_char,
@@ -162,7 +169,7 @@ impl PassthruDrv {
 
     pub fn ioctl(&self, dev_id: u32, ioctl_id: IoctlID, input: *mut c_void, output: *mut c_void) -> i32 {
         unsafe {
-            (&self.ioctl_fn)(
+            (&self.iface.ioctl_fn)(
                 dev_id,
                 ioctl_id as u32,
                 input,
@@ -277,13 +284,11 @@ impl PassthruDevice {
     }
 
     #[cfg(windows)]
-    /// Finds all devices present in /usr/share/passthru/*.json
     pub fn find_all() -> DeviceError<Vec<PassthruDevice>> {
         let reg = match RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("SOFTWARE\\WOW6432Node\\PassThruSupport.04.04") {
             Ok(r) => r,
             Err(x) => return Err(LoadDeviceError::IoError(x.to_string()))
         };
-
         let dev_list: Vec<PassthruDevice> = reg.enum_keys()
             .into_iter()
             .filter_map(|e| e.ok())
@@ -324,15 +329,6 @@ impl PassthruDevice {
                     Some(s) => s,
                     None => return Err(LoadDeviceError::NoVendor)
                 };
-                // Load library to ensure it exists
-                let driver = match Library::new(lib.clone()) {
-                    Ok(l) => l,
-                    Err(x) => {
-                        return Err(LoadDeviceError::LibLoadError(x.to_string()))
-                    }
-                };
-                // We can unload it, will re-load once OVD starts
-                driver.close().unwrap();
                 Ok(PassthruDevice{
                     drv_path: String::from(lib),
                     name: String::from(name),
@@ -347,7 +343,6 @@ impl PassthruDevice {
                     sci_a_trans: PassthruDevice::read_bool(&json, "SCN_A_TRANS"),
                     sci_b_engine: PassthruDevice::read_bool(&json, "SCI_B_ENGINE"),
                     sci_b_trans: PassthruDevice::read_bool(&json, "SCI_B_TRANS"),
-                    //drv: driver
                 })
             } else {
                 return Err(LoadDeviceError::InvalidJSON)
@@ -370,6 +365,7 @@ impl PassthruDevice {
     #[cfg(windows)]
     /// Reads a device entry from windows registry and loads it into a Passthru device
     pub fn read_device(r: &RegKey) -> DeviceError<PassthruDevice> {
+        println!("Found reg {:?}", r);
         let lib: String = match r.get_value("FunctionLibrary") {
             Ok (s) => s,
             Err(_) => return Err(LoadDeviceError::NoFunctionLib)
@@ -384,19 +380,6 @@ impl PassthruDevice {
             Ok (s) => s,
             Err(_) => return Err(LoadDeviceError::NoVendor)
         };
-
-        //log::logDebug("Read_Device", format!("Found device {} by {}. Library: {}", name, vend, lib));
-
-        // Load library to ensure it exists
-        let driver = match Library::new(lib.clone()) {
-            Ok(l) => l,
-            Err(x) => {
-                //log::logError("Read_Device", format!("Cannot load DLL! ({:?})", x));
-                return Err(LoadDeviceError::LibLoadError(x.to_string()))
-            }
-        };
-        // We can unload it, will re-load once OVD starts
-        driver.close().unwrap();
 
         Ok(PassthruDevice{
             drv_path: String::from(lib),
@@ -415,4 +398,10 @@ impl PassthruDevice {
             //drv: driver
         })
     }
+}
+
+#[test]
+fn testget() {
+    use super::*;
+    println!("{:?}", PassthruDevice::find_all().unwrap());
 }
