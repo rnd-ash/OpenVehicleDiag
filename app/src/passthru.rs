@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use std::sync::{Arc, RwLock};
 
 lazy_static! {
-    pub static ref DRIVER: &'static Option<Device> = None;
+    pub static ref DRIVER: Arc<RwLock<Option<PassthruDrv>>> = Arc::new(RwLock::new(None));
 }
 
 #[cfg(unix)]
@@ -22,33 +22,33 @@ use winreg::{RegKey, RegValue};
 
 type Result<T> = std::result::Result<T, J2534Common::PassthruError>;
 
-type PassThruOpenFn = unsafe extern fn(name: *const libc::c_void, device_id: *mut u32) -> u32;
+type PassThruOpenFn = unsafe extern "C" fn(name: *const libc::c_void, device_id: *mut u32) -> u32;
 
-type PassThruCloseFn = unsafe extern fn(device_id: u32) -> i32;
+type PassThruCloseFn = unsafe extern "C" fn(device_id: u32) -> i32;
 
-type PassThruConnectFn = unsafe extern fn(device_id: u32, protocol_id: u32, flags: u32, baudrate: u32, channel_id: *mut u32) -> i32;
+type PassThruConnectFn = unsafe extern "C" fn(device_id: u32, protocol_id: u32, flags: u32, baudrate: u32, channel_id: *mut u32) -> i32;
 
-type PassThruDisconnectFn = unsafe extern fn(channel_id: u32) -> i32;
+type PassThruDisconnectFn = unsafe extern "C" fn(channel_id: u32) -> i32;
 
-type PassThruReadMsgsFn = unsafe extern fn(channel_id: u32, msgs: *mut PASSTHRU_MSG, num_msgs: *mut u32, timeout: u32) -> i32;
+type PassThruReadMsgsFn = unsafe extern "C" fn(channel_id: u32, msgs: *mut PASSTHRU_MSG, num_msgs: *mut u32, timeout: u32) -> i32;
 
-type PassThruWriteMsgsFn = unsafe extern fn(channel_id: u32, msgs: *mut PASSTHRU_MSG, num_msgs: *mut u32, timeout: u32) -> i32;
+type PassThruWriteMsgsFn = unsafe extern "C" fn(channel_id: u32, msgs: *mut PASSTHRU_MSG, num_msgs: *mut u32, timeout: u32) -> i32;
 
-type PassThruStartPeriodicMsgFn = unsafe extern fn(channel_id: u32, msg: *const PASSTHRU_MSG, msg_id: *mut u32, time_interval: u32) -> i32;
+type PassThruStartPeriodicMsgFn = unsafe extern "C" fn(channel_id: u32, msg: *const PASSTHRU_MSG, msg_id: *mut u32, time_interval: u32) -> i32;
 
-type PassThruStopPeriodicMsgFn = unsafe extern fn(channel_id: u32, msg_id: u32) -> i32;
+type PassThruStopPeriodicMsgFn = unsafe extern "C" fn(channel_id: u32, msg_id: u32) -> i32;
 
-type PassThruStartMsgFilterFn = unsafe extern fn(channel_id: u32, filter_type: u32, m_msg: *const PASSTHRU_MSG, p_msg: *const PASSTHRU_MSG, fc_msg: *const PASSTHRU_MSG, filter_id: *mut u32) -> i32;
+type PassThruStartMsgFilterFn = unsafe extern "C" fn(channel_id: u32, filter_type: u32, m_msg: *const PASSTHRU_MSG, p_msg: *const PASSTHRU_MSG, fc_msg: *const PASSTHRU_MSG, filter_id: *mut u32) -> i32;
 
-type PassThruStopMsgFilterFn = unsafe extern fn(channel_id: u32, filter_id: u32) -> i32;
+type PassThruStopMsgFilterFn = unsafe extern "C" fn(channel_id: u32, filter_id: u32) -> i32;
 
-type PassThruSetProgrammingVoltageFn = unsafe extern fn(device_id: u32, pin_number: u32, voltage: u32) -> i32;
+type PassThruSetProgrammingVoltageFn = unsafe extern "C" fn(device_id: u32, pin_number: u32, voltage: u32) -> i32;
 
-type PassThruReadVersionFn = unsafe extern fn(device_id: u32, firmware_version: *mut libc::c_char, dll_version: *mut libc::c_char, api_version: *mut libc::c_char) -> i32;
+type PassThruReadVersionFn = unsafe extern "C" fn(device_id: u32, firmware_version: *mut libc::c_char, dll_version: *mut libc::c_char, api_version: *mut libc::c_char) -> i32;
 
-type PassThruGetLastErrorFn = unsafe extern fn(error_description: *mut libc::c_char) -> i32;
+type PassThruGetLastErrorFn = unsafe extern "C" fn(error_description: *mut libc::c_char) -> i32;
 
-type PassThruIoctlFn = unsafe extern fn(handle_id: u32, ioctl_id: u32, input: *mut libc::c_void, output: *mut libc::c_void) -> i32;
+type PassThruIoctlFn = unsafe extern "C" fn(handle_id: u32, ioctl_id: u32, input: *mut libc::c_void, output: *mut libc::c_void) -> i32;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DrvVersion {
@@ -58,10 +58,6 @@ pub struct DrvVersion {
     pub api_version: String,
     /// Device Firmware version
     pub fw_version: String
-}
-
-pub struct Device<'a> {
-    iface: &'a PassthruDrv,
 }
 
 #[derive(Debug, Clone)]
@@ -125,12 +121,12 @@ impl PassthruDrv {
     }
 }
 
-impl<'a> Device<'a> {
+impl PassthruDrv {
     pub fn open(&self) -> Result<u32> {
         let mut id : u32 = 0;
         let name = CString::new("test").unwrap();
         let res = unsafe {
-            (&self.iface.open_fn)(
+            (&self.open_fn)(
                 name.as_ptr() as *const libc::c_void,
                 &mut id as *mut u32
             )
@@ -149,7 +145,7 @@ impl<'a> Device<'a> {
         let mut dll_version: [u8; 80] = [0; 80];
         let mut api_version: [u8; 80] = [0; 80];
         let res = unsafe {
-            (&self.iface.read_version_fn)(
+            (&self.read_version_fn)(
                 dev_id,
                 firmware_version.as_mut_ptr() as *mut libc::c_char,
                 dll_version.as_mut_ptr() as *mut libc::c_char,
@@ -169,7 +165,7 @@ impl<'a> Device<'a> {
 
     pub fn ioctl(&self, dev_id: u32, ioctl_id: IoctlID, input: *mut c_void, output: *mut c_void) -> i32 {
         unsafe {
-            (&self.iface.ioctl_fn)(
+            (&self.ioctl_fn)(
                 dev_id,
                 ioctl_id as u32,
                 input,
