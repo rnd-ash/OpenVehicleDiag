@@ -1,5 +1,5 @@
 # OpenVehicleDiag
-A Rust based open source vehicle ECU diagnostic platform, using the J2534-2 protocol
+A Electron open source vehicle ECU diagnostic platform, using the J2534-2 protocol, with a Rust native backend.
 
 This is for my University FYP for my degree at the University of Reading
 
@@ -22,7 +22,7 @@ This is for my University FYP for my degree at the University of Reading
 - [ ] User guide on how to write a custom parser for an OEM's Database file
 - [ ] Reverse engineering note on MB CBF
 ### Diagnostic application
-- [ ] J2534-2 API
+- [-] J2534-2 API
 - [ ] Packet tracing support
 - [ ] Support K-Line 
 - [ ] Support CAN
@@ -30,13 +30,13 @@ This is for my University FYP for my degree at the University of Reading
 - [ ] Realtime performance data viewer for certain views
 - [ ] DTC View and clearer
 ### Macchina J2534 driver
-- [ ] Support J2534-2 API Passthru functions
+- [-] Support J2534-2 API Passthru functions
 - [ ] packet Logger
 - [ ] ISO9141
 - [ ] ISO14230 (KWP2000)
 - [ ] J1850
-- [ ] CAN 
-- [ ] ISO15765
+- [-] CAN 
+- [-] ISO15765
 - [ ] ~~SAE J2610~~
 - [ ] ~~J1939~~
 
@@ -46,6 +46,10 @@ This is for my University FYP for my degree at the University of Reading
 **Run `git submodule init` on first clone!**
 
 ## Repository structure
+
+### App
+Directory of the OVD app
+
 ### CBFParser
 Parses Mercedes CBF Files into JSON
 
