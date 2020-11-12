@@ -1,10 +1,14 @@
 
 const { app, BrowserWindow } = require('electron')
+const passthru_commander = require('./app/passthru')
 const path = require('path');
 const url = require('url');
 
-function createWindow() {
-  const selectorWin = new BrowserWindow({
+const passthru_lib = require('./index.node');
+
+let mainWin = null;
+function createSelectorWindow() {
+  mainWin = new BrowserWindow({
     //resizable: false,
     width: 500,
     height: 250,
@@ -15,16 +19,12 @@ function createWindow() {
     }
   })
 
-  selectorWin.webContents.on('crashed', () => {
-    selectorWin.destroy();
-    createWindow();
-  });
-  selectorWin.webContents.openDevTools();
-  selectorWin.setMenuBarVisibility(false);
-  selectorWin.loadFile('./app/renderer/selector.html');
+  mainWin.webContents.openDevTools();
+  mainWin.setMenuBarVisibility(false);
+  mainWin.loadFile('./app/renderer/selector.html');
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(createSelectorWindow);
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -34,6 +34,10 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
+    createSelectorWindow()
   }
 })
+
+app.on('open', () => {
+  createMainWin();
+});
