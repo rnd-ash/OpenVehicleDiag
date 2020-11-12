@@ -1,10 +1,10 @@
-let passthru_lib = require('../../index.node');
-let selected_elm = null;
-
+const { ipcRenderer } = require('electron')
+let consts = require('./../ptconsts');
 
 window.onload = function() {
     console.log("Ready");
-    let dev_list = passthru_lib.get_device_list();
+
+    let dev_list = ipcRenderer.sendSync(consts.PT_GET_DEV_LIST);
     let title = document.getElementById("title");
     let body = document.getElementById("body");
     if (dev_list.hasOwnProperty("err")) { // Error getting device list!?
@@ -26,9 +26,18 @@ window.onload = function() {
             dropdown.options.add(opt);
         }
         btn.onclick = function() {
+            console.log("Loading");
+            if (document.getElementById('err') != null) {
+                document.getElementById('err').remove();
+            }
             let dev = dev_list[dropdown.selectedIndex];
-            console.log(passthru_lib.connect_device(dev));
-
+            let res = ipcRenderer.sendSync(consts.PT_CONNECT, dev);
+            if (res["dev_id"] != null) {
+                console.log("opened!");
+            } else {
+                body.innerHTML += `<div class='alert alert-danger' role='alert' style='margin: 5px' id='err'>Device load failed. Error: ${res["err"]}</div>`;
+            }
+            console.log("Bye");
         }
     }
 }

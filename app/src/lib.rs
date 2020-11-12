@@ -60,9 +60,7 @@ pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
 
   match PassthruDrv::load_lib(deser.drv_path) {
     Ok (d) => { // Library load OK?
-      let dev = d.open();
-      println!("{:?}", dev);
-      match dev { // Was the device able to be opened?
+      match d.open() { // Was the device able to be opened?
         Ok(idx) => { // Yes - Now we keep the library in static ref and return the idx
           println!("Opened");
           DRIVER.write().unwrap().replace(d);
