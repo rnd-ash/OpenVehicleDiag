@@ -16,28 +16,27 @@ window.onload = function() {
         title.textContent = "Select Passthru device";
         body.innerHTML += "<select class='browser-default custom-select' id='select-dev' style='margin: 5px'>";
         body.innerHTML += "<button type='button' class='btn btn-outline-info' id='btn' style='margin: 5px'>Launch OVD</button>";
+        body.innerHTML += `<div class='alert alert-danger' role='alert' style='margin: 5px' id='error_txt'></div>`;
 
+        let err = document.getElementById('error_txt');
         let btn = document.getElementById("btn");
         let dropdown = document.getElementById("select-dev");
 
+        err.style.display = "none"; // Hide error msg
         for (let i = 0; i < dev_list.length; i++) {
             let opt = document.createElement("option");
             opt.text = dev_list[i]["name"] + " by " + dev_list[i]["vendor"];
             dropdown.options.add(opt);
         }
         btn.onclick = function() {
-            console.log("Loading");
-            if (document.getElementById('err') != null) {
-                document.getElementById('err').remove();
-            }
             let dev = dev_list[dropdown.selectedIndex];
             let res = ipcRenderer.sendSync(consts.PT_CONNECT, dev);
             if (res["dev_id"] != null) {
-                console.log("opened!");
+                ipcRenderer.send('newWindow', "./app/renderer/main.html", 1280, 720);
             } else {
-                body.innerHTML += `<div class='alert alert-danger' role='alert' style='margin: 5px' id='err'>Device load failed. Error: ${res["err"]}</div>`;
+                err.style.display = "block"; // Show error msg
+                err.innerText = `Library err: ${res['err']}`; // Set error to what was returned by API
             }
-            console.log("Bye");
         }
     }
 }

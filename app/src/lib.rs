@@ -13,6 +13,7 @@ use std::convert::{TryInto, TryFrom};
 use J2534Common::*;
 mod passthru;
 use passthru::*;
+use J2534Common::PassthruError::ERR_FAILED;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct LoadErr {
@@ -62,11 +63,20 @@ pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
     Ok (d) => { // Library load OK?
       match d.open() { // Was the device able to be opened?
         Ok(idx) => { // Yes - Now we keep the library in static ref and return the idx
-          println!("Opened");
           DRIVER.write().unwrap().replace(d);
           ctx.env.to_js_value(&Device{ dev_id: idx })
         },
-        Err(_) => ctx.env.to_js_value(&LoadErr{ err: "ERR_FAILED".to_string() })
+        Err(e) => {
+          if e == ERR_FAILED { // Try to get last error
+            let err_str = d.get_last_error();
+            match err_str {
+              Ok(str) => ctx.env.to_js_value(&LoadErr { err: format!("Operation failed. '{}'", str) }),
+              Err(_) => ctx.env.to_js_value(&LoadErr { err: "Unknown error".to_string() })
+            }
+          } else {
+            ctx.env.to_js_value(&LoadErr { err: e.to_string().to_string() })
+          }
+        }
       }
     }
     Err(x) => return ctx.env.to_js_value(&LoadErr{ err: x.to_string() })
