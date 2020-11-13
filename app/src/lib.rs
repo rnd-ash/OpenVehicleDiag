@@ -16,7 +16,7 @@ use passthru::*;
 use J2534Common::PassthruError::ERR_FAILED;
 
 #[derive(Debug, Serialize, Deserialize)]
-struct LoadErr {
+struct LibError {
   err: String
 }
 
@@ -34,7 +34,7 @@ struct Voltage {
 pub fn get_device_list(mut ctx: CallContext) -> Result<JsUnknown> {
   Ok(match passthru::PassthruDevice::find_all() {
     Ok(dev) => { ctx.env.to_js_value(&dev)? },
-    Err(e) =>  ctx.env.to_js_value(&LoadErr{ err: e.get_err_desc() })?,
+    Err(e) =>  ctx.env.to_js_value(&LibError{ err: e.get_err_desc() })?,
   })
 }
 
@@ -42,7 +42,7 @@ pub fn get_device_list(mut ctx: CallContext) -> Result<JsUnknown> {
 pub fn get_version(mut ctx: CallContext) -> Result<JsUnknown> {
   let idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
   if passthru::DRIVER.read().unwrap().is_none() {
-    return ctx.env.to_js_value(&LoadErr{ err: "No driver!".to_string() });
+    return ctx.env.to_js_value(&LibError{ err: "No driver!".to_string() });
   }
   Ok(match &passthru::DRIVER.write().unwrap().as_ref().unwrap().get_version(idx) {
     Ok(v) => ctx.env.to_js_value(v)?,
@@ -56,7 +56,7 @@ pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
   let deser: PassthruDevice = ctx.env.from_js_value(v)?;
 
   if passthru::DRIVER.read().unwrap().is_some() {
-    return ctx.env.to_js_value(&LoadErr{ err: "Driver in use!".to_string() });
+    return ctx.env.to_js_value(&LibError{ err: "Driver in use!".to_string() });
   }
 
   match PassthruDrv::load_lib(deser.drv_path) {
@@ -70,16 +70,16 @@ pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
           if e == ERR_FAILED { // Try to get last error
             let err_str = d.get_last_error();
             match err_str {
-              Ok(str) => ctx.env.to_js_value(&LoadErr { err: format!("Operation failed. '{}'", str) }),
-              Err(_) => ctx.env.to_js_value(&LoadErr { err: "Unknown error".to_string() })
+              Ok(str) => ctx.env.to_js_value(&LibError { err: format!("Operation failed. '{}'", str) }),
+              Err(_) => ctx.env.to_js_value(&LibError { err: "Unknown error".to_string() }) // ERR_FAILED but no string??
             }
           } else {
-            ctx.env.to_js_value(&LoadErr { err: e.to_string().to_string() })
+            ctx.env.to_js_value(&LibError { err: e.to_string().to_string() })
           }
         }
       }
     }
-    Err(x) => return ctx.env.to_js_value(&LoadErr{ err: x.to_string() })
+    Err(x) => return ctx.env.to_js_value(&LibError{ err: x.to_string() })
   }
 }
 
@@ -87,14 +87,14 @@ pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
 pub fn get_vbatt(mut ctx: CallContext) -> Result<JsUnknown> {
   let idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
   if passthru::DRIVER.read().unwrap().is_none() {
-    return ctx.env.to_js_value(&LoadErr{ err: "No driver!".to_string() });
+    return ctx.env.to_js_value(&LibError{ err: "No driver loaded!".to_string() });
   }
 
   let mut voltage = 0;
 
   match &passthru::DRIVER.write().unwrap().as_ref().unwrap().ioctl(idx, IoctlID::READ_VBATT, std::ptr::null_mut::<c_void>(), (&mut voltage) as *mut _ as *mut c_void) {
     0x00 => ctx.env.to_js_value(&Voltage{mv: voltage}),
-    n => ctx.env.to_js_value(&LoadErr{ err: format!("Error code {}!", n) })
+    n => ctx.env.to_js_value(&LibError{ err: n.to_string() })
   }
 }
 
