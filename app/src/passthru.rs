@@ -19,6 +19,7 @@ use winreg::enums::*;
 
 #[cfg(windows)]
 use winreg::{RegKey, RegValue};
+use J2534Common::PassthruError::ERR_FAILED;
 
 type Result<T> = std::result::Result<T, J2534Common::PassthruError>;
 
@@ -140,13 +141,26 @@ impl PassthruDrv {
             )
         };
         if res == PassthruError::STATUS_NOERROR as i32 {
-            return Ok(DrvVersion {
+            Ok(DrvVersion {
                 dll_version: String::from_utf8(dll_version.to_vec()).unwrap(),
                 api_version: String::from_utf8(api_version.to_vec()).unwrap(),
                 fw_version: String::from_utf8(firmware_version.to_vec()).unwrap()
             })
         } else {
             Err(PassthruError::ERR_TIMEOUT)
+        }
+    }
+
+    pub fn get_last_error(&self) -> Result<String> {
+        println!("PT -> CALLING GET_LAST_ERROR");
+        let mut err: [u8; 80] = [0; 80];
+        let res = unsafe {
+            (&self.get_last_err_fn)(err.as_mut_ptr() as *mut libc::c_char)
+        };
+        if res == PassthruError::STATUS_NOERROR as i32 {
+            Ok(String::from_utf8(err.to_vec()).unwrap())
+        } else {
+            Err(PassthruError::ERR_FAILED)
         }
     }
 

@@ -13,7 +13,7 @@
   "license": "ISC",
   "scripts": {
     "start": "electron .",
-    "build": "cargo build && napi build",
+    "build": "cargo build --release && napi build",
     "build-win": "cargo build --target i686-pc-windows-msvc && node -e \"require('fs').copyFileSync('target/i686-pc-windows-msvc/debug/ovd.dll', 'index.node')\"",
     "build-release": "cargo build --release && napi build --release"
   },
