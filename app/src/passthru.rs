@@ -407,7 +407,7 @@ impl PassthruDevice {
     #[cfg(unix)]
     /// Finds all devices present in /usr/share/passthru/*.jsonS
     pub fn find_all() -> DeviceError<Vec<PassthruDevice>> {
-        return match std::fs::read_dir("~/.passthru") {
+        return match std::fs::read_dir(shellexpand::tilde("~/.passthru").to_string()) {
             Ok(list) => {
                 // Read Dir into vector of files
                 let dev_list: Vec<PassthruDevice> = list.into_iter()
@@ -466,7 +466,7 @@ impl PassthruDevice {
         return if let Ok(s) = std::fs::read_to_string(&p) {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(s.as_str()) {
                 let lib = match json["FUNCTION_LIB"].as_str() {
-                    Some(s) => s,
+                    Some(s) => shellexpand::tilde(s),
                     None => return Err(LoadDeviceError::NoFunctionLib)
                 };
                 let name = match json["NAME"].as_str() {
