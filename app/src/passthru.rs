@@ -407,7 +407,7 @@ impl PassthruDevice {
     #[cfg(unix)]
     /// Finds all devices present in /usr/share/passthru/*.jsonS
     pub fn find_all() -> DeviceError<Vec<PassthruDevice>> {
-        return match std::fs::read_dir("/usr/share/passthru") {
+        return match std::fs::read_dir("~/.passthru") {
             Ok(list) => {
                 // Read Dir into vector of files
                 let dev_list: Vec<PassthruDevice> = list.into_iter()
