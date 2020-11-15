@@ -10,15 +10,27 @@
 
     <!-- Material Design for Bootstrap CSS -->
     <link rel="stylesheet" href="https://unpkg.com/bootstrap-material-design@4.1.1/dist/css/bootstrap-material-design.min.css" integrity="sha384-wXznGJNEXNG1NFsbm0ugrLFMQPWswR3lds2VeinahP8N0zJw9VWSopbjv2x7WCvX" crossorigin="anonymous">
-    <!--script src="./selector.js"></script-->
-    <title>Open Vehicle Diag</title>
+
+    <title>Open vehicle diagnostics</title>
 </head>
 <body>
-<div class = "card" style="margin: 5px">
-    <h1 class = "card-header" id="title">Battery voltage: Unknown</h1>
-    <div class="card-body" id="body">
 
-    </div>
+<!-- Top bar -->
+<nav class = "navbar navbar-dark bg-dark">
+    <ul class="nav navbar-nav">
+        <button class="btn btn-outline-success" id="load_ecu">Load ECU</button>
+    </ul>
+    <ul class="nav justify-content-center">
+        <a class="text-white">Not connected</a>
+    </ul>
+    <ul class="nav justify-content-end">
+        <a class="text-white" id="title"></a>
+    </ul>
+</nav>
+
+<!-- Main content -->
+<div class="d-flex justify-content-center align-items-center">
+    <h1 class="text-primary">Open ECU Json to start session</h1>
 </div>
 
 <!-- Optional JavaScript -->

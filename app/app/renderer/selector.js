@@ -40,5 +40,3 @@ window.onload = function() {
         }
     }
 }
-
-console.log(dev_list);

@@ -3,7 +3,7 @@ extern crate napi;
 #[macro_use]
 extern crate napi_derive;
 
-use napi::{CallContext, Result, JsString, Status, Error, JsUnknown, JsFunction, JsUndefined, Module, JsNumber};
+use napi::{CallContext, Result, JsString, Status, Error, JsUnknown, JsFunction, JsUndefined, Module, JsNumber, JsNull};
 
 use serde_json;
 use serde::*;
@@ -14,6 +14,7 @@ use J2534Common::*;
 mod passthru;
 use passthru::*;
 use J2534Common::PassthruError::ERR_FAILED;
+use crate::passthru::LoadDeviceError::LibLoadError;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct LibError {
@@ -24,6 +25,9 @@ struct LibError {
 struct Device {
   dev_id: u32
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Ok{}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Voltage {
@@ -37,6 +41,23 @@ pub fn get_device_list(mut ctx: CallContext) -> Result<JsUnknown> {
     Err(e) =>  ctx.env.to_js_value(&LibError{ err: e.get_err_desc() })?,
   })
 }
+
+//type PassThruOpenFn = unsafe extern "stdcall" fn(name: *const libc::c_void, device_id: *mut u32) -> i32;
+//type PassThruCloseFn = unsafe extern "stdcall" fn(device_id: u32) -> i32;
+//type PassThruConnectFn = unsafe extern "stdcall" fn(device_id: u32, protocol_id: u32, flags: u32, baudrate: u32, channel_id: *mut u32) -> i32;
+//type PassThruDisconnectFn = unsafe extern "stdcall" fn(channel_id: u32) -> i32;
+//type PassThruReadMsgsFn = unsafe extern "stdcall" fn(channel_id: u32, msgs: *mut PASSTHRU_MSG, num_msgs: *mut u32, timeout: u32) -> i32;
+//type PassThruWriteMsgsFn = unsafe extern "stdcall" fn(channel_id: u32, msgs: *mut PASSTHRU_MSG, num_msgs: *mut u32, timeout: u32) -> i32;
+//type PassThruStartPeriodicMsgFn = unsafe extern "stdcall" fn(channel_id: u32, msg: *const PASSTHRU_MSG, msg_id: *mut u32, time_interval: u32) -> i32;
+//type PassThruStopPeriodicMsgFn = unsafe extern "stdcall" fn(channel_id: u32, msg_id: u32) -> i32;
+//type PassThruStartMsgFilterFn = unsafe extern "stdcall" fn(channel_id: u32, filter_type: u32, m_msg: *const PASSTHRU_MSG, p_msg: *const PASSTHRU_MSG, fc_msg: *const PASSTHRU_MSG, filter_id: *mut u32) -> i32;
+//type PassThruStopMsgFilterFn = unsafe extern "stdcall" fn(channel_id: u32, filter_id: u32) -> i32;
+//type PassThruSetProgrammingVoltageFn = unsafe extern "stdcall" fn(device_id: u32, pin_number: u32, voltage: u32) -> i32;
+//type PassThruReadVersionFn = unsafe extern "stdcall" fn(device_id: u32, firmware_version: *mut libc::c_char, dll_version: *mut libc::c_char, api_version: *mut libc::c_char) -> i32;
+//type PassThruGetLastErrorFn = unsafe extern "stdcall" fn(error_description: *mut libc::c_char) -> i32;
+//type PassThruIoctlFn = unsafe extern "stdcall" fn(handle_id: u32, ioctl_id: u32, input: *mut libc::c_void, output: *mut libc::c_void) -> i32;
+
+
 
 #[js_function(1)]
 pub fn get_version(mut ctx: CallContext) -> Result<JsUnknown> {
@@ -83,6 +104,24 @@ pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
   }
 }
 
+#[js_function{1}]
+pub fn close(mut ctx: CallContext) -> Result<JsUnknown> {
+  let idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
+  if passthru::DRIVER.read().unwrap().is_none() {
+    return ctx.env.to_js_value(&LibError{ err: format!("No library loaded") });
+  }
+  let res = passthru::DRIVER.write().unwrap().as_ref().unwrap().close(idx);
+  match res {
+    Ok(_) => {
+      passthru::DRIVER.write().unwrap().take();
+      ctx.env.to_js_value(&Ok {})
+    },
+    Err(e) => {
+      ctx.env.to_js_value(&LibError { err: e.to_string().to_string() })
+    }
+  }
+}
+
 #[js_function(1)]
 pub fn get_vbatt(mut ctx: CallContext) -> Result<JsUnknown> {
   let idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
@@ -93,8 +132,8 @@ pub fn get_vbatt(mut ctx: CallContext) -> Result<JsUnknown> {
   let mut voltage = 0;
 
   match &passthru::DRIVER.write().unwrap().as_ref().unwrap().ioctl(idx, IoctlID::READ_VBATT, std::ptr::null_mut::<c_void>(), (&mut voltage) as *mut _ as *mut c_void) {
-    0x00 => ctx.env.to_js_value(&Voltage{mv: voltage}),
-    n => ctx.env.to_js_value(&LibError{ err: n.to_string() })
+    Ok(_) => ctx.env.to_js_value(&Voltage{mv: voltage}),
+    Err(e) => ctx.env.to_js_value(&LibError{ err: e.to_string().to_string() })
   }
 }
 
@@ -106,6 +145,7 @@ fn init(module: &mut Module) -> Result<()> {
   module.create_named_method("connect_device", connect_device)?;
   module.create_named_method("get_vbatt", get_vbatt)?;
   module.create_named_method("get_version", get_version)?;
+  module.create_named_method("close", close)?;
   Ok(())
 }
 
