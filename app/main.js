@@ -1,10 +1,10 @@
 const ipc = require('electron').ipcMain;
 const { app, BrowserWindow } = require('electron')
-const passthru_commander = require('./app/passthru')
 const path = require('path');
 const url = require('url');
-
-const passthru_lib = require('./index.node');
+let consts = require('./app/ptconsts');
+let passthru = require('./app/passthru');
+let fs = require('./app/fs');
 
 let win = null;
 function createWindow() {
@@ -34,16 +34,26 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createSelectorWindow()
+    createWindow()
   }
 })
 
 app.on('open', () => {
-  createMainWin();
+  createWindow();
 });
 
 ipc.on('newWindow', (event, file, width, height) => {
   win.setSize(width, height);
   win.center();
   win.loadFile(file);
+});
+
+ipc.on("f_open",(event) => {
+  console.log("Opening file chooser");
+  const {dialog} = require('electron');
+  const file = dialog.showOpenDialog(win, {
+    properties: ['openFile'],
+    filters: [{ name: 'OVD ECU Json', extensions: ['ovdjson'] }]
+  });
+  console.log(file);
 });

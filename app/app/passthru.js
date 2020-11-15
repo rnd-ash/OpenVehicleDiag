@@ -39,12 +39,12 @@ ipc.on(consts.PT_GET_VBATT, (event) => {
    event.reply(consts.PT_GET_VBATT, log_res(passthru_lib.get_vbatt(dev_id)));
 });
 
-ipc.on(consts.PT_CLOSE, (event, dev_id) => {
+ipc.on(consts.PT_CLOSE, (event) => {
     log(`Closing device ${dev_id}`);
     if (dev_lock) { // No DON'T close the connection - Something is being written or read!
         event.returnValue = {"err": "Device in operation"};
     } else {
-        event.returnValue = {"err": "TODO"};
+        event.returnValue = log_res(passthru_lib.close(dev_id));
     }
 });
 

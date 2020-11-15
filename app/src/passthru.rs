@@ -22,6 +22,7 @@ use winreg::{RegKey, RegValue};
 use J2534Common::PassthruError::ERR_FAILED;
 use J2534Common::FilterType::FLOW_CONTROL_FILTER;
 
+/// Result which contains a PASSTHRU_ERROR in it's Err() variant
 type Result<T> = std::result::Result<T, J2534Common::PassthruError>;
 
 type PassThruOpenFn = unsafe extern "stdcall" fn(name: *const libc::c_void, device_id: *mut u32) -> i32;
@@ -53,20 +54,43 @@ pub struct DrvVersion {
 pub struct PassthruDrv {
     /// Loaded library to interface with the device
     lib: Arc<libloading::Library>,
+    /// Open device connection
     open_fn: PassThruOpenFn,
+    /// Close device connection
     close_fn: PassThruCloseFn,
+    /// Connect a communication channel
     connect_fn: PassThruConnectFn,
+    /// Disconnect a communication channel
     disconnect_fn: PassThruDisconnectFn,
+    /// Read messages from a communication channel
     read_msg_fn: PassThruReadMsgsFn,
+    /// Write messages to a communication channel
     write_msg_fn: PassThruWriteMsgsFn,
+    /// Start a periodic message
     start_periodic_fn: PassThruStartPeriodicMsgFn,
+    /// Stop a periodic message
     stop_periodic_fn: PassThruStopPeriodicMsgFn,
+    /// Start a filter on a channel
     start_filter_fn: PassThruStartMsgFilterFn,
+    /// Stop a filter on a channel
     stop_filter_fn: PassThruStopMsgFilterFn,
+    /// Set programming voltage
     set_prog_v_fn: PassThruSetProgrammingVoltageFn,
+    /// Get the last driver error description if ERR_FAILED
     get_last_err_fn: PassThruGetLastErrorFn,
+    /// IOCTL
     ioctl_fn: PassThruIoctlFn,
+    /// Get driver details
     read_version_fn: PassThruReadVersionFn,
+}
+
+#[inline(always)]
+/// Function to reduce boilerplate code with returning a Result
+fn ret_res<T>(res: i32, ret: T) -> Result<T> {
+    match res {
+        0 => Ok(ret),
+        _ => Err(PassthruError::from_raw(res as u32).unwrap())
+    }
 }
 
 impl PassthruDrv {
@@ -108,9 +132,7 @@ impl PassthruDrv {
             })
         }
     }
-}
 
-impl PassthruDrv {
     //type PassThruOpenFn = unsafe extern "stdcall" fn(name: *const libc::c_void, device_id: *mut u32) -> i32;
     pub fn open(&self) -> Result<u32> {
         let mut id : u32 = 0;
@@ -121,12 +143,7 @@ impl PassthruDrv {
                 &mut id as *mut u32
             )
         };
-
-        if res != 0 {
-            return Err(PassthruError::ERR_TIMEOUT);
-        }
-        println!("{:?}, {}, {}", name , id, res);
-        Ok(id)
+        ret_res(res, id)
     }
 
     //type PassThruCloseFn = unsafe extern "stdcall" fn(device_id: u32) -> i32;
@@ -134,10 +151,7 @@ impl PassthruDrv {
         let res = unsafe {
             (&self.close_fn)(dev_id)
         };
-        match res {
-            0 => Ok(()),
-            _ => Err(PassthruError::from_raw(res as u32).unwrap())
-        }
+        ret_res(res, ())
     }
 
     // type PassThruWriteMsgsFn = unsafe extern "stdcall" fn(channel_id: u32, msgs: *mut PASSTHRU_MSG, num_msgs: *mut u32, timeout: u32) -> i32;
@@ -155,10 +169,7 @@ impl PassthruDrv {
                 timeout
             )
         };
-        match res {
-            0 => Ok(msg_count as usize),
-            _ => Err(PassthruError::from_raw(res as u32).unwrap())
-        }
+        ret_res(res, msg_count as usize)
     }
 
     //type PassThruReadMsgsFn = unsafe extern "stdcall" fn(channel_id: u32, msgs: *mut PASSTHRU_MSG, num_msgs: *mut u32, timeout: u32) -> i32;
@@ -188,10 +199,7 @@ impl PassthruDrv {
         if msg_count != max_msgs { // Trim the output vector to size
             write_array.truncate(msg_count as usize);
         }
-        match res {
-            0 => Ok(write_array),
-            _ => Err(PassthruError::from_raw(res as u32).unwrap())
-        }
+        ret_res(res, write_array)
     }
 
     //type PassThruReadVersionFn = unsafe extern "stdcall" fn(device_id: u32, firmware_version: *mut libc::c_char, dll_version: *mut libc::c_char, api_version: *mut libc::c_char) -> i32;
@@ -208,15 +216,11 @@ impl PassthruDrv {
                 api_version.as_mut_ptr() as *mut libc::c_char,
             )
         };
-        if res == PassthruError::STATUS_NOERROR as i32 {
-            Ok(DrvVersion {
-                dll_version: String::from_utf8(dll_version.to_vec()).unwrap(),
-                api_version: String::from_utf8(api_version.to_vec()).unwrap(),
-                fw_version: String::from_utf8(firmware_version.to_vec()).unwrap()
-            })
-        } else {
-            Err(PassthruError::ERR_TIMEOUT)
-        }
+        ret_res(res, DrvVersion{
+            dll_version: String::from_utf8(dll_version.to_vec()).unwrap(),
+            api_version: String::from_utf8(api_version.to_vec()).unwrap(),
+            fw_version: String::from_utf8(firmware_version.to_vec()).unwrap()
+        })
     }
 
     //type PassThruGetLastErrorFn = unsafe extern "stdcall" fn(error_description: *mut libc::c_char) -> i32;
@@ -226,30 +230,26 @@ impl PassthruDrv {
         let res = unsafe {
             (&self.get_last_err_fn)(err.as_mut_ptr() as *mut libc::c_char)
         };
-        if res == PassthruError::STATUS_NOERROR as i32 {
-            Ok(String::from_utf8(err.to_vec()).unwrap())
-        } else {
-            Err(PassthruError::ERR_FAILED)
-        }
+        ret_res(res, String::from_utf8(err.to_vec()).unwrap())
     }
 
     //type PassThruIoctlFn = unsafe extern "stdcall" fn(handle_id: u32, ioctl_id: u32, input: *mut libc::c_void, output: *mut libc::c_void) -> i32;
-    pub fn ioctl(&self, dev_id: u32, ioctl_id: IoctlID, input: *mut c_void, output: *mut c_void) -> i32 {
-        unsafe {
+    pub fn ioctl(&self, dev_id: u32, ioctl_id: IoctlID, input: *mut c_void, output: *mut c_void) -> Result<()> {
+        let res = unsafe {
             (&self.ioctl_fn)(
                 dev_id,
                 ioctl_id as u32,
                 input,
                 output
             )
-        }
+        };
+        ret_res(res, ())
     }
 
     //type PassThruConnectFn = unsafe extern "stdcall" fn(device_id: u32, protocol_id: u32, flags: u32, baudrate: u32, channel_id: *mut u32) -> i32;
     /// Returns channel ID
     pub fn connect(&self, dev_id: u32, protocol: Protocol, flags: ConnectFlags, baud: u32) -> Result<u32> {
         let mut channel_id: u32 = 0;
-
         let res = unsafe {
             (&self.connect_fn)(
                 dev_id,
@@ -259,20 +259,12 @@ impl PassthruDrv {
                 &mut channel_id as *mut u32
             )
         };
-
-        match res {
-            0 => Ok(channel_id),
-            _ => Err(PassthruError::from_raw(res as u32).unwrap())
-        }
+        ret_res(res, channel_id)
     }
 
     //type PassThruDisconnectFn = unsafe extern "stdcall" fn(channel_id: u32) -> i32;
     pub fn disconnect(&self, channel_id: u32) -> Result<()> {
-        let res = unsafe { (&self.disconnect_fn)(channel_id) };
-        match res {
-            0 => Ok(()),
-            _ => Err(PassthruError::from_raw(res as u32).unwrap())
-        }
+        ret_res(unsafe { (&self.disconnect_fn)(channel_id) }, ())
     }
 
     //type PassThruStartPeriodicMsgFn = unsafe extern "stdcall" fn(channel_id: u32, msg: *const PASSTHRU_MSG, msg_id: *mut u32, time_interval: u32) -> i32;
@@ -287,29 +279,23 @@ impl PassthruDrv {
                 time_interval
             )
         };
-        match res {
-            0 => Ok(msg_id),
-            _ => Err(PassthruError::from_raw(res as u32).unwrap())
-        }
+        ret_res(res, msg_id)
     }
 
     //type PassThruStopPeriodicMsgFn = unsafe extern "stdcall" fn(channel_id: u32, msg_id: u32) -> i32;
     pub fn stop_periodic_msg(&self, channel_id: u32, msg_id: u32) -> Result<()> {
-        let res = unsafe { (&self.stop_periodic_fn)(channel_id, msg_id) };
-        match res {
-            0 => Ok(()),
-            _ => Err(PassthruError::from_raw(res as u32).unwrap())
-        }
+        ret_res(unsafe { (&self.stop_periodic_fn)(channel_id, msg_id) }, ())
     }
 
     //type PassThruStartMsgFilterFn = unsafe extern "stdcall" fn(channel_id: u32, filter_type: u32, m_msg: *const PASSTHRU_MSG, p_msg: *const PASSTHRU_MSG, fc_msg: *const PASSTHRU_MSG, filter_id: *mut u32) -> i32;
     /// Returns filter ID
     pub fn start_msg_filter(&self, channel_id: u32, filter_type: FilterType, mask: &PASSTHRU_MSG, pattern: &PASSTHRU_MSG, flow_control: Option<&PASSTHRU_MSG>) -> Result<u32> {
-        if filter_type == FLOW_CONTROL_FILTER && flow_control == None {
+        let tmp = filter_type as u32;
+        if tmp == FLOW_CONTROL_FILTER as u32 && flow_control.is_none() { // TODO Derive PartialEq for FilterType
             return Err(PassthruError::ERR_INVALID_FILTER_ID)
         }
 
-        let p_msg = match pattern {
+        let p_msg = match flow_control {
             None => std::ptr::null() as *const PASSTHRU_MSG,
             Some(m) => m as *const PASSTHRU_MSG
         };
@@ -318,22 +304,19 @@ impl PassthruDrv {
         let res = unsafe {
             (&self.start_filter_fn)(
                 channel_id,
-                filter_type as u32,
+                tmp,
                 mask as *const PASSTHRU_MSG,
                 pattern as *const PASSTHRU_MSG,
                 p_msg,
                 &mut filter_id as *mut u32
             )
         };
-        match res {
-            0 => Ok(filter_id),
-            _ => Err(PassthruError::from_raw(res).unwrap())
-        }
+        ret_res(res, filter_id)
     }
 
     //type PassThruStopMsgFilterFn = unsafe extern "stdcall" fn(channel_id: u32, filter_id: u32) -> i32;
     pub fn stop_msg_filter(&self, channel_id: u32, filter_id: u32) -> Result<()> {
-        let res = unsafe { (&self.stop_msg_filter)(channel_id, filter_id) };
+        let res = unsafe { (&self.stop_filter_fn)(channel_id, filter_id) };
         match res {
             0 => Ok(()),
             _ => Err(PassthruError::from_raw(res as u32).unwrap())
@@ -342,11 +325,7 @@ impl PassthruDrv {
 
     //type PassThruSetProgrammingVoltageFn = unsafe extern "stdcall" fn(device_id: u32, pin_number: u32, voltage: u32) -> i32;
     pub fn set_programming_voltage(&self, dev_id: u32, pin: u32, voltage: u32) -> Result<()> {
-        let res = unsafe { (&self.set_programming_voltage)(dev_id, pin, voltage) };
-        match res {
-            0 => Ok(()),
-            _ => Err(PassthruError::from_raw(res as u32).unwrap())
-        }
+        ret_res(unsafe { (&self.set_prog_v_fn)(dev_id, pin, voltage)}, ())
     }
 }
 
