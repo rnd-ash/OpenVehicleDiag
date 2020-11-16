@@ -1,6 +1,7 @@
 use common::raf::Raf;
 use encoding_rs::ISO_8859_10;
 use crate::cxf::*;
+use crate::ecu::*;
 
 pub struct CReader{}
 
@@ -98,6 +99,7 @@ impl CReader {
 
 }
 
+#[derive(Debug)]
 pub struct CContainer{
     cff_header: CFFHeader,
     ctf_header: CTFHeader
@@ -106,20 +108,28 @@ impl CContainer {
     pub fn new(reader: &mut Raf) -> Self {
         reader.seek(0);
         let header = reader.read_bytes(STUB_HEADER_SIZE).expect("Error reading header");
-        println!("{}", String::from_utf8_lossy(header.as_slice()));
         BaseHeader::read_header(header.as_slice());
         let cff_header_size = reader.read_i32().expect("Cannot read CFF Header size");
         // Ignore header for now
         reader.adv(cff_header_size as usize);
 
-        Self {
-            cff_header: Self::read_cff(reader),
-            ctf_header: Self::read_ctf(reader)
-        }
+        let cff_header = Self::read_cff(reader);
+        let ctf_header = Self::read_ctf(&cff_header, reader);
+        let res = Self {
+            cff_header,
+            ctf_header
+        };
+        res.read_ecu(reader);
+        res
     }
 
-    fn read_ctf(reader: &mut Raf) -> CTFHeader {
-        panic!("Oops")
+    fn read_ctf(header: &CFFHeader, reader: &mut Raf) -> CTFHeader {
+        if header.ctf_offset == 0 {
+            panic!("No CTF Header");
+        }
+        let ctfoffset = header.base_address as i64 + header.ctf_offset as i64;
+        let res = CTFHeader::new(reader, ctfoffset, header);
+        res
     }
 
     fn read_cff(reader: &mut Raf) -> CFFHeader {
@@ -129,8 +139,21 @@ impl CContainer {
         }
         //let str_table_offset = cff_header.cff_header_size + 0x410 + 4;
         //let after_str_table_offset = str_table_offset + cff_header.size_of_str_pool;
-        println!("{:#?}", cff_header);
         cff_header
+    }
+
+    fn read_ecu(&self, reader: &mut Raf) {
+        let cff_header = &self.cff_header;
+        let lang = &self.ctf_header.ctf_langs[0];
+        let ecu_table_offset = cff_header.ecuOffsets as i64 + cff_header.base_address;
+
+        for i in 0..cff_header.ecu_count as i64 {
+            println!("Reading ECU {}", i);
+            reader.seek((ecu_table_offset + (i*4)) as usize);
+
+            let offset_to_ecu = reader.read_i32().expect("Error reading offset");
+            ECU::new(reader, lang, cff_header, ecu_table_offset + offset_to_ecu as i64, self);
+        }
     }
 }
 
