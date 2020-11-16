@@ -106,7 +106,6 @@ impl ParamName {
     }
 }
 
-
 #[derive(Debug)]
 pub struct ComParameter {
     pub param_index: i32,
@@ -231,6 +230,191 @@ impl ECUInterfaceSubType {
 }
 
 #[derive(Debug)]
+pub struct ECUVarientPattern {
+        unk_buffer_size: i32,
+        unk_buffer: Vec<u8>,
+        unk_3: i32,
+        unk_4: i32,
+        unk_5: i32,
+        vendor_name: Option<String>,
+        unk_7: i32,
+        unk_8: i32,
+        unk_9: i32,
+        unk_10: i32,
+
+        unk_11: i32,
+        unk_12: i32,
+        unk_13: i32,
+        unk_14: i32,
+        unk_15: i32,
+        unk_16: Vec<u8>,
+        unk_17: i32,
+        unk_18: i32,
+        unk_19: i32,
+        unk_20: i32,
+        unk_21: Option<String>,
+        unk_22: i32,
+        unk_23: i32,
+        variant_id: i32,
+        pattern_type: i32,
+        base_addr: i64,
+}
+
+impl ECUVarientPattern {
+    pub fn new(reader: &mut raf::Raf, base_addr: i64) -> Self {
+        reader.seek(base_addr as usize);
+        let mut bitflags = reader.read_u32().unwrap() as u64;
+        let mut ret: ECUVarientPattern = unsafe { std::mem::zeroed() };
+
+        ret.unk_buffer_size = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
+        ret.unk_buffer = CReader::read_bitflag_dump(&mut bitflags, reader, ret.unk_buffer_size, base_addr).unwrap_or(Vec::new());
+        ret.unk_3 = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
+        ret.unk_4 = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
+        ret.unk_5 = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
+        ret.vendor_name = CReader::read_bitflag_string(&mut bitflags, reader, base_addr);
+        ret.unk_7 = CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32;
+        ret.unk_8 = CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32;
+        ret.unk_9 = CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32;
+        ret.unk_10 = CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32;
+        ret.unk_11 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.unk_12 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.unk_13 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.unk_14 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.unk_15 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.unk_16 = CReader::read_bitflag_dump(&mut bitflags, reader, 5, base_addr).unwrap(); // read with a constant size
+        ret.unk_17 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.unk_18 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.unk_19 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.unk_20 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.unk_21 = CReader::read_bitflag_string(&mut bitflags, reader, base_addr);
+        ret.unk_22 = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
+        ret.unk_23 = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
+        ret.variant_id = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
+        ret.pattern_type = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
+        ret
+    }
+}
+
+#[derive(Debug)]
+pub struct ECUVarient {
+    name: Option<String>,
+    name_ctf: i32,
+    desc_ctf: i32,
+    unk_str1: Option<String>,
+    unk_str2: Option<String>,
+    unk1: i32,
+
+    matching_pattern_count: i32,// A
+    matching_pattern_offset: i32,
+    subsection_b_count: i32,// B
+    subsection_b_offset: i32,
+    com_param_count: i32,// C
+    com_param_offset: i32,
+    subsection_d_count: i32,// D
+    subsection_d_offset: i32,
+    diag_services_count: i32,// E
+    diag_services_offset: i32,
+    subsection_f_count: i32,// F
+    subsection_f_offset: i32,
+    subsection_g_count: i32,// G
+    subsection_g_offset: i32,
+    subsection_h_count: i32,// H
+    subsection_h_offset: i32,
+    VCDomainsCount: i32,// I
+    VCDomainsOffset: i32,
+
+    negative_resp_name: String,
+    unk_byte: i32,
+
+    vc_domain_pool_offsets: Vec<i32>,
+    diag_services_pool_offsets: Vec<i32>,
+
+    vc_domains: Vec<VCDomain>,
+    varient_patterns: Vec<ECUVarientPattern>,
+    diag_services: Vec<DiagService>
+}
+
+impl ECUVarient {
+    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, parent_ecu: &ECU, base_addr: i64, block_size: i32) -> Self {
+        reader.seek(base_addr as usize);
+
+        let varient_bytes = reader.read_bytes(block_size as usize).expect("Error reading ECU Varient bytes");
+
+        let mut varreader = raf::Raf::from_bytes(&varient_bytes, raf::RafByteOrder::LE);
+
+        let mut ret: ECUVarient = unsafe { std::mem::zeroed() };
+        let mut bitflags = varreader.read_u32().unwrap() as u64;
+        let skip = varreader.read_i32().unwrap();
+
+        ret.name = CReader::read_bitflag_string(&mut bitflags, &mut varreader, 0);
+        ret.name_ctf = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, -1);
+        ret.desc_ctf = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, -1);
+        ret.unk_str1 = CReader::read_bitflag_string(&mut bitflags, &mut varreader, 0);
+        ret.unk_str2 = CReader::read_bitflag_string(&mut bitflags, &mut varreader, 0);
+
+        ret.unk1 = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+
+        ret.matching_pattern_count = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.matching_pattern_offset = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_b_count = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_b_offset = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.com_param_count = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.com_param_offset = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_d_count = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_d_offset = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.diag_services_count = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.diag_services_offset = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_f_count = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_f_offset = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_g_count = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_g_offset = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_h_count = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.subsection_h_offset = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+
+        ret.VCDomainsCount = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+        ret.VCDomainsOffset = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, 0);
+
+        ret.negative_resp_name = CReader::read_bitflag_string(&mut bitflags, &mut varreader, 0).unwrap_or(String::new());
+
+        ret.unk_byte = CReader::read_bitflag_i8(&mut bitflags, &mut varreader, 0) as i32;
+        varreader.seek(ret.VCDomainsOffset as usize);
+
+        ret.vc_domain_pool_offsets = (0..ret.VCDomainsCount).map(|i| {varreader.read_i32().unwrap()}).collect();
+
+        varreader.seek(ret.diag_services_offset as usize);
+        ret.diag_services_pool_offsets = (0..ret.VCDomainsCount).map(|i| {varreader.read_i32().unwrap()}).collect();
+
+
+        ret.create_vc_domains(reader, parent_ecu, lang);
+        ret.create_diag_services(reader, parent_ecu, lang);
+        ret.create_var_patterns(reader);
+        ret.create_com_params(reader, parent_ecu);
+
+        ret
+    }
+
+    fn create_vc_domains(&mut self, reader: &mut raf::Raf, parent_ecu: &ECU, lang: &CTFLanguage) {
+
+    }
+
+    fn create_diag_services(&mut self, reader: &mut raf::Raf, parent_ecu: &ECU, lang: &CTFLanguage) {
+
+    }
+
+    fn create_var_patterns(&mut self, reader: &mut raf::Raf) {
+
+    }
+
+    fn create_com_params(&mut self, reader: &mut raf::Raf, parent_ecu: &ECU) {
+
+    }
+
+}
+
+#[derive(Debug)]
+pub struct VCDomain{}
+
+#[derive(Debug)]
 pub struct ECUInterface {
     pub name: Option<String>,
     pub name_ctf: i32,
@@ -321,7 +505,7 @@ pub struct ECU<'a> {
 
     pub ecu_ifaces: Vec<ECUInterface>,
     pub ecu_ifaces_subtype: Vec<ECUInterfaceSubType>,
-    //pub ecu_varient: Vec<ECU_Varient>,
+    pub ecu_varient: Vec<ECUVarient>,
     pub diag_services: Vec<DiagService>,
 
     //pub cache_varcoding: Vec<u8>,
@@ -417,7 +601,7 @@ impl<'a> ECU<'a> {
             unk_block_offset: unk_blockoffset,
             ecu_sgml_src: ecu_sgml_src as i32,
             unk6_relative_offset: unk6_rel_offset,
-            //pub ecu_varient: Vec<ECU_Varient>,
+            ecu_varient: Vec::new(),
             diag_services: Vec::new(),
 
             name: name.unwrap(),
@@ -438,6 +622,7 @@ impl<'a> ECU<'a> {
         };
 
         res.create_diag_pool(reader, lang);
+        res.create_ecu_varients(reader, lang);
 
         println!("{:#?}", res);
         panic!("Done")
@@ -456,6 +641,26 @@ impl<'a> ECU<'a> {
             let diag_base_addr = offset + self.diagjob.block_offset;
             DiagService::new(reader, lang, diag_base_addr as i64, diag_job_index as i32, &self)
         }).collect();
+    }
+
+    pub fn create_ecu_varients(&mut self, reader: &mut raf::Raf, lang: &CTFLanguage) {
+        let var_block = &self.ecuvarient;
+        let pool = ECU::read_ecu_pool(reader, &self.ecuvarient);
+        let mut vreader = raf::Raf::from_bytes(&pool, raf::RafByteOrder::LE);
+        self.ecu_varient = (0..var_block.entry_count as usize).map(|index|{
+            vreader.seek(index * var_block.entry_size as usize);
+
+            let entry_offset = vreader.read_i32().unwrap();
+            let entry_size = vreader.read_i32().unwrap();
+            let pool_entry_attrib = vreader.read_u16().unwrap();
+
+            let varient_block_address = entry_offset + var_block.block_offset;
+
+            let v = ECUVarient::new(reader, lang, &self, varient_block_address as i64, entry_size);
+            println!("{:?}", v);
+            v
+        }).collect();
+
     }
 
     pub fn read_ecu_pool(reader: &mut raf::Raf, blk: &block) -> Vec<u8> {
