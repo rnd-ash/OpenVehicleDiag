@@ -2,10 +2,15 @@ use std::env;
 use std::fs::File;
 use common::raf::Raf;
 mod cxf;
+mod ecu;
+mod diag;
+mod structure;
 extern crate xml;
 mod log;
 mod caesar;
 use cxf::*;
+use ecu::*;
+use diag::*;
 use xml::reader::{EventReader, XmlEvent};
 use std::io::Read;
 

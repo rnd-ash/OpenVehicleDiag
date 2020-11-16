@@ -26,7 +26,7 @@ pub struct CFFHeader {
     pub gpd_version: i32,
     pub ecu_count: i32,
     pub ecuOffsets: i32,
-    pub ctf_header_rpos: i32,
+    pub ctf_offset: i32,
     pub size_of_str_pool: i32,
     pub unk2_relative_offset: i32,
     pub instance_count2: i32,
@@ -44,13 +44,12 @@ impl CFFHeader {
         let cff_header_size = reader.read_i32().expect("Error reading header size");
         let base_address = reader.pos as i64;
         let mut bitflag = reader.read_u16().expect("Error reading bitflag") as u64;
-        println!("Bitflag : {:08x}", bitflag);
         Self {
             caser_version: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             gpd_version: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             ecu_count: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             ecuOffsets: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
-            ctf_header_rpos: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
+            ctf_offset: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             size_of_str_pool: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             unk2_relative_offset: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             instance_count2: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
@@ -77,11 +76,12 @@ pub struct CTFLanguage {
 
 impl CTFLanguage {
     pub fn new(reader: &mut raf::Raf, base_addr: i64, header: &CFFHeader) -> Self {
-        
+        println!("Starting at {}", base_addr);
+        let mut base_address = base_addr;
         reader.seek(base_addr as usize);
         
         let mut language_entry_bitflag = reader.read_u16().expect("Failed to read language entry bitflag") as u64;
-        let lang_name = CReader::read_bitflag_string(&mut language_entry_bitflag, reader, 0);
+        let lang_name = CReader::read_bitflag_string(&mut language_entry_bitflag, reader, base_address);
         let lang_index = CReader::read_bitflag_i16(&mut language_entry_bitflag, reader, 0) as i32;
         let str_pool_size = CReader::read_bitflag_i32(&mut language_entry_bitflag, reader, 0);
         let str_pool_offset = CReader::read_bitflag_i32(&mut language_entry_bitflag, reader, 0);
@@ -115,37 +115,37 @@ impl CTFLanguage {
 
 #[derive(Debug)]
 pub struct CTFHeader {
-    ctf_unk1: i32,
-    ctf_name: String,
-    ctf_unk3: i32,
-    ctf_unk4: i32,
-    ctf_lang_count: i32,
-    ctf_lang_table_offset: i32,
-    ctf_unk_str: Option<String>,
-    ctf_langs: Vec<CTFLanguage>
+    pub ctf_unk1: i32,
+    pub ctf_name: String,
+    pub ctf_unk3: i32,
+    pub ctf_unk4: i32,
+    pub ctf_lang_count: i32,
+    pub ctf_lang_table_offset: i32,
+    pub ctf_unk_str: Option<String>,
+    pub ctf_langs: Vec<CTFLanguage>
 }
 
 impl CTFHeader {
-    pub fn new(reader: &mut raf::Raf, base_addr: i64, header: CFFHeader) -> Self {
+    pub fn new(reader: &mut raf::Raf, base_addr: i64, header: &CFFHeader) -> Self {
         let base_addr = base_addr;
         reader.seek(base_addr as usize);
 
         let mut bitflag = reader.read_u16().expect("Error reading CTF Bit flag") as u64;
-
         let ctf_unk1 = CReader::read_bitflag_i32(&mut bitflag, reader, 0);
-        let ctf_name = CReader::read_bitflag_string(&mut bitflag, reader, 0).expect("CTF doesn't have a name");
+        let ctf_name = CReader::read_bitflag_string(&mut bitflag, reader, base_addr).expect("CTF doesn't have a name");
         let ctf_unk3 = CReader::read_bitflag_i16(&mut bitflag, reader, 0) as i32;
         let ctf_unk4 = CReader::read_bitflag_i32(&mut bitflag, reader, 0);
         let ctf_lang_count = CReader::read_bitflag_i32(&mut bitflag, reader, 0);
         let ctf_lang_table_offset = CReader::read_bitflag_i32(&mut bitflag, reader, 0);
-        let ctf_unk_str = CReader::read_bitflag_string(&mut bitflag, reader, 0);
+        let ctf_unk_str = CReader::read_bitflag_string(&mut bitflag, reader, base_addr);
 
-        let ctf_lang_table_offset_relative = ctf_lang_table_offset as i64 + base_addr as i64;
+        let ctf_lang_table_offset_relative = ctf_lang_table_offset as i64 + base_addr;
 
         let ctf_langs = (0..ctf_lang_count as i64).map(|lang_entry| {
             let lang_table_offset_entry = ctf_lang_table_offset_relative + (lang_entry * 4);
             reader.seek(lang_table_offset_entry as usize);
-            CTFLanguage::new(reader, lang_table_offset_entry, &header)
+            let lang_table_address = reader.read_i32().unwrap() as i64 + ctf_lang_table_offset_relative as i64;
+            CTFLanguage::new(reader, lang_table_address, &header)
         })
         .collect();
 
