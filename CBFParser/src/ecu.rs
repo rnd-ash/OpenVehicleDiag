@@ -27,8 +27,8 @@ impl block {
 
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ParamName {
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub enum ComParam {
     /// Bus baud speed
     CP_BAUDRATE,
     /// CAN ID for sending Diag requests to global bus (Interior CAN only)
@@ -64,6 +64,25 @@ pub enum ParamName {
     CP_CS_MAX,
     CPI_ROUTINECOUNTER,
     CP_REQREPCOUNT,
+    CP_REQTARGETBYTE,
+    CP_RESPSOURCEBYTE,
+    CP_RESPONSEMASTER,
+    CP_TESTERPRESENTADDRESS,
+    CPI_READTIMING,
+    CP_TRIGADDRESS,
+    CP_P3_MAX,
+    CP_C_RESP_MIN,
+    CP_P2_CAN_MIN,
+    CPI_GPDAUTODOWNLOAD,
+    // DOIP stuff
+    CP_IPVERSION,
+    CP_LOGICAL_ADDRESS_GATEWAY,
+    CP_IPTRANSMISSIONTIME,
+    CP_LOGICAL_SOURCE_ADDRESS,
+    CP_LOGICAL_TARGET_ADDRESS,
+    CP_C_RESP_MAX,
+    CP_P2_CAN_MAX,
+
     // looks like outliers?
     CP_P2_EXT_TIMEOUT_7F_78,
     CP_P2_EXT_TIMEOUT_7F_21,
@@ -71,47 +90,64 @@ pub enum ParamName {
     UNKNOWN
 }
 
-impl std::fmt::Display for ParamName {
+impl std::fmt::Display for ComParam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl ParamName {
+impl ComParam {
     pub fn from_string(txt: &str) -> Self {
         match txt {
-            "CP_BAUDRATE" => ParamName::CP_BAUDRATE,
-            "CP_GLOBAL_REQUEST_CANIDENTIFIER" => ParamName::CP_GLOBAL_REQUEST_CANIDENTIFIER,
-            "CP_FUNCTIONAL_REQUEST_CANIDENTIFIER" => ParamName::CP_FUNCTIONAL_REQUEST_CANIDENTIFIER,
-            "CP_REQUEST_CANIDENTIFIER" => ParamName::CP_REQUEST_CANIDENTIFIER,
-            "CP_RESPONSE_CANIDENTIFIER" => ParamName::CP_RESPONSE_CANIDENTIFIER,
-            "CP_PARTNUMBERID" => ParamName::CP_PARTNUMBERID,
-            "CP_PARTBLOCK" => ParamName::CP_PARTBLOCK,
-            "CP_HWVERSIONID" => ParamName::CP_HWVERSIONID,
-            "CP_SWVERSIONID" => ParamName::CP_SWVERSIONID,
-            "CP_SWVERSIONBLOCK" => ParamName::CP_SWVERSIONBLOCK,
-            "CP_SUPPLIERID" => ParamName::CP_SUPPLIERID,
-            "CP_SWSUPPLIERBLOCK" => ParamName::CP_SWSUPPLIERBLOCK,
-            "CP_ADDRESSMODE" => ParamName::CP_ADDRESSMODE,
-            "CP_ADDRESSEXTENSION" => ParamName::CP_ADDRESSEXTENSION,
-            "CP_ROE_RESPONSE_CANIDENTIFIER" => ParamName::CP_ROE_RESPONSE_CANIDENTIFIER,
-            "CP_USE_TIMING_RECEIVED_FROM_ECU" => ParamName::CP_USE_TIMING_RECEIVED_FROM_ECU,
-            "CP_STMIN_SUG" => ParamName::CP_STMIN_SUG,
-            "CP_BLOCKSIZE_SUG" => ParamName::CP_BLOCKSIZE_SUG,
-            "CP_P2_TIMEOUT" => ParamName::CP_P2_TIMEOUT,
-            "CP_S3_TP_PHYS_TIMER" => ParamName::CP_S3_TP_PHYS_TIMER,
-            "CP_S3_TP_FUNC_TIMER" => ParamName::CP_S3_TP_FUNC_TIMER,
-            "CP_BR_SUG" => ParamName::CP_BR_SUG,
-            "CP_CAN_TRANSMIT" => ParamName::CP_CAN_TRANSMIT,
-            "CP_BS_MAX" => ParamName::CP_BS_MAX,
-            "CP_CS_MAX" => ParamName::CP_CS_MAX,
-            "CPI_ROUTINECOUNTER" => ParamName::CPI_ROUTINECOUNTER,
-            "CP_REQREPCOUNT" => ParamName::CP_REQREPCOUNT,
-            "CP_P2_EXT_TIMEOUT_7F_78" => ParamName::CP_P2_EXT_TIMEOUT_7F_78,
-            "CP_P2_EXT_TIMEOUT_7F_21" => ParamName::CP_P2_EXT_TIMEOUT_7F_21,
+            "CP_BAUDRATE" => ComParam::CP_BAUDRATE,
+            "CP_GLOBAL_REQUEST_CANIDENTIFIER" => ComParam::CP_GLOBAL_REQUEST_CANIDENTIFIER,
+            "CP_FUNCTIONAL_REQUEST_CANIDENTIFIER" => ComParam::CP_FUNCTIONAL_REQUEST_CANIDENTIFIER,
+            "CP_REQUEST_CANIDENTIFIER" => ComParam::CP_REQUEST_CANIDENTIFIER,
+            "CP_RESPONSE_CANIDENTIFIER" => ComParam::CP_RESPONSE_CANIDENTIFIER,
+            "CP_PARTNUMBERID" => ComParam::CP_PARTNUMBERID,
+            "CP_PARTBLOCK" => ComParam::CP_PARTBLOCK,
+            "CP_HWVERSIONID" => ComParam::CP_HWVERSIONID,
+            "CP_SWVERSIONID" => ComParam::CP_SWVERSIONID,
+            "CP_SWVERSIONBLOCK" => ComParam::CP_SWVERSIONBLOCK,
+            "CP_SUPPLIERID" => ComParam::CP_SUPPLIERID,
+            "CP_SWSUPPLIERBLOCK" => ComParam::CP_SWSUPPLIERBLOCK,
+            "CP_ADDRESSMODE" => ComParam::CP_ADDRESSMODE,
+            "CP_ADDRESSEXTENSION" => ComParam::CP_ADDRESSEXTENSION,
+            "CP_ROE_RESPONSE_CANIDENTIFIER" => ComParam::CP_ROE_RESPONSE_CANIDENTIFIER,
+            "CP_USE_TIMING_RECEIVED_FROM_ECU" => ComParam::CP_USE_TIMING_RECEIVED_FROM_ECU,
+            "CP_STMIN_SUG" => ComParam::CP_STMIN_SUG,
+            "CP_BLOCKSIZE_SUG" => ComParam::CP_BLOCKSIZE_SUG,
+            "CP_P2_TIMEOUT" => ComParam::CP_P2_TIMEOUT,
+            "CP_S3_TP_PHYS_TIMER" => ComParam::CP_S3_TP_PHYS_TIMER,
+            "CP_S3_TP_FUNC_TIMER" => ComParam::CP_S3_TP_FUNC_TIMER,
+            "CP_BR_SUG" => ComParam::CP_BR_SUG,
+            "CP_CAN_TRANSMIT" => ComParam::CP_CAN_TRANSMIT,
+            "CP_BS_MAX" => ComParam::CP_BS_MAX,
+            "CP_CS_MAX" => ComParam::CP_CS_MAX,
+            "CPI_ROUTINECOUNTER" => ComParam::CPI_ROUTINECOUNTER,
+            "CP_REQREPCOUNT" => ComParam::CP_REQREPCOUNT,
+            "CP_P2_EXT_TIMEOUT_7F_78" => ComParam::CP_P2_EXT_TIMEOUT_7F_78,
+            "CP_P2_EXT_TIMEOUT_7F_21" => ComParam::CP_P2_EXT_TIMEOUT_7F_21,
+            "CP_IPVERSION" => ComParam::CP_IPVERSION,
+            "CP_LOGICAL_ADDRESS_GATEWAY" => ComParam::CP_LOGICAL_ADDRESS_GATEWAY,
+            "CP_IPTRANSMISSIONTIME" => ComParam::CP_IPTRANSMISSIONTIME,
+            "CP_LOGICAL_SOURCE_ADDRESS" => ComParam::CP_LOGICAL_SOURCE_ADDRESS,
+            "CP_LOGICAL_TARGET_ADDRESS" => ComParam::CP_LOGICAL_TARGET_ADDRESS,
+            "CP_REQTARGETBYTE" => ComParam::CP_REQTARGETBYTE,
+            "CP_RESPSOURCEBYTE" => ComParam::CP_RESPSOURCEBYTE,
+            "CP_RESPONSEMASTER" => ComParam::CP_RESPONSEMASTER,
+            "CP_TESTERPRESENTADDRESS" => ComParam::CP_TESTERPRESENTADDRESS,
+            "CPI_READTIMING" => ComParam::CPI_READTIMING,
+            "CP_TRIGADDRESS" => ComParam::CP_TRIGADDRESS,
+            "CP_P3_MAX" => ComParam::CP_P3_MAX,
+            "CP_C_RESP_MIN" => ComParam::CP_C_RESP_MIN,
+            "CP_P2_CAN_MIN" => ComParam::CP_P2_CAN_MIN,
+            "CPI_GPDAUTODOWNLOAD" => ComParam::CPI_GPDAUTODOWNLOAD,
+            "CP_C_RESP_MAX" => ComParam::CP_C_RESP_MIN,
+            "CP_P2_CAN_MAX" => ComParam::CP_P2_CAN_MAX,
             _ => {
                 println!("WARNING: UNKNOWN COM PARAM: '{}'", txt);
-                ParamName::UNKNOWN
+                ComParam::UNKNOWN
             }
         }
     }
@@ -127,9 +163,7 @@ pub struct ComParameter {
     pub phrase: i32,
     pub dump_size: i32,
     pub dump: Vec<u8>,
-
-    pub com_param_value: i32,
-    pub com_param_name: Option<String>,
+    pub com_param: (ComParam, i32),
     pub base_addr: i64,
 }
 
@@ -152,7 +186,11 @@ impl ComParameter {
         if dump_size == 4 {
             com_param_value = (dump[3] as i32) << 24 | (dump[2] as i32) << 16 | (dump[1] as i32) << 8 | (dump[0] as i32)
         }
-        let com_param_name = parent_iface.com_parameters.get(param_index as usize).map(|x| x.clone());
+        let mut com_param: Option<(ComParam, i32)> = None;
+
+        let com_param = ComParam::from_string(parent_iface.com_parameters
+            .get(param_index as usize).map(|x| x.as_str())
+            .unwrap_or("ERROR"));
 
         Self {
             param_index,
@@ -163,8 +201,7 @@ impl ComParameter {
             phrase,
             dump_size,
             dump,
-            com_param_value,
-            com_param_name,
+            com_param: (com_param, com_param_value),
             base_addr,
         }
     }
@@ -214,59 +251,41 @@ impl ECUInterfaceSubType {
         }
     }
 
-    pub fn get_com_param(&self, name: &str) -> Option<&ComParameter> {
-        self.com_params.iter().find(|x| x.com_param_name.clone().unwrap_or("N/A".to_string()) == name)
-    }
-
-    pub fn get_com_param_value(&self, name: ParamName) -> Option<i32> {
-        self.get_com_param(name.to_string().as_str()).map(|x| x.com_param_value)
-    }
-
-    pub fn get_com_param_value_res(&self, name: ParamName, result: &mut i32) -> bool {
-        let param = self.get_com_param(name.to_string().as_str());
-
-        match param {
-            Some(p) => {
-                *result = p.com_param_value;
-                true
-            },
-            None => {
-                *result = 0;
-                false
-            }
-        }
+    pub fn get_com_param(&self, name: &str) -> Option<ComParameter> {
+        self.com_params.iter()
+            .find(|x| x.com_param.0.to_string() == name)
+            .map(|f| f.clone())
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ECUVarientPattern {
-        unk_buffer_size: i32,
-        unk_buffer: Vec<u8>,
-        unk_3: i32,
-        unk_4: i32,
-        unk_5: i32,
-        vendor_name: Option<String>,
-        unk_7: i32,
-        unk_8: i32,
-        unk_9: i32,
-        unk_10: i32,
-
-        unk_11: i32,
-        unk_12: i32,
-        unk_13: i32,
-        unk_14: i32,
-        unk_15: i32,
-        unk_16: Vec<u8>,
-        unk_17: i32,
-        unk_18: i32,
-        unk_19: i32,
-        unk_20: i32,
-        unk_21: Option<String>,
-        unk_22: i32,
-        unk_23: i32,
-        variant_id: i32,
-        pattern_type: i32,
-        base_addr: i64,
+        pub unk_buffer_size: i32,
+        pub unk_buffer: Vec<u8>,
+        pub unk_3: i32,
+        pub unk_4: i32,
+        pub unk_5: i32,
+        pub vendor_name: Option<String>,
+        pub unk_7: i32,
+        pub unk_8: i32,
+        pub unk_9: i32,
+        pub unk_10: i32, 
+        pub unk_11: i32,
+        pub unk_12: i32,
+        pub unk_13: i32,
+        pub unk_14: i32,
+        pub unk_15: i32,
+        pub unk_16: Vec<u8>,
+        pub unk_17: i32,
+        pub unk_18: i32,
+        pub unk_19: i32,
+        pub unk_20: i32,
+        pub unk_21: Option<String>,
+        pub unk_22: i32,
+        pub unk_23: i32,
+        pub variant_id: i32,
+        pub pattern_type: i32,
+        pub base_addr: i64,
 }
 
 impl ECUVarientPattern {
@@ -306,42 +325,39 @@ impl ECUVarientPattern {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ECUVarient {
-    name: Option<String>,
-    name_ctf: i32,
-    desc_ctf: i32,
-    unk_str1: Option<String>,
-    unk_str2: Option<String>,
-    unk1: i32,
+    pub name: Option<String>,
+    pub name_ctf: i32,
+    pub desc_ctf: i32,
+    pub unk_str1: Option<String>,
+    pub unk_str2: Option<String>,
+    pub unk1: i32,
 
-    matching_pattern_count: i32,// A
-    matching_pattern_offset: i32,
-    subsection_b_count: i32,// B
-    subsection_b_offset: i32,
-    com_param_count: i32,// C
-    com_param_offset: i32,
-    subsection_d_count: i32,// D
-    subsection_d_offset: i32,
-    diag_services_count: i32,// E
-    diag_services_offset: i32,
-    subsection_f_count: i32,// F
-    subsection_f_offset: i32,
-    subsection_g_count: i32,// G
-    subsection_g_offset: i32,
-    subsection_h_count: i32,// H
-    subsection_h_offset: i32,
-    VCDomainsCount: i32,// I
-    VCDomainsOffset: i32,
-
-    negative_resp_name: String,
-    unk_byte: i32,
-
-    vc_domain_pool_offsets: Vec<i32>,
-    diag_services_pool_offsets: Vec<i32>,
-
-    vc_domains: Vec<VCDomain>,
-    varient_patterns: Vec<ECUVarientPattern>,
-    diag_services: Vec<DiagService>,
-    base_addr: i64
+    pub matching_pattern_count: i32,// A
+    pub matching_pattern_offset: i32,
+    pub subsection_b_count: i32,// B
+    pub subsection_b_offset: i32,
+    pub com_param_count: i32,// C
+    pub com_param_offset: i32,
+    pub subsection_d_count: i32,// D
+    pub subsection_d_offset: i32,
+    pub diag_services_count: i32,// E
+    pub diag_services_offset: i32,
+    pub subsection_f_count: i32,// F
+    pub subsection_f_offset: i32,
+    pub subsection_g_count: i32,// G
+    pub subsection_g_offset: i32,
+    pub subsection_h_count: i32,// H
+    pub subsection_h_offset: i32,
+    pub VCDomainsCount: i32,// I
+    pub VCDomainsOffset: i32, 
+    pub negative_resp_name: String,
+    pub unk_byte: i32, 
+    pub vc_domain_pool_offsets: Vec<i32>,
+    pub diag_services_pool_offsets: Vec<i32>, 
+    pub vc_domains: Vec<VCDomain>,
+    pub varient_patterns: Vec<ECUVarientPattern>,
+    pub diag_services: Vec<DiagService>,
+    pub base_addr: i64
 }
 
 impl ECUVarient {
@@ -545,19 +561,12 @@ pub struct ECU {
     pub ecu_ifaces_subtype: Vec<ECUInterfaceSubType>,
     pub ecu_varient: Vec<ECUVarient>,
     pub diag_services: Vec<DiagService>,
-
-    //pub cache_varcoding: Vec<u8>,
-    //pub cache_varient: Vec<u8>,
-    //pub cache_diagjob: Vec<u8>,
-    //pub cache_infopool: Vec<u8>,
-    //pub cache_prespool: Vec<u8>,
-    //pub cache_envpool: Vec<u8>,
-
+    pub dtcs: Vec<DTC>,
     pub base_addr: i64,
 }
 
 impl ECU {
-    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, header: &CFFHeader, base_addr: i64, pcontainer: CContainer) -> ! {
+    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, header: &CFFHeader, base_addr: i64, pcontainer: CContainer) -> Self {
 
         let mut ecu_bitflags = reader.read_u32().expect("Error reading ECU Bitflag") as u64;
         let ecu_bitflags_ext = reader.read_i16().expect("Error reading ECU Ext Bitflag") as u64;
@@ -641,7 +650,7 @@ impl ECU {
             unk6_relative_offset: unk6_rel_offset,
             ecu_varient: Vec::new(),
             diag_services: Vec::new(),
-
+            dtcs: Vec::new(),
             name: name.unwrap(),
             ecuname_ctf: lang.get_string(ecuname_ctf_idx),
             ecudesc_ctf: lang.get_string(ecudesc_ctf_idx),
@@ -661,9 +670,26 @@ impl ECU {
 
         res.create_diag_pool(reader, lang);
         res.create_ecu_varients(reader, lang);
+        res.create_dtcs(reader, lang);
 
-        println!("{}", serde_json::to_string_pretty(&res).unwrap());
-        panic!("Done")
+        res
+    }
+
+    pub fn create_dtcs(&mut self, reader: &mut raf::Raf, lang: &CTFLanguage) {
+        // Create diag services
+        
+        /*
+        let pool = ECU::read_ecu_pool(reader, &self.dtc);
+        eprintln!("DTC pool: {:?}", &self.dtc);
+        let mut dreader = raf::Raf::from_bytes(&pool, raf::RafByteOrder::LE);
+        (0..self.dtc.entry_count as usize).for_each(|dtc_index| {
+            let offset = dreader.read_i32().unwrap();
+            let diag_base_addr = offset + self.dtc.block_offset;
+            let unk = dreader.read_bytes((&self.dtc.entry_size-4) as usize).unwrap();
+            eprintln!("UNK: {:02X?}", unk);
+            DTC::new(reader, lang, diag_base_addr as i64, dtc_index as i32, &self);
+        })
+        */
     }
 
     pub fn create_diag_pool(&mut self, reader: &mut raf::Raf, lang: &CTFLanguage) {

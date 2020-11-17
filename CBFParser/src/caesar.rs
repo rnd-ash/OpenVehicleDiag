@@ -1,5 +1,4 @@
 use common::raf::Raf;
-use encoding_rs::ISO_8859_10;
 use crate::cxf::*;
 use crate::ecu::*;
 use serde::*;
@@ -102,7 +101,8 @@ impl CReader {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CContainer{
     pub cff_header: CFFHeader,
-    pub ctf_header: CTFHeader
+    pub ctf_header: CTFHeader,
+    pub ecus: Vec<ECU>
 }
 impl CContainer {
     pub fn new(reader: &mut Raf) -> Self {
@@ -115,9 +115,10 @@ impl CContainer {
 
         let cff_header = Self::read_cff(reader);
         let ctf_header = Self::read_ctf(&cff_header, reader);
-        let res = Self {
+        let mut res = Self {
             cff_header,
-            ctf_header
+            ctf_header,
+            ecus: Vec::new()
         };
         res.read_ecu(reader);
         res
@@ -142,7 +143,7 @@ impl CContainer {
         cff_header
     }
 
-    fn read_ecu(&self, reader: &mut Raf) {
+    fn read_ecu(&mut self, reader: &mut Raf) {
         let cff_header = &self.cff_header;
         let lang = &self.ctf_header.ctf_langs[0];
         let ecu_table_offset = cff_header.ecuOffsets as i64 + cff_header.base_address;
@@ -152,7 +153,7 @@ impl CContainer {
             reader.seek((ecu_table_offset + (i*4)) as usize);
 
             let offset_to_ecu = reader.read_i32().expect("Error reading offset");
-            ECU::new(reader, lang, cff_header, ecu_table_offset + offset_to_ecu as i64, self.clone());
+            self.ecus.push(ECU::new(reader, lang, cff_header, ecu_table_offset + offset_to_ecu as i64, self.clone()));
         }
     }
 }
