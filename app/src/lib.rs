@@ -104,7 +104,7 @@ pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
   }
 }
 
-#[js_function{1}]
+#[js_function(1)]
 pub fn close(mut ctx: CallContext) -> Result<JsUnknown> {
   let idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
   if passthru::DRIVER.read().unwrap().is_none() {
@@ -125,18 +125,19 @@ pub fn close(mut ctx: CallContext) -> Result<JsUnknown> {
 #[js_function(1)]
 pub fn get_vbatt(mut ctx: CallContext) -> Result<JsUnknown> {
   let idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
+
+  let mut voltage = 0;
   if passthru::DRIVER.read().unwrap().is_none() {
     return ctx.env.to_js_value(&LibError{ err: "No driver loaded!".to_string() });
   }
-
-  let mut voltage = 0;
-
   match &passthru::DRIVER.write().unwrap().as_ref().unwrap().ioctl(idx, IoctlID::READ_VBATT, std::ptr::null_mut::<c_void>(), (&mut voltage) as *mut _ as *mut c_void) {
     Ok(_) => ctx.env.to_js_value(&Voltage{mv: voltage}),
     Err(e) => ctx.env.to_js_value(&LibError{ err: e.to_string().to_string() })
   }
 }
 
+
+// Register node functions
 
 register_module!(ovd, init);
 
@@ -147,15 +148,4 @@ fn init(module: &mut Module) -> Result<()> {
   module.create_named_method("get_version", get_version)?;
   module.create_named_method("close", close)?;
   Ok(())
-}
-
-#[test]
-
-#[cfg(windows)]
-fn test_connect() {
-  let tmp = passthru::PassthruDevice::find_all().unwrap();
-  let dev = &tmp[1];
-  println!("{:?}", dev);
-  let res = passthru::PassthruDrv::load_lib(dev.drv_path.clone()).unwrap();
-  println!("{:?}", res.open());
 }

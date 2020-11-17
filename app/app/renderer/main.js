@@ -44,7 +44,7 @@ window.onload = function() {
         ipcRenderer.send(consts.PT_GET_VBATT);
     }, 2000);
 
-    window.onunload = function() {
+    window.onbeforeunload = function() {
         ipcRenderer.sendSync(consts.PT_CLOSE);
     }
 }

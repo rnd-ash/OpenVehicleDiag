@@ -43,4 +43,6 @@ fn read_file(path: &String) {
     f.read(&mut buffer).expect("Error reading file");
     let mut br = Raf::from_bytes(&buffer, common::raf::RafByteOrder::LE);
     let container = caesar::CContainer::new(&mut br);
+    converter::convert(&container);
+
 }
