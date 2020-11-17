@@ -12,7 +12,7 @@ pub fn convert(container: &CContainer) {
             let baud = iface.com_params.iter()
                 .find(|i| {i.com_param.0 == ComParam::CP_BAUDRATE})
                 .map(|x| x.com_param.1)
-                .expect("Error, ECU has no baud rate!");
+                .expect(format!("Error, ECU has no baud rate! {:#?}", iface).as_str());
             println!("Baud rate: {} bps", baud);
 
 

@@ -232,7 +232,7 @@ impl DiagService {
             let res_cp_offset = reader.read_i32().unwrap();
             let cp_entry_base_addr = com_param_table_offset + res_cp_offset as i64;
             ComParameter::new(reader, cp_entry_base_addr, &parent_ecu.ecu_ifaces[1])
-        }).collect();
+        }).filter(|f| f.is_some()).map(|x|x.unwrap()).collect();
 
         // Diagnostic codes
         let dtc_pool = parent_ecu.parent_container.cff_header.dsc_pool.clone();
@@ -393,7 +393,7 @@ impl DiagPreparation {
                 if mode_e == 0x8000 {
                     self.data_type = InferredDataType::NativeInfoPoolType;
 
-                    let info_block = &parent_ecu.info;
+                    let info_block = &parent_ecu.info_blk;
                     let pool_bytes = ECU::read_ecu_pool(reader, &info_block);
 
                     let mut pool_reader = raf::Raf::from_bytes(&pool_bytes, raf::RafByteOrder::LE);
@@ -421,7 +421,7 @@ impl DiagPreparation {
                 } else if mode_e == 0x2000 {
                     self.data_type = InferredDataType::NativePresentationType;
 
-                    let pres_block = &parent_ecu.presentations;
+                    let pres_block = &parent_ecu.presentations_blk;
                     let pool_bytes = ECU::read_ecu_pool(reader, &pres_block);
 
                     let mut pool_reader = raf::Raf::from_bytes(&pool_bytes, raf::RafByteOrder::LE);
