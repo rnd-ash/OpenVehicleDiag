@@ -2,8 +2,11 @@ use common::raf;
 use crate::caesar::{CReader, CContainer};
 use crate::cxf::*;
 use crate::diag::*;
+use serde::*;
+use serde_json::*;
+use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct block {
     pub block_offset: i32,
     pub entry_count: i32,
@@ -24,12 +27,17 @@ impl block {
 
 
 #[allow(non_camel_case_types)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParamName {
+    /// Bus baud speed
     CP_BAUDRATE,
+    /// CAN ID for sending Diag requests to global bus (Interior CAN only)
     CP_GLOBAL_REQUEST_CANIDENTIFIER,
+    /// ??
     CP_FUNCTIONAL_REQUEST_CANIDENTIFIER,
+    /// ECU Request CAN ID (Requests to ECU have this ID)
     CP_REQUEST_CANIDENTIFIER,
+    /// ECU Response CAN ID (It writes data with this ID)
     CP_RESPONSE_CANIDENTIFIER,
     CP_PARTNUMBERID,
     CP_PARTBLOCK,
@@ -41,7 +49,9 @@ pub enum ParamName {
     CP_ADDRESSMODE,
     CP_ADDRESSEXTENSION,
     CP_ROE_RESPONSE_CANIDENTIFIER,
+    /// Shouldn't all ISO15765 messages use the ECUs timing?
     CP_USE_TIMING_RECEIVED_FROM_ECU,
+    /// ISO15765 minimum seperation time in MS 
     CP_STMIN_SUG,
     CP_BLOCKSIZE_SUG,
     CP_P2_TIMEOUT,
@@ -49,6 +59,7 @@ pub enum ParamName {
     CP_S3_TP_FUNC_TIMER,
     CP_BR_SUG,
     CP_CAN_TRANSMIT,
+    /// Max block size for ISO15765
     CP_BS_MAX,
     CP_CS_MAX,
     CPI_ROUTINECOUNTER,
@@ -106,7 +117,7 @@ impl ParamName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComParameter {
     pub param_index: i32,
     pub unk3: i32,
@@ -118,8 +129,8 @@ pub struct ComParameter {
     pub dump: Vec<u8>,
 
     pub com_param_value: i32,
-    pub com_param_name: String,
-    pub base_addr: i64
+    pub com_param_name: Option<String>,
+    pub base_addr: i64,
 }
 
 impl ComParameter {
@@ -140,10 +151,8 @@ impl ComParameter {
 
         if dump_size == 4 {
             com_param_value = (dump[3] as i32) << 24 | (dump[2] as i32) << 16 | (dump[1] as i32) << 8 | (dump[0] as i32)
-        } else {
-            panic!("Parent has no matching key");
         }
-        let com_param_name = parent_iface.com_parameters[param_index as usize].clone();
+        let com_param_name = parent_iface.com_parameters.get(param_index as usize).map(|x| x.clone());
 
         Self {
             param_index,
@@ -156,15 +165,15 @@ impl ComParameter {
             dump,
             com_param_value,
             com_param_name,
-            base_addr
+            base_addr,
         }
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ECUInterfaceSubType {
     pub name: String,
-    pub name_ctf: i32,
-    pub desc_ctf: i32,
+    pub name_ctf: Option<String>,
+    pub desc_ctf: Option<String>,
     pub base_addr: i64,
     pub index: i32,
     pub unk3: i32,
@@ -179,7 +188,7 @@ pub struct ECUInterfaceSubType {
 }
 
 impl ECUInterfaceSubType {
-    pub fn new(reader: &mut raf::Raf, base_addr: i64, index: i32) -> Self {
+    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, base_addr: i64, index: i32) -> Self {
         reader.seek(base_addr as usize);
 
         let mut bitflags = reader.read_u32().expect("Error reading iface bitflag") as u64;
@@ -188,8 +197,8 @@ impl ECUInterfaceSubType {
             index: index,
             base_addr: base_addr,
             name: CReader::read_bitflag_string(&mut bitflags, reader, base_addr).unwrap(),
-            name_ctf: CReader::read_bitflag_i32(&mut bitflags, reader, -1),
-            desc_ctf: CReader::read_bitflag_i32(&mut bitflags, reader, -1),
+            name_ctf: lang.get_string(CReader::read_bitflag_i32(&mut bitflags, reader, -1)),
+            desc_ctf: lang.get_string(CReader::read_bitflag_i32(&mut bitflags, reader, -1)),
 
             unk3: CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32,
             unk4: CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32,
@@ -206,7 +215,7 @@ impl ECUInterfaceSubType {
     }
 
     pub fn get_com_param(&self, name: &str) -> Option<&ComParameter> {
-        self.com_params.iter().find(|x| x.com_param_name == name)
+        self.com_params.iter().find(|x| x.com_param_name.clone().unwrap_or("N/A".to_string()) == name)
     }
 
     pub fn get_com_param_value(&self, name: ParamName) -> Option<i32> {
@@ -229,7 +238,7 @@ impl ECUInterfaceSubType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ECUVarientPattern {
         unk_buffer_size: i32,
         unk_buffer: Vec<u8>,
@@ -281,7 +290,7 @@ impl ECUVarientPattern {
         ret.unk_13 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_14 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_15 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
-        ret.unk_16 = CReader::read_bitflag_dump(&mut bitflags, reader, 5, base_addr).unwrap(); // read with a constant size
+        ret.unk_16 = CReader::read_bitflag_dump(&mut bitflags, reader, 5, base_addr).unwrap_or(Vec::new()); // read with a constant size
         ret.unk_17 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_18 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_19 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
@@ -295,7 +304,7 @@ impl ECUVarientPattern {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ECUVarient {
     name: Option<String>,
     name_ctf: i32,
@@ -331,11 +340,12 @@ pub struct ECUVarient {
 
     vc_domains: Vec<VCDomain>,
     varient_patterns: Vec<ECUVarientPattern>,
-    diag_services: Vec<DiagService>
+    diag_services: Vec<DiagService>,
+    base_addr: i64
 }
 
 impl ECUVarient {
-    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, parent_ecu: &ECU, base_addr: i64, block_size: i32) -> Self {
+    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, parent_ecu: &mut ECU, base_addr: i64, block_size: i32) -> Self {
         reader.seek(base_addr as usize);
 
         let varient_bytes = reader.read_bytes(block_size as usize).expect("Error reading ECU Varient bytes");
@@ -345,7 +355,7 @@ impl ECUVarient {
         let mut ret: ECUVarient = unsafe { std::mem::zeroed() };
         let mut bitflags = varreader.read_u32().unwrap() as u64;
         let skip = varreader.read_i32().unwrap();
-
+        ret.base_addr = base_addr;
         ret.name = CReader::read_bitflag_string(&mut bitflags, &mut varreader, 0);
         ret.name_ctf = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, -1);
         ret.desc_ctf = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, -1);
@@ -398,33 +408,60 @@ impl ECUVarient {
     }
 
     fn create_diag_services(&mut self, reader: &mut raf::Raf, parent_ecu: &ECU, lang: &CTFLanguage) {
-
+        let mut diag_copy = parent_ecu.diag_services.clone().into_iter();
+        self.diag_services = self.diag_services_pool_offsets.clone().into_iter().map(|idx| {
+            diag_copy.find(|x| {x.pool_index == idx })
+        }).filter(|l| l.is_some())
+        .map(|x| x.unwrap()).collect();
     }
 
     fn create_var_patterns(&mut self, reader: &mut raf::Raf) {
+        let table_offset = self.base_addr + self.matching_pattern_offset as i64;
+        reader.seek(table_offset as usize);
 
+        self.varient_patterns = (0..self.matching_pattern_count).map(|pattern_index| {
+            reader.seek((table_offset + (pattern_index*4) as i64) as usize);
+
+            let pattern_offset = reader.read_i32().unwrap();
+            let pattern_address = pattern_offset as i64 + table_offset;
+            ECUVarientPattern::new(reader, pattern_address)
+
+        }).collect();
     }
 
-    fn create_com_params(&mut self, reader: &mut raf::Raf, parent_ecu: &ECU) {
+    fn create_com_params(&mut self, reader: &mut raf::Raf, parent_ecu: &mut ECU) {
+        let com_param_base_address = self.base_addr + self.com_param_offset as i64;
+        reader.seek(com_param_base_address as usize);
+        let com_param_offsets: Vec<i64> = (0..self.com_param_count).map(|_| reader.read_i32().unwrap() as i64 + com_param_base_address).collect();
 
+        parent_ecu.ecu_ifaces.clone().iter().for_each(|iface| {
+            let mut clone = parent_ecu.clone();
+            com_param_offsets.clone().into_iter().for_each(|com_offset| {
+                let cp = ComParameter::new(reader, com_offset, iface);
+                eprintln!("{:?}", cp);
+                clone.ecu_ifaces_subtype[cp.sub_iface_index as usize].com_params.push(cp);
+            });
+            *parent_ecu = clone;
+        });
     }
 
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VCDomain{}
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ECUInterface {
     pub name: Option<String>,
     pub name_ctf: i32,
     pub desc_ctf: i32,
-    pub version: Option<String>,
+    pub version_str: Option<String>,
     pub com_param_count: i32,
     pub com_param_list_offset: i32,
     pub unk6: i32,
     pub com_parameters: Vec<String>,
-    pub base_addr: i64
+    pub base_addr: i64,
+    pub version: i32
 }
 
 impl ECUInterface {
@@ -456,7 +493,8 @@ impl ECUInterface {
             name,
             name_ctf,
             desc_ctf,
-            version: version_str,
+            version_str,
+            version,
             com_param_count,
             com_param_list_offset,
             unk6,
@@ -466,11 +504,11 @@ impl ECUInterface {
     }
 }
 
-#[derive(Debug)]
-pub struct ECU<'a> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ECU {
     pub name: String,
-    pub ecuname_ctf: i32,
-    pub ecudesc_ctf: i32,
+    pub ecuname_ctf: Option<String>,
+    pub ecudesc_ctf: Option<String>,
     pub xml_version: String,
     pub interface_block_count: i32,
     pub interface_table_offset: i32,
@@ -501,7 +539,7 @@ pub struct ECU<'a> {
     // --
     pub unk39: i32,
 
-    pub parent_container: &'a CContainer,
+    pub parent_container: CContainer,
 
     pub ecu_ifaces: Vec<ECUInterface>,
     pub ecu_ifaces_subtype: Vec<ECUInterfaceSubType>,
@@ -518,8 +556,8 @@ pub struct ECU<'a> {
     pub base_addr: i64,
 }
 
-impl<'a> ECU<'a> {
-    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, header: &CFFHeader, base_addr: i64, pcontainer: &'a CContainer) -> ! {
+impl ECU {
+    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, header: &CFFHeader, base_addr: i64, pcontainer: CContainer) -> ! {
 
         let mut ecu_bitflags = reader.read_u32().expect("Error reading ECU Bitflag") as u64;
         let ecu_bitflags_ext = reader.read_i16().expect("Error reading ECU Ext Bitflag") as u64;
@@ -530,8 +568,8 @@ impl<'a> ECU<'a> {
 
 
         let name = CReader::read_bitflag_string(&mut ecu_bitflags, reader, base_addr);
-        let ecuname_ctf = CReader::read_bitflag_i32(&mut ecu_bitflags, reader, -1);
-        let ecudesc_ctf = CReader::read_bitflag_i32(&mut ecu_bitflags, reader, -1);
+        let ecuname_ctf_idx = CReader::read_bitflag_i32(&mut ecu_bitflags, reader, -1);
+        let ecudesc_ctf_idx = CReader::read_bitflag_i32(&mut ecu_bitflags, reader, -1);
         let xml_version = CReader::read_bitflag_string(&mut ecu_bitflags, reader, base_addr);
         let iface_blockcount = CReader::read_bitflag_i32(&mut ecu_bitflags, reader, 0);
         let iface_tableoffset = CReader::read_bitflag_i32(&mut ecu_bitflags, reader, 0);
@@ -578,7 +616,7 @@ impl<'a> ECU<'a> {
             let actual_blk_offset = reader.read_i32().unwrap();
             let ct_base_addr = ct_table_addr as i64 + actual_blk_offset as i64;
 
-            ECUInterfaceSubType::new(reader, ct_base_addr, buf_index as i32)
+            ECUInterfaceSubType::new(reader, lang, ct_base_addr, buf_index as i32)
 
         }).collect();
 
@@ -605,8 +643,8 @@ impl<'a> ECU<'a> {
             diag_services: Vec::new(),
 
             name: name.unwrap(),
-            ecuname_ctf: ecuname_ctf,
-            ecudesc_ctf: ecudesc_ctf,
+            ecuname_ctf: lang.get_string(ecuname_ctf_idx),
+            ecudesc_ctf: lang.get_string(ecudesc_ctf_idx),
             xml_version: xml_version.unwrap(),
             interface_block_count: iface_blockcount,
             interface_table_offset: iface_tableoffset,
@@ -624,7 +662,7 @@ impl<'a> ECU<'a> {
         res.create_diag_pool(reader, lang);
         res.create_ecu_varients(reader, lang);
 
-        println!("{:#?}", res);
+        println!("{}", serde_json::to_string_pretty(&res).unwrap());
         panic!("Done")
     }
 
@@ -637,7 +675,6 @@ impl<'a> ECU<'a> {
             let size = dreader.read_i32().unwrap();
             let crc = dreader.read_i32().unwrap();
             let config = dreader.read_i16().unwrap();
-
             let diag_base_addr = offset + self.diagjob.block_offset;
             DiagService::new(reader, lang, diag_base_addr as i64, diag_job_index as i32, &self)
         }).collect();
@@ -647,19 +684,17 @@ impl<'a> ECU<'a> {
         let var_block = &self.ecuvarient;
         let pool = ECU::read_ecu_pool(reader, &self.ecuvarient);
         let mut vreader = raf::Raf::from_bytes(&pool, raf::RafByteOrder::LE);
-        self.ecu_varient = (0..var_block.entry_count as usize).map(|index|{
+        let mut copy = self.clone();
+        let res: Vec<ECUVarient> = (0..var_block.entry_count as usize).map(|index|{
             vreader.seek(index * var_block.entry_size as usize);
-
             let entry_offset = vreader.read_i32().unwrap();
             let entry_size = vreader.read_i32().unwrap();
             let pool_entry_attrib = vreader.read_u16().unwrap();
-
             let varient_block_address = entry_offset + var_block.block_offset;
-
-            let v = ECUVarient::new(reader, lang, &self, varient_block_address as i64, entry_size);
-            println!("{:?}", v);
-            v
+            ECUVarient::new(reader, lang,&mut copy, varient_block_address as i64, entry_size)
         }).collect();
+        copy.ecu_varient = res;
+        *self = copy;
 
     }
 

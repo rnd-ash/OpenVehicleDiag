@@ -2,7 +2,7 @@ use common::raf::Raf;
 use encoding_rs::ISO_8859_10;
 use crate::cxf::*;
 use crate::ecu::*;
-
+use serde::*;
 pub struct CReader{}
 
 impl CReader {
@@ -99,10 +99,10 @@ impl CReader {
 
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CContainer{
-    cff_header: CFFHeader,
-    ctf_header: CTFHeader
+    pub cff_header: CFFHeader,
+    pub ctf_header: CTFHeader
 }
 impl CContainer {
     pub fn new(reader: &mut Raf) -> Self {
@@ -152,7 +152,7 @@ impl CContainer {
             reader.seek((ecu_table_offset + (i*4)) as usize);
 
             let offset_to_ecu = reader.read_i32().expect("Error reading offset");
-            ECU::new(reader, lang, cff_header, ecu_table_offset + offset_to_ecu as i64, self);
+            ECU::new(reader, lang, cff_header, ecu_table_offset + offset_to_ecu as i64, self.clone());
         }
     }
 }

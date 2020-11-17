@@ -1,7 +1,7 @@
 
 use common::raf;
 use crate::caesar::CReader;
-
+use serde::*;
 pub const STUB_HEADER_SIZE: usize = 0x410;
 pub const FILE_HEADER: &[u8] = "CBF-TRANSLATOR-VERSION:04.00".as_bytes();
 
@@ -20,7 +20,7 @@ impl BaseHeader {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CFFHeader {
     pub caser_version: i32,
     pub gpd_version: i32,
@@ -28,14 +28,17 @@ pub struct CFFHeader {
     pub ecuOffsets: i32,
     pub ctf_offset: i32,
     pub size_of_str_pool: i32,
-    pub unk2_relative_offset: i32,
-    pub instance_count2: i32,
-    pub instance_count1: i32,
+    pub dsc_offset: i32,
+    pub dsc_count: i32,
+    pub dsc_entry_size: i32,
     pub cbf_version_string: String,
     pub gpd_version_string: String,
     pub diogenes_xml_string: String,
     pub cff_header_size: i32,
     pub base_address: i64,
+    pub dsc_block_offset: i64,
+    pub dsc_block_size: i64,
+    pub dsc_pool: Vec<u8>
 }
 
 impl CFFHeader {
@@ -44,27 +47,41 @@ impl CFFHeader {
         let cff_header_size = reader.read_i32().expect("Error reading header size");
         let base_address = reader.pos as i64;
         let mut bitflag = reader.read_u16().expect("Error reading bitflag") as u64;
-        Self {
+        let mut res = Self {
             caser_version: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             gpd_version: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             ecu_count: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             ecuOffsets: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             ctf_offset: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             size_of_str_pool: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
-            unk2_relative_offset: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
-            instance_count2: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
-            instance_count1: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
+            dsc_offset: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
+            dsc_count: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
+            dsc_entry_size: CReader::read_bitflag_i32(&mut bitflag, reader, 0),
             cbf_version_string: CReader::read_bitflag_string(&mut bitflag, reader, 0).expect("CXF File has no CBF Header!"),
             gpd_version_string: CReader::read_bitflag_string(&mut bitflag, reader, 0).expect("CXF File has no GPD Header!"),
             diogenes_xml_string: CReader::read_bitflag_string(&mut bitflag, reader, 0).expect("CXF File has no XML!"),
             base_address,
-            cff_header_size
+            cff_header_size,
+
+            // Modify below
+            dsc_block_offset: 0,
+            dsc_block_size: 0,
+            dsc_pool: Vec::new()
+        };
+
+        let data_buffer_offset_after_string = res.size_of_str_pool + res.cff_header_size + 0x414;
+        if res.dsc_count > 0 {
+            res.dsc_block_offset = (res.dsc_offset + data_buffer_offset_after_string) as i64;
+            res.dsc_block_size = (res.dsc_entry_size * res.dsc_count) as i64;
+            reader.seek(res.dsc_block_offset as usize);
+            res.dsc_pool = reader.read_bytes(res.dsc_block_size as usize).unwrap()
         }
+        res
     }
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CTFLanguage {
     lang_name: Option<String>,
     lang_index: i32,
@@ -110,10 +127,14 @@ impl CTFLanguage {
             })
             .collect()
     }
+
+    pub fn get_string(&self, idx: i32) -> Option<String> {
+        self.strings.get(idx as usize).map(|x| x.clone())
+    }
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CTFHeader {
     pub ctf_unk1: i32,
     pub ctf_name: String,
