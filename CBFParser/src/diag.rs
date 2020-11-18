@@ -232,7 +232,7 @@ impl DiagService {
             let res_cp_offset = reader.read_i32().unwrap();
             let cp_entry_base_addr = com_param_table_offset + res_cp_offset as i64;
             ComParameter::new(reader, cp_entry_base_addr, &parent_ecu.ecu_ifaces[1])
-        }).filter(|f| f.is_some()).map(|x|x.unwrap()).collect();
+        }).collect();
 
         // Diagnostic codes
         let dtc_pool = parent_ecu.parent_container.cff_header.dsc_pool.clone();

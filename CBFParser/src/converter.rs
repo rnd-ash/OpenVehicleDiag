@@ -8,15 +8,6 @@ use common::*;
 
 pub fn convert(container: &CContainer) {
     container.ecus.iter().enumerate().for_each(|(idx, ecu)| {
-        ecu.ecu_ifaces_subtype.iter().for_each(|iface| {
-            let baud = iface.com_params.iter()
-                .find(|i| {i.com_param.0 == ComParam::CP_BAUDRATE})
-                .map(|x| x.com_param.1)
-                .expect(format!("Error, ECU has no baud rate! {:#?}", iface).as_str());
-            println!("Baud rate: {} bps", baud);
-
-
-            println!("{:?}", iface.name_ctf);
-        })
+        println!("{}", serde_json::to_string_pretty(&ecu.ecu_varients).unwrap());
     })
 }
