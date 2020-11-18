@@ -298,11 +298,11 @@ pub struct ECUVarientPattern {
     pub unk_4: i32,
     pub unk_5: i32,
     pub vendor_name: Option<String>,
-    pub unk_7: i32,
+    pub diag_version: u32,
     pub unk_8: i32,
     pub unk_9: i32,
     pub unk_10: i32, 
-    pub unk_11: i32,
+    pub supplier_code: i32,
     pub unk_12: i32,
     pub unk_13: i32,
     pub unk_14: i32,
@@ -311,7 +311,7 @@ pub struct ECUVarientPattern {
     pub unk_17: i32,
     pub unk_18: i32,
     pub unk_19: i32,
-    pub unk_20: i32,
+    pub supplier_vehicle_type: i32,
     pub unk_21: Option<String>,
     pub unk_22: i32,
     pub unk_23: i32,
@@ -333,11 +333,11 @@ impl ECUVarientPattern {
         ret.unk_4 = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
         ret.unk_5 = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
         ret.vendor_name = CReader::read_bitflag_string(&mut bitflags, reader, base_addr);
-        ret.unk_7 = CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32;
+        ret.diag_version = CReader::read_bitflag_u16(&mut bitflags, reader, 0) as u32;
         ret.unk_8 = CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32;
         ret.unk_9 = CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32;
         ret.unk_10 = CReader::read_bitflag_i16(&mut bitflags, reader, 0) as i32;
-        ret.unk_11 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.supplier_code = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_12 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_13 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_14 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
@@ -346,7 +346,7 @@ impl ECUVarientPattern {
         ret.unk_17 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_18 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_19 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
-        ret.unk_20 = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
+        ret.supplier_vehicle_type = CReader::read_bitflag_u8(&mut bitflags, reader, 0) as i32;
         ret.unk_21 = CReader::read_bitflag_string(&mut bitflags, reader, base_addr);
         ret.unk_22 = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
         ret.unk_23 = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
