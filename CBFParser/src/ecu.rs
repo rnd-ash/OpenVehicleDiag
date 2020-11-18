@@ -674,19 +674,16 @@ impl ECU {
 
     pub fn create_dtcs(&mut self, reader: &mut raf::Raf, lang: &CTFLanguage) {
         // Create diag services
-        
-        /*
-        let pool = ECU::read_ecu_pool(reader, &self.dtc);
-        eprintln!("DTC pool: {:?}", &self.dtc);
+        let pool = ECU::read_ecu_pool(reader, &self.dtc_blk);
+        eprintln!("DTC pool: {:?}", &self.dtc_blk);
         let mut dreader = raf::Raf::from_bytes(&pool, raf::RafByteOrder::LE);
-        (0..self.dtc.entry_count as usize).for_each(|dtc_index| {
+        (0..self.dtc_blk.entry_count as usize).for_each(|dtc_index| {
             let offset = dreader.read_i32().unwrap();
-            let diag_base_addr = offset + self.dtc.block_offset;
-            let unk = dreader.read_bytes((&self.dtc.entry_size-4) as usize).unwrap();
+            let diag_base_addr = offset + self.dtc_blk.block_offset;
+            let unk = dreader.read_bytes((&self.dtc_blk.entry_size-4) as usize).unwrap();
             eprintln!("UNK: {:02X?}", unk);
-            DTC::new(reader, lang, diag_base_addr as i64, dtc_index as i32, &self);
+            self.dtcs.push(DTC::new(reader, lang, diag_base_addr as i64, dtc_index as i32, &self));
         })
-        */
     }
 
     pub fn create_diag_pool(&mut self, reader: &mut raf::Raf, lang: &CTFLanguage) {

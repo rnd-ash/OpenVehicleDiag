@@ -9,29 +9,36 @@ const INT_SIZE_MAPPING: [u8; 7] = [0x00, 0x01, 0x04, 0x08, 0x10, 0x20, 0x40];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DTC {
-
+    unk1: i32,
+    code: String,
+    name: String,
+    desc: Vec<String>,
 }
 
 impl DTC {
-    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, base_addr: i64, pool_index: i32, parent_ecu: &ECU) {
+    pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, base_addr: i64, pool_index: i32, parent_ecu: &ECU) -> Self {
         reader.seek(base_addr as usize);
         let mut bitflags = reader.read_u16().expect("Unable to read DiagService bitflags") as u64;
-        let idx = CReader::read_bitflag_i32(&mut bitflags, reader, -1);
-        let mut desc_txt = Vec::new();
+        let unk1 = CReader::read_bitflag_i32(&mut bitflags, reader, -1);
+        let name_idx = CReader::read_bitflag_i32(&mut bitflags, reader, -1);
+        let mut err_text: Vec<String> = Vec::new();
         loop {
-            let desc = CReader::read_bitflag_i32(&mut bitflags, reader, -1);
-            if desc == -1 {
+            let desc_idx = CReader::read_bitflag_i32(&mut bitflags, reader, -1);
+            if desc_idx == -1 {
                 break;
             } else {
-                desc_txt.push(lang.get_string(desc));
+                err_text.push(lang.get_string(desc_idx).unwrap())
             }
         }
-        let name = reader.read_string(5);
-
-        //let str_ref = reader.read_i32().unwrap();
-        //let desc = lang.get_string(str_ref);
-        //let name = reader.read_string(5);
-        eprintln!("Name: {:?} IDX {} Desc: {:?}", name, idx, desc_txt);
+        // Actual name of error (P2000)
+        let code = reader.read_cstr().unwrap();
+        
+        Self {
+            unk1,
+            code,
+            desc: err_text,
+            name: lang.get_string(name_idx).unwrap()
+        }
     }
 }
 

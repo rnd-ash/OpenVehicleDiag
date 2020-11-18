@@ -7,7 +7,5 @@ use common::*;
 
 
 pub fn convert(container: &CContainer) {
-    container.ecus.iter().enumerate().for_each(|(idx, ecu)| {
-        println!("{}", serde_json::to_string_pretty(&ecu.ecu_varients).unwrap());
-    })
+    println!("{}", serde_json::to_string_pretty(container).unwrap());
 }
