@@ -25,13 +25,14 @@ impl block {
 
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
+/// COM Parameters found in CBF...These are most likely derrived from ODX files
 pub enum ComParam {
     /// Bus baud speed
     CP_BAUDRATE,
     /// CAN ID for sending Diag requests to global bus (Interior CAN only)
     CP_GLOBAL_REQUEST_CANIDENTIFIER,
-    /// ??
+    // Unknown
     CP_FUNCTIONAL_REQUEST_CANIDENTIFIER,
     /// ECU Request CAN ID (Requests to ECU have this ID)
     CP_REQUEST_CANIDENTIFIER,
@@ -95,6 +96,9 @@ impl std::fmt::Display for ComParam {
 }
 
 impl ComParam {
+    /// Converts a capitialized string from CBF File into a COM Param
+    /// If the string is unknown, COMParam::Unknown is returned,
+    /// and a warning is logged
     pub fn from_string(txt: &str) -> Self {
         match txt {
             "CP_BAUDRATE" => ComParam::CP_BAUDRATE,
@@ -152,22 +156,38 @@ impl ComParam {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Com parameter struct from CBF File
 pub struct ComParameter {
+    /// Parameter Index from CBF File
     pub param_index: i32,
+    /// ??
     pub unk3: i32,
+    /// ECU Sub interface index
     pub sub_iface_index: i32,
+    /// ??
     pub unk5: i32,
+    /// ??
     pub unk_ctf: i32,
+    /// ??
     pub phrase: i32,
+    /// Parameter data size
     pub dump_size: i32,
+    /// Parameter data as a byte array
     pub dump: Vec<u8>,
+    /// COM Parameter, with its assigned value
     pub com_param: (ComParam, i32),
+    /// Base address in CBF
     pub base_addr: i64,
 }
 
 impl ComParameter {
-    pub fn new(reader: &mut raf::Raf, base_addr: i64, parent_iface: &ECUInterface) -> Option<Self> {
-        
+    /// Creates a new COM Parameter from the CBF
+    /// # Params
+    /// * raf - Random file accessor for the CBF File
+    /// * base_addr - Base address within the CBF file for the start of the COM Parameter block
+    /// * parent_iface - Parent ECU Interface
+    pub fn new(reader: &mut raf::Raf, base_addr: i64, parent_iface: &ECUInterface) -> Self {
+
         reader.seek(base_addr as usize);
         let mut bitflags = reader.read_u16().expect("Error reading bitflags") as u64;
 
@@ -188,30 +208,33 @@ impl ComParameter {
         let com_param = ComParam::from_string(parent_iface.com_parameters
             .get(param_index as usize).map(|x| x.as_str())
             .unwrap_or(""));
-        if com_param == ComParam::UNKNOWN {
-            // Missing com parameter
-            return None;
-        }
-        Some(Self {
+        Self {
+            com_param: (com_param, com_param_value),
             param_index,
             unk3,
             sub_iface_index,
             unk5,
             unk_ctf,
             phrase,
-            dump_size,
             dump,
-            com_param: (com_param, com_param_value),
-            base_addr,
-        })
+            dump_size,
+            base_addr
+        }
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// ECU Sub interface represents a way of talking to the ECU from the CBF File.
+/// A ECU can have multiple sub-interfaces (Example being K-Line + HSCAN)
 pub struct ECUInterfaceSubType {
+    /// Name of interface from CBF
     pub name: String,
+    /// Name of interface from String table
     pub name_ctf: Option<String>,
+    /// Description of interface from String table
     pub desc_ctf: Option<String>,
+    /// Base address within CBF File
     pub base_addr: i64,
+    /// Sub interface Index
     pub index: i32,
     pub unk3: i32,
     pub unk4: i32,
@@ -221,10 +244,17 @@ pub struct ECUInterfaceSubType {
     pub unk8: i32,
     pub unk9: i32,
     pub unk10: i32,
+    /// COM Parameters
     pub com_params: Vec<ComParameter>
 }
 
 impl ECUInterfaceSubType {
+    /// Creates a new ECU Sub interface
+    /// # Params
+    /// * raf - Random file access for CBF File
+    /// * lang - CBF Language table for getting strings from
+    /// * base_addr - Base address within the CBF File to read data from
+    /// * index - Index of the ECU Sub Interface
     pub fn new(reader: &mut raf::Raf, lang: &CTFLanguage, base_addr: i64, index: i32) -> Self {
         reader.seek(base_addr as usize);
 
@@ -251,6 +281,7 @@ impl ECUInterfaceSubType {
         }
     }
 
+    /// Gets the ComParameter by string name
     pub fn get_com_param(&self, name: &str) -> Option<ComParameter> {
         self.com_params.iter()
             .find(|x| x.com_param.0.to_string() == name)
@@ -259,6 +290,7 @@ impl ECUInterfaceSubType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// ECU Varient pattern - Not much is known at this point about it
 pub struct ECUVarientPattern {
     pub unk_buffer_size: i32,
     pub unk_buffer: Vec<u8>,
@@ -325,10 +357,15 @@ impl ECUVarientPattern {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// An ECU Varient is a HW or SW version of the same ECU.
+/// Each varient of the ECU can have its own functions list, or DTC codes
+/// since each software version of the ECU may do things differently
+/// to another version
 pub struct ECUVarient {
+    /// Name of ECU Varient
     pub name: Option<String>,
-    pub name_ctf: i32,
-    pub desc_ctf: i32,
+    pub name_ctf: Option<String>,
+    pub desc_ctf: Option<String>,
     pub unk_str1: Option<String>,
     pub unk_str2: Option<String>,
     pub unk1: i32,
@@ -374,8 +411,8 @@ impl ECUVarient {
         let skip = varreader.read_i32().unwrap();
         ret.base_addr = base_addr;
         ret.name = CReader::read_bitflag_string(&mut bitflags, &mut varreader, 0);
-        ret.name_ctf = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, -1);
-        ret.desc_ctf = CReader::read_bitflag_i32(&mut bitflags, &mut varreader, -1);
+        ret.name_ctf = lang.get_string(CReader::read_bitflag_i32(&mut bitflags, &mut varreader, -1));
+        ret.desc_ctf = lang.get_string(CReader::read_bitflag_i32(&mut bitflags, &mut varreader, -1));
         ret.unk_str1 = CReader::read_bitflag_string(&mut bitflags, &mut varreader, 0);
         ret.unk_str2 = CReader::read_bitflag_string(&mut bitflags, &mut varreader, 0);
 
@@ -456,7 +493,7 @@ impl ECUVarient {
             let mut clone = parent_ecu.clone();
             com_param_offsets.clone().into_iter().for_each(|com_offset| {
                 let cp = ComParameter::new(reader, com_offset, iface);
-                cp.map(|c| clone.ecu_ifaces_subtype[c.sub_iface_index as usize].com_params.push(c.clone()));
+                clone.ecu_ifaces_subtype[cp.sub_iface_index as usize].com_params.push(cp.clone());
             });
             i += 1;
             *parent_ecu = clone;

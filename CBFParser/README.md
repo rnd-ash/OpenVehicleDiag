@@ -1,12 +1,12 @@
 # This program converts Daimler CBF Files to the OVD JSON Schema
 
----
+**This program currently DOES NOT work as intended (Still testing!)**
 
+---
 ## Usage
 ```
 cbf_parser <INPUT.CBF> <OUTPUT.json>
 ```
-
 ---
 
 ## Contributions
