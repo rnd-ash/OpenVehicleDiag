@@ -32,14 +32,29 @@ ipcRenderer.on(consts.PT_GET_VBATT, (event, resp) => {
 window.onload = function() {
     let title = document.getElementById("title");
     let load_ecu = document.getElementById("load_ecu");
+    let drv_data = ipcRenderer.sendSync(consts.PT_GET_VERSION);
+    if (drv_data['err'] == null) {
+        document.getElementById('fw-version').innerText = `Device firmware version: ${drv_data['fw_version']}`
+        document.getElementById('api-version').innerText = `Device API version: ${drv_data['api_version']}`
+        document.getElementById('lib-version').innerText = `Device library version: ${drv_data['dll_version']}`
+    }
+    document.getElementById('ovd-version').innerText = `OVD version: ${require('electron').remote.app.getVersion()}`
+
     set_batt_voltage();
 
     load_ecu.onclick = function() {
-        ipcRenderer.send("f_open")
+        let dialog = require('electron').remote.dialog;
+        dialog.showOpenDialog(null, {
+            properties: ['openFile'],
+            filters: [{ name: 'OVD ECU Json', extensions: ['ovdjson'] }]
+        }).then((filename) => {
+            console.log(`FILE: ${filename}`);
+        });
     }
 
 
-    // Display battery votlage every 2 seconds
+
+    // Display battery voltage every 2 seconds
     setIntervalNow(function() {
         ipcRenderer.send(consts.PT_GET_VBATT);
     }, 2000);
