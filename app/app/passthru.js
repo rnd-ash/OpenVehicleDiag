@@ -48,4 +48,13 @@ ipc.on(consts.PT_CLOSE, (event) => {
     }
 });
 
+ipc.on(consts.PT_GET_VERSION, (event) => {
+    log(`Querying device info ${dev_id}`);
+    if (dev_lock) { // No DON'T close the connection - Something is being written or read!
+        event.returnValue = {"err": "Device in operation"};
+    } else {
+        event.returnValue = log_res(passthru_lib.get_version(dev_id));
+    }
+});
+
 

@@ -216,11 +216,13 @@ impl PassthruDrv {
                 api_version.as_mut_ptr() as *mut libc::c_char,
             )
         };
-        ret_res(res, DrvVersion{
-            dll_version: String::from_utf8(dll_version.to_vec()).unwrap(),
-            api_version: String::from_utf8(api_version.to_vec()).unwrap(),
-            fw_version: String::from_utf8(firmware_version.to_vec()).unwrap()
-        })
+        unsafe {
+            ret_res(res, DrvVersion {
+                api_version: CStr::from_ptr(api_version.as_ptr() as *const libc::c_char).to_str().unwrap().to_string(),
+                dll_version: CStr::from_ptr(dll_version.as_ptr() as *const libc::c_char).to_str().unwrap().to_string(),
+                fw_version: CStr::from_ptr(firmware_version.as_ptr() as *const libc::c_char).to_str().unwrap().to_string()
+            })
+        }
     }
 
     //type PassThruGetLastErrorFn = unsafe extern "stdcall" fn(error_description: *mut libc::c_char) -> i32;

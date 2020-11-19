@@ -10,7 +10,7 @@
 
     <!-- Material Design for Bootstrap CSS -->
     <link rel="stylesheet" href="https://unpkg.com/bootstrap-material-design@4.1.1/dist/css/bootstrap-material-design.min.css" integrity="sha384-wXznGJNEXNG1NFsbm0ugrLFMQPWswR3lds2VeinahP8N0zJw9VWSopbjv2x7WCvX" crossorigin="anonymous">
-
+    <script>window.$ = window.jQuery = require('jquery');</script>
     <title>Open vehicle diagnostics</title>
 </head>
 <body>
@@ -18,7 +18,10 @@
 <!-- Top bar -->
 <nav class = "navbar navbar-dark bg-dark">
     <ul class="nav navbar-nav">
-        <button class="btn btn-outline-success" id="load_ecu">Load ECU</button>
+        <li>
+            <button class="btn btn-outline-success" id="info_btn" data-toggle="modal" data-target="#infoModal">Info</button>
+            <button class="btn btn-outline-success" id="load_ecu">Load ECU</button>
+        </li>
     </ul>
     <ul class="nav justify-content-center">
         <a class="text-white">Not connected</a>
@@ -27,6 +30,26 @@
         <a class="text-white" id="title"></a>
     </ul>
 </nav>
+
+<!-- Info dropdown -->
+<div class="modal fade" id="infoModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Version info</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="ovd-version">OVD Version: Unknown</p>
+                <p id="fw-version">Adapter FW version: Unknown</p>
+                <p id="lib-version">Adapter library version: Unknown</p>
+                <p id="api-version">Adapter API version: Unknown</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Main content -->
 <div class="d-flex justify-content-center align-items-center">

@@ -48,6 +48,7 @@ ipc.on('newWindow', (event, file, width, height) => {
   win.loadFile(file);
 });
 
+/*
 ipc.on("f_open",(event) => {
   console.log("Opening file chooser");
   const {dialog} = require('electron');
@@ -57,3 +58,4 @@ ipc.on("f_open",(event) => {
   });
   console.log(file);
 });
+*/
