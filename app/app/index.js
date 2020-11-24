@@ -2,9 +2,11 @@ const ipc = require('electron').ipcMain;
 const { app, BrowserWindow } = require('electron')
 const path = require('path');
 const url = require('url');
-let consts = require('./app/ptconsts');
-let passthru = require('./app/passthru');
-let fs = require('./app/fs');
+let consts = require('./ptconsts');
+let passthru = require('./passthru');
+let fs = require('./fs');
+let iconPath = path.join(__dirname, '..', 'build', 'icons', '64x64.png');
+console.log(iconPath);
 
 let win = null;
 function createWindow() {
@@ -12,6 +14,7 @@ function createWindow() {
     //resizable: false,
     width: 500,
     height: 250,
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: true,
       enableRemoteModule: true,
@@ -21,7 +24,7 @@ function createWindow() {
 
   win.webContents.openDevTools();
   win.setMenuBarVisibility(false);
-  win.loadFile('./app/renderer/selector.html');
+  win.loadFile('./renderer/selector.html');
 }
 
 app.whenReady().then(createWindow);

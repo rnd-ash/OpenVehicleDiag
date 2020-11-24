@@ -11,10 +11,11 @@
     <!-- Material Design for Bootstrap CSS -->
     <link rel="stylesheet" href="https://unpkg.com/bootstrap-material-design@4.1.1/dist/css/bootstrap-material-design.min.css" integrity="sha384-wXznGJNEXNG1NFsbm0ugrLFMQPWswR3lds2VeinahP8N0zJw9VWSopbjv2x7WCvX" crossorigin="anonymous">
     <script>window.$ = window.jQuery = require('jquery');</script>
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap-darkmode@0.7.0/dist/darktheme.css"/>
     <title>Open vehicle diagnostics</title>
 </head>
 <body>
-
+<script src="https://unpkg.com/bootstrap-darkmode@0.7.0/dist/theme.js"></script>
 <!-- Top bar -->
 <nav class = "navbar navbar-dark bg-dark">
     <ul class="nav navbar-nav">
@@ -27,13 +28,16 @@
         <a class="text-white">Not connected</a>
     </ul>
     <ul class="nav justify-content-end">
-        <a class="text-white" id="title"></a>
+        <li>
+            <a class="text-white" id="title"></a>
+            <button class="btn" id="theme-toggle">🌙</button>
+        </li>
     </ul>
 </nav>
 
 <!-- Info dropdown -->
-<div class="modal fade" id="infoModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+<div class="modal fade bd-example-modal-lg" id="infoModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog  modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h4 class="modal-title">Version info</h4>
@@ -43,9 +47,36 @@
             </div>
             <div class="modal-body">
                 <p id="ovd-version">OVD Version: Unknown</p>
-                <p id="fw-version">Adapter FW version: Unknown</p>
-                <p id="lib-version">Adapter library version: Unknown</p>
-                <p id="api-version">Adapter API version: Unknown</p>
+                <h4>Adapter Info</h4>
+                <p id="adapt-name">Name: Unknown</p>
+                <p id="adapt-vend">Vendor: Unknown</p>
+                <p id="adapt-path">Library path: Unknown</p>
+                <p id="lib-version">Library version: Unknown</p>
+                <p id="fw-version">FW version: Unknown</p>
+                <p id="api-version">Passthru API Version: Unknown</p>
+                <h5>Supported protocols</h5>
+                <div id="adapter-info" class="container border border-secondary rounded">
+                    <div class="row">
+                        <div class="col" id="prot-can">CAN</div>
+                        <div class="col" id="prot-iso15765">ISO15765</div>
+                    </div>
+                    <div class="row">
+                        <div class="col" id="prot-iso9141">ISO9141</div>
+                        <div class="col" id="prot-iso14230">ISO41230</div>
+                    </div>
+                    <div class="row">
+                        <div class="col" id="prot-sciaengine">SCI_A_ENGINE</div>
+                        <div class="col" id="prot-sciatrans">SCI_A_TRANS</div>
+                    </div>
+                    <div class="row">
+                        <div class="col" id="prot-scibengine">SCI_B_ENGINE</div>
+                        <div class="col" id="prot-scibtrans">SCI_B_TRANS</div>
+                    </div>
+                    <div class="row">
+                        <div class="col" id="prot-j1850vpw">J1850VPW</div>
+                        <div class="col" id="prot-j1850pwm">J1850PWM</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -32,7 +32,7 @@ window.onload = function() {
             let dev = dev_list[dropdown.selectedIndex];
             let res = ipcRenderer.sendSync(consts.PT_CONNECT, dev);
             if (res["dev_id"] != null) {
-                ipcRenderer.send('newWindow', "./app/renderer/main.html", 1280, 720);
+                ipcRenderer.send('newWindow', "./renderer/main.html", 1280, 720);
             } else {
                 err.style.display = "block"; // Show error msg
                 err.innerText = `Library err: ${res['err']}`; // Set error to what was returned by API
