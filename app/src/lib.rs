@@ -136,6 +136,12 @@ pub fn get_vbatt(mut ctx: CallContext) -> Result<JsUnknown> {
   }
 }
 
+#[js_function(1)]
+pub fn load_file(mut ctx: CallContext) -> Result<JsUnknown> {
+  let p = ctx.get::<JsString>(0)?;
+  ctx.env.to_js_value(&LibError { err: "Native library - not implemented".to_string() })
+}
+
 
 // Register node functions
 
@@ -147,5 +153,6 @@ fn init(module: &mut Module) -> Result<()> {
   module.create_named_method("get_vbatt", get_vbatt)?;
   module.create_named_method("get_version", get_version)?;
   module.create_named_method("close", close)?;
+  module.create_named_method("load_file", load_file)?;
   Ok(())
 }

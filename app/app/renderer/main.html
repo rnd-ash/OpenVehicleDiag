@@ -82,6 +82,25 @@
     </div>
 </div>
 
+<!-- Error dropdown -->
+<div class="modal fade bd-example-modal-lg" id="errorModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog  modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="error-title">Error loading JSON</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger" role="alert" id="error-body">
+                    Error message: Unknown
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Main content -->
 <div class="d-flex justify-content-center align-items-center">
     <h1 class="text-primary">Open ECU Json to start session</h1>

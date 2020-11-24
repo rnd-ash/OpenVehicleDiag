@@ -83,7 +83,16 @@ window.onload = function() {
                 { name: 'OVD Json', extensions: ['ovdjson'] }
             ]
         }).then((filename) => {
-            console.log(`FILE: ${filename}`);
+            if (!filename.canceled) {
+                let res = ipcRenderer.sendSync(consts.PT_LOAD_FILE, filename.filePaths[0]);
+                if (res['err'] != null) {
+                    document.getElementById("error-body").innerText = `Error message: ${res['err']}`;
+                    document.getElementById("error-title").innerText = `Error loading ${filename.filePaths[0]}`;
+                    $("#errorModal").modal('show');
+                } else {
+                    console.log(res);
+                }
+            }
         });
     }
 
