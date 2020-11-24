@@ -6,6 +6,7 @@ let consts = require('./ptconsts');
 
 let dev_lock = false;
 let dev_id = 0;
+let dev_desc = null;
 
 // If any Passthru functions return JSON with 'err' in the key, then it is an API Error
 
@@ -31,6 +32,7 @@ ipc.on(consts.PT_CONNECT, (event, json) => {
     if (resp['dev_id'] != null) {
         dev_id = resp['dev_id']; // Set device ID here so we don't have to keep querying it later on
     }
+    dev_desc = json;
     event.returnValue = log_res(resp);
 });
 
@@ -56,5 +58,9 @@ ipc.on(consts.PT_GET_VERSION, (event) => {
         event.returnValue = log_res(passthru_lib.get_version(dev_id));
     }
 });
+
+ipc.on(consts.PT_GET_DEV_DESC, (event) => {
+    event.returnValue = dev_desc;
+})
 
 
