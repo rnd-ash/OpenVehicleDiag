@@ -59,6 +59,10 @@ ipc.on(consts.PT_GET_VERSION, (event) => {
     }
 });
 
+ipc.on(consts.PT_LOAD_FILE, (event, path) => {
+    event.returnValue = log_res(passthru_lib.load_file(path));
+})
+
 ipc.on(consts.PT_GET_DEV_DESC, (event) => {
     event.returnValue = dev_desc;
 })
