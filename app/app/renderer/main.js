@@ -21,13 +21,6 @@ function setIntervalNow(func, interval) {
     return setInterval(func, interval);
 }
 
-ipcRenderer.on(consts.PT_GET_VBATT, (event, resp) => {
-    if (resp['mv'] != null) {
-        vbatt = (resp['mv'] / 1000).toFixed(1);
-    }
-    set_batt_voltage()
-});
-
 function set_bool(id, prot, value) {
     if (value === true) {
         id.innerText = `${prot} \u2713`
@@ -96,6 +89,17 @@ window.onload = function() {
         });
     }
 
+    document.getElementById("test_connect").onclick = function() {
+        console.log("Trying to connect");
+        ipcRenderer.invoke(consts.PT_CONNECT, 0x06, 500000, 0x00).then((resp) => {
+            if (resp['err'] != null) {
+                document.getElementById("error-body").innerText = `PT Driver message: ${resp['err']}`;
+                document.getElementById("error-title").innerText = `Error creating passthru COM channel`;
+                $("#errorModal").modal('show');
+            }
+        });
+    }
+
     if (themeConfig.getTheme() === 'dark') {
         theme_toggle.innerText = "🌞";
     }
@@ -115,7 +119,12 @@ window.onload = function() {
     set_batt_voltage();
     // Display battery voltage every 2 seconds
     setIntervalNow(function() {
-        ipcRenderer.send(consts.PT_GET_VBATT);
+        ipcRenderer.invoke(consts.PT_GET_VBATT).then((resp) => {
+            if (resp['mv'] != null) {
+                vbatt = (resp['mv'] / 1000).toFixed(1);
+            }
+            set_batt_voltage()
+        });
     }, 2000);
 
     window.onbeforeunload = function() {

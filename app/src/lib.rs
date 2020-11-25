@@ -3,7 +3,7 @@ extern crate napi;
 #[macro_use]
 extern crate napi_derive;
 
-use napi::{CallContext, Result, JsString, Status, Error, JsUnknown, JsFunction, JsUndefined, Module, JsNumber, JsNull};
+use napi::{CallContext, Result, Status, Error, JsUnknown, JsFunction, JsUndefined, Module, JsNumber, JsNull, JsString};
 
 use serde_json;
 use serde::*;
@@ -72,7 +72,7 @@ pub fn get_version(mut ctx: CallContext) -> Result<JsUnknown> {
 }
 
 #[js_function(1)]
-pub fn connect_device(mut ctx: CallContext) -> Result<JsUnknown> {
+pub fn open(mut ctx: CallContext) -> Result<JsUnknown> {
   let v = ctx.get::<JsUnknown>(0)?;
   let deser: PassthruDevice = ctx.env.from_js_value(v)?;
 
@@ -142,6 +142,50 @@ pub fn load_file(mut ctx: CallContext) -> Result<JsUnknown> {
   ctx.env.to_js_value(&LibError { err: "Native library - not implemented".to_string() })
 }
 
+//type PassThruConnectFn = unsafe extern "stdcall" fn(device_id: u32, protocol_id: u32, flags: u32, baudrate: u32, channel_id: *mut u32) -> i32;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Channel {
+  channel_id: i32
+}
+
+#[js_function(4)]
+pub fn connect(mut ctx: CallContext) -> Result<JsUnknown> {
+  let dev_idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
+  let protocol_id: u32 = u32::try_from(ctx.get::<JsNumber>(1)?)?;
+  let protocol = match Protocol::from_raw(protocol_id) {
+    Some(p) => p,
+    None => return ctx.env.to_js_value(&LibError{ err: format!("Invalid protocol {}", protocol_id) })
+  };
+
+  let flags: u32 = u32::try_from(ctx.get::<JsNumber>(2)?)?;
+  let baud: u32 = u32::try_from(ctx.get::<JsNumber>(3)?)?;
+  if passthru::DRIVER.read().unwrap().is_none() {
+    return ctx.env.to_js_value(&LibError{ err: "No driver loaded!".to_string() });
+  }
+  match &passthru::DRIVER.write().unwrap().as_ref().unwrap().connect(dev_idx, protocol, flags, baud) {
+    Ok(channel_id) => ctx.env.to_js_value(&Channel{channel_id: *channel_id as i32}),
+    Err(e) => ctx.env.to_js_value(&LibError{ err: e.to_string().to_string() })
+  }
+}
+
+#[js_function(1)]
+pub fn disconnect(mut ctx: CallContext) -> Result<JsUnknown> {
+  let p = ctx.get::<JsString>(0)?;
+  ctx.env.to_js_value(&LibError { err: "Native library - not implemented".to_string() })
+}
+
+#[js_function]
+pub fn get_last_err(mut ctx: CallContext) -> Result<JsString> {
+  if passthru::DRIVER.read().unwrap().is_none() {
+    return ctx.env.create_string_from_std("No library loaded".to_string())
+  }
+  match &passthru::DRIVER.write().unwrap().as_ref().unwrap().get_last_error() {
+    Ok(msg) => ctx.env.create_string_from_std(msg.clone()), // No error
+    Err(_) => ctx.env.create_string_from_std("".to_string()) // No error
+  }
+}
+
 
 // Register node functions
 
@@ -149,10 +193,13 @@ register_module!(ovd, init);
 
 fn init(module: &mut Module) -> Result<()> {
   module.create_named_method("get_device_list", get_device_list)?;
-  module.create_named_method("connect_device", connect_device)?;
+  module.create_named_method("open", open)?;
+  module.create_named_method("close", close)?;
+  module.create_named_method("connect", connect)?;
+  module.create_named_method("disconnect", disconnect)?;
   module.create_named_method("get_vbatt", get_vbatt)?;
   module.create_named_method("get_version", get_version)?;
-  module.create_named_method("close", close)?;
   module.create_named_method("load_file", load_file)?;
+  module.create_named_method("get_last_err", get_last_err)?;
   Ok(())
 }
