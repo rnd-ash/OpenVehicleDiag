@@ -30,7 +30,7 @@ window.onload = function() {
         }
         btn.onclick = function() {
             let dev = dev_list[dropdown.selectedIndex];
-            let res = ipcRenderer.sendSync(consts.PT_CONNECT, dev);
+            let res = ipcRenderer.sendSync(consts.PT_OPEN, dev);
             if (res["dev_id"] != null) {
                 ipcRenderer.send('newWindow', "./renderer/main.html", 1280, 720);
             } else {

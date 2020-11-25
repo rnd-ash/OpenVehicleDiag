@@ -250,7 +250,7 @@ impl PassthruDrv {
 
     //type PassThruConnectFn = unsafe extern "stdcall" fn(device_id: u32, protocol_id: u32, flags: u32, baudrate: u32, channel_id: *mut u32) -> i32;
     /// Returns channel ID
-    pub fn connect(&self, dev_id: u32, protocol: Protocol, flags: ConnectFlags, baud: u32) -> Result<u32> {
+    pub fn connect(&self, dev_id: u32, protocol: Protocol, flags: u32, baud: u32) -> Result<u32> {
         let mut channel_id: u32 = 0;
         let res = unsafe {
             (&self.connect_fn)(

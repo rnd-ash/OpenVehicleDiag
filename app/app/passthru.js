@@ -16,7 +16,15 @@ function log(msg) {
 
 function log_res(input) {
     if (input['err'] != null) {
-        log(`Passthru library error: ${input['err']}`);
+        let msg = input['err'];
+        if (msg === "Unspecified error") { // Try to get the error string from library
+            let detail = passthru_lib.get_last_err();
+            if (detail !== "") {
+                msg = `Operation failed - ${detail}`;
+                input['err'] = msg; // Set the new error message for the UI to use
+            }
+        }
+        log(`Passthru library error: ${msg}`);
     }
     return input;
 }
@@ -26,9 +34,9 @@ ipc.on(consts.PT_GET_DEV_LIST, (event) => {
     event.returnValue = log_res(passthru_lib.get_device_list());
 });
 
-ipc.on(consts.PT_CONNECT, (event, json) => {
+ipc.on(consts.PT_OPEN, (event, json) => {
     log(`Opening device. JSON: ${json}`);
-    let resp = passthru_lib.connect_device(json);
+    let resp = passthru_lib.open(json);
     if (resp['dev_id'] != null) {
         dev_id = resp['dev_id']; // Set device ID here so we don't have to keep querying it later on
     }
@@ -36,9 +44,9 @@ ipc.on(consts.PT_CONNECT, (event, json) => {
     event.returnValue = log_res(resp);
 });
 
-ipc.on(consts.PT_GET_VBATT, (event) => {
+ipc.handle(consts.PT_GET_VBATT, async (event) => {
    log("Getting VBATT");
-   event.reply(consts.PT_GET_VBATT, log_res(passthru_lib.get_vbatt(dev_id)));
+   return log_res(passthru_lib.get_vbatt(dev_id));
 });
 
 ipc.on(consts.PT_CLOSE, (event) => {
@@ -66,5 +74,11 @@ ipc.on(consts.PT_LOAD_FILE, (event, path) => {
 ipc.on(consts.PT_GET_DEV_DESC, (event) => {
     event.returnValue = dev_desc;
 })
+
+ipc.handle(consts.PT_CONNECT, async (event, protocol, baud, flags) => {
+    log(`Creating channel`);
+    let res = passthru_lib.connect(dev_id, protocol, flags, baud)
+    return log_res(res);
+});
 
 
