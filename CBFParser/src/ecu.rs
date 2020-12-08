@@ -4,7 +4,7 @@ use crate::cxf::*;
 use crate::diag::*;
 use serde::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct block {
     pub block_offset: i32,
     pub entry_count: i32,
@@ -95,6 +95,12 @@ impl std::fmt::Display for ComParam {
     }
 }
 
+impl Default for ComParam {
+    fn default() -> Self {
+        Self::UNKNOWN
+    }
+}
+
 impl ComParam {
     /// Converts a capitialized string from CBF File into a COM Param
     /// If the string is unknown, COMParam::Unknown is returned,
@@ -155,7 +161,7 @@ impl ComParam {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 /// Com parameter struct from CBF File
 pub struct ComParameter {
     /// Parameter Index from CBF File
@@ -289,7 +295,7 @@ impl ECUInterfaceSubType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 /// ECU Varient pattern - Not much is known at this point about it
 pub struct ECUVarientPattern {
     pub unk_buffer_size: i32,
@@ -325,7 +331,7 @@ impl ECUVarientPattern {
     pub fn new(reader: &mut raf::Raf, base_addr: i64) -> Self {
         reader.seek(base_addr as usize);
         let mut bitflags = reader.read_u32().unwrap() as u64;
-        let mut ret: ECUVarientPattern = unsafe { std::mem::zeroed() };
+        let mut ret: ECUVarientPattern = ECUVarientPattern::default();
 
         ret.unk_buffer_size = CReader::read_bitflag_i32(&mut bitflags, reader, 0);
         ret.unk_buffer = CReader::read_bitflag_dump(&mut bitflags, reader, ret.unk_buffer_size, base_addr).unwrap_or(Vec::new());
@@ -356,7 +362,7 @@ impl ECUVarientPattern {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 /// An ECU Varient is a HW or SW version of the same ECU.
 /// Each varient of the ECU can have its own functions list, or DTC codes
 /// since each software version of the ECU may do things differently
@@ -406,7 +412,7 @@ impl ECUVarient {
 
         let mut varreader = raf::Raf::from_bytes(&varient_bytes, raf::RafByteOrder::LE);
 
-        let mut ret: ECUVarient = unsafe { std::mem::zeroed() };
+        let mut ret: ECUVarient = ECUVarient::default();
         let mut bitflags = varreader.read_u32().unwrap() as u64;
         let skip = varreader.read_i32().unwrap();
         ret.base_addr = base_addr;
@@ -472,7 +478,7 @@ impl ECUVarient {
     fn create_var_patterns(&mut self, reader: &mut raf::Raf) {
         let table_offset = self.base_addr + self.matching_pattern_offset as i64;
         reader.seek(table_offset as usize);
-
+        println!("CREATE VAR PATTERNS");
         self.varient_patterns = (0..self.matching_pattern_count).map(|pattern_index| {
             reader.seek((table_offset + (pattern_index*4) as i64) as usize);
 
@@ -502,10 +508,10 @@ impl ECUVarient {
 
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VCDomain{}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ECUInterface {
     pub name: Option<String>,
     pub name_ctf: i32,
@@ -525,7 +531,7 @@ impl ECUInterface {
 
         let mut iface_bf = reader.read_i32().expect("Error reading ECU Bitflag") as u64;
 
-        let mut ret: ECUInterface = unsafe { std::mem::zeroed() };
+        let mut ret: ECUInterface = ECUInterface::default();
 
         ret.name = CReader::read_bitflag_string(&mut iface_bf, reader, base_addr);
         ret.name_ctf = CReader::read_bitflag_i32(&mut iface_bf, reader, -1);
@@ -549,7 +555,7 @@ impl ECUInterface {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ECU {
     pub name: String,
     pub ecuname_ctf: Option<String>,
@@ -606,7 +612,7 @@ impl ECU {
 
         println!("Skip {:?}", reader.read_i32());
 
-        let mut ret: ECU = unsafe { std::mem::zeroed() };
+        let mut ret: ECU = ECU::default();
 
         ret.name = CReader::read_bitflag_string(&mut ecu_bitflags, reader, base_addr).expect("ECU Has no name!?");
         let ecuname_ctf_idx = CReader::read_bitflag_i32(&mut ecu_bitflags, reader, -1);

@@ -5,6 +5,7 @@ use serde::*;
 pub const STUB_HEADER_SIZE: usize = 0x410;
 pub const FILE_HEADER: &[u8] = "CBF-TRANSLATOR-VERSION:04.00".as_bytes();
 
+#[derive(Default, Debug)]
 pub struct BaseHeader{}
 impl BaseHeader {
     pub fn read_header(header: &[u8]) {
@@ -20,7 +21,7 @@ impl BaseHeader {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct CFFHeader {
     pub caser_version: i32,
     pub gpd_version: i32,
@@ -81,7 +82,7 @@ impl CFFHeader {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct CTFLanguage {
     lang_name: Option<String>,
     lang_index: i32,
@@ -134,7 +135,7 @@ impl CTFLanguage {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct CTFHeader {
     pub ctf_unk1: i32,
     pub ctf_name: String,
