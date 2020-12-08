@@ -238,7 +238,7 @@ impl DiagService {
             reader.seek((com_param_table_offset + (cp_index * 4) as i64) as usize);
             let res_cp_offset = reader.read_i32().unwrap();
             let cp_entry_base_addr = com_param_table_offset + res_cp_offset as i64;
-            ComParameter::new(reader, cp_entry_base_addr, &parent_ecu.ecu_ifaces[1])
+            ComParameter::new(reader, cp_entry_base_addr, &parent_ecu.ecu_ifaces[0])
         }).collect();
 
         // Diagnostic codes
@@ -274,7 +274,14 @@ impl DiagService {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Dump {
     Text(Option<String>),
-    Data(Vec<u8>)
+    Data(Vec<u8>),
+    Unknown
+}
+
+impl Default for Dump {
+    fn default() -> Self {
+        Self::Unknown
+    }
 }
 
 
@@ -291,7 +298,13 @@ pub enum InferredDataType {
     ExtendedBitDumpType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Default for InferredDataType {
+    fn default() -> Self {
+        Self::UnassignedType
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct DiagPreparation{
     //parent_ecu: &'a ECU<'a>,
     //parent_diag_service: &'a DiagService,
@@ -309,7 +322,7 @@ pub struct DiagPreparation{
     name_ctf: Option<String>,
     unk1: u8,
     unk2: u8,
-    iit_offset: i32,
+    bit_offset: i32,
     field_1e: i32
 }
 
@@ -321,20 +334,24 @@ impl DiagPreparation {
         reader.seek(base_addr as usize);
             let mut bitflags = reader.read_u32().expect("unable to read bitflags!") as u64;
 
-            let name = CReader::read_bitflag_string(&mut bitflags, reader, base_addr);
+            let mut diagPrep = DiagPreparation::default();
+            diagPrep.mode_cfg = mode_cfg;
+            diagPrep.bit_pos = bit_pos;
+
+            diagPrep.name = CReader::read_bitflag_string(&mut bitflags, reader, base_addr);
             let name_ctf_idx = CReader::read_bitflag_i32(&mut  bitflags, reader, -1);
-            let unk1 = CReader::read_bitflag_u8(&mut  bitflags, reader, 0);
-            let unk2 = CReader::read_bitflag_u8(&mut  bitflags, reader, 0);
-            let alternative_bit_width = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
-            let iit_offset = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
-            let info_pool_idx = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
-            let pres_pool_idx = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
-            let field_1e = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
-            let system_param = CReader::read_bitflag_i16(&mut  bitflags, reader, -1) as i32;
+            diagPrep.unk1 = CReader::read_bitflag_u8(&mut  bitflags, reader, 0);
+            diagPrep.unk2 = CReader::read_bitflag_u8(&mut  bitflags, reader, 0);
+            diagPrep.alternative_bit_width = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
+            diagPrep.bit_offset = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
+            diagPrep.info_pool_idx = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
+            diagPrep.pres_pool_idx = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
+            diagPrep.field_1e = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
+            diagPrep.system_param = CReader::read_bitflag_i16(&mut  bitflags, reader, -1) as i32;
             let dump_mode = CReader::read_bitflag_i16(&mut  bitflags, reader, 0);
             let dump_size = CReader::read_bitflag_i32(&mut  bitflags, reader, 0);
             
-            let dump = match dump_mode {
+            diagPrep.dump = match dump_mode {
                 5 => {
                     match CReader::read_bitflag_dump(&mut bitflags, reader, dump_size, base_addr) {
                         Some(bytes) => Dump::Text(Some(String::from_utf8(bytes).unwrap())),
@@ -343,29 +360,9 @@ impl DiagPreparation {
                 },
                 _ => Dump::Data(CReader::read_bitflag_dump(&mut bitflags, reader, dump_size, base_addr).unwrap_or(Vec::new()))
             };
-            let mut res = DiagPreparation {
-                name,
-                //parent_diag_service,
-                //parent_ecu,
-                dump,
-                mode_cfg,
-                alternative_bit_width,
-                result_bit_size: 0,
-                data_type: InferredDataType::UnassignedType,
-                size_in_bits: 0,
-                system_param,
-                info_pool_idx,
-                pres_pool_idx,
-                bit_pos,
-                name_ctf: lang.get_string(name_ctf_idx),
-                unk1,
-                unk2,
-                field_1e,
-                iit_offset
-                
-            };
-            res.get_size_in_bits(reader, parent_ecu, parent_diag_service);
-            res
+            
+            diagPrep.get_size_in_bits(reader, parent_ecu, parent_diag_service);
+            diagPrep
     }
 
     fn get_size_in_bits(&mut self, reader: &mut raf::Raf, parent_ecu: &ECU, parent_diag_service: &DiagService) {
@@ -396,7 +393,6 @@ impl DiagPreparation {
             }
         } else {
             if self.system_param == -1 { // Default type
-
                 if mode_e == 0x8000 {
                     self.data_type = InferredDataType::NativeInfoPoolType;
 
@@ -453,7 +449,7 @@ impl DiagPreparation {
                         result_bit_size *= 8; // Bytes to bits
                     }
                 } else {
-                    panic!("Unknown system type for {}", self.name.clone().unwrap());
+                    panic!("Unknown system type for {} ({:X})", self.name.clone().unwrap(), mode_e);
                 }
             } else {
                 if mode_h == 0x410 {
