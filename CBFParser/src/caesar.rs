@@ -1,4 +1,4 @@
-use common::raf::Raf;
+use common::raf::{Raf, Result};
 use crate::cxf::*;
 use crate::ecu::*;
 use serde::*;
@@ -24,19 +24,22 @@ impl CReader {
     pub fn read_bitflag_dump(bitflag: &mut u64, reader: &mut Raf, dump_size: i32, virtual_base: i64) -> Option<Vec<u8>> {
         match Self::check_and_advance_bitflag(bitflag) {
             true => {
-                let str_offset = reader.read_i32().expect("Error reading offset") as usize;
+                let dump_offset = reader.read_i32().expect("Error reading offset") as usize;
                 let pos = reader.pos;
-                reader.seek(str_offset + virtual_base as usize);
+                reader.seek(dump_offset + virtual_base as usize);
                 let res = Self::read_array(reader, dump_size as usize);
                 reader.seek(pos);
-                Some(res)
+                match res {
+                    Ok(r) => Some(r),
+                    Err(_) => None
+                }
             },
             false => None
         }
     }
 
-    fn read_array(reader: &mut Raf, size: usize) -> Vec<u8> {
-        reader.read_bytes(size).expect("Error reading bytes")
+    fn read_array(reader: &mut Raf, size: usize) -> Result<Vec<u8>> {
+        reader.read_bytes(size)
     }
 
 
@@ -98,7 +101,7 @@ impl CReader {
 
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct CContainer{
     pub cff_header: CFFHeader,
     pub ctf_header: CTFHeader,
