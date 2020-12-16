@@ -50,15 +50,3 @@ ipc.on('newWindow', (event, file, width, height) => {
   win.center();
   win.loadFile(file);
 });
-
-/*
-ipc.on("f_open",(event) => {
-  console.log("Opening file chooser");
-  const {dialog} = require('electron');
-  const file = dialog.showOpenDialog(win, {
-    properties: ['openFile'],
-    filters: [{ name: 'OVD ECU Json', extensions: ['ovdjson'] }]
-  });
-  console.log(file);
-});
-*/

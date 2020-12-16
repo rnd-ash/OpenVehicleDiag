@@ -16,6 +16,14 @@ function set_batt_voltage() {
     }
 }
 
+function show_popup(header, body, isError = true) {
+    document.getElementById("error-body").classList.toggle('alert-success', !isError);
+    document.getElementById("error-body").classList.toggle('alert-danger', isError);
+    document.getElementById("error-body").innerText = body;
+    document.getElementById("error-title").innerText = header;
+    $("#errorModal").modal('show');
+}
+
 function setIntervalNow(func, interval) {
     func();
     return setInterval(func, interval);
@@ -79,25 +87,51 @@ window.onload = function() {
             if (!filename.canceled) {
                 let res = ipcRenderer.sendSync(consts.PT_LOAD_FILE, filename.filePaths[0]);
                 if (res['err'] != null) {
-                    document.getElementById("error-body").innerText = `Error message: ${res['err']}`;
-                    document.getElementById("error-title").innerText = `Error loading ${filename.filePaths[0]}`;
-                    $("#errorModal").modal('show');
-                } else {
-                    console.log(res);
+                    show_popup(`Error loading ${filename.filePaths[0]}`, `Error message: ${res['err']}`);
                 }
             }
         });
     }
 
+    let channels = [];
     document.getElementById("test_connect").onclick = function() {
-        console.log("Trying to connect");
-        ipcRenderer.invoke(consts.PT_CONNECT, 0x06, 500000, 0x00).then((resp) => {
+        ipcRenderer.invoke(consts.PT_CONNECT, 0x05, 500000, 0x00).then((resp) => {
             if (resp['err'] != null) {
-                document.getElementById("error-body").innerText = `PT Driver message: ${resp['err']}`;
-                document.getElementById("error-title").innerText = `Error creating passthru COM channel`;
-                $("#errorModal").modal('show');
+                show_popup(`Error creating PT COM channel`, `PT Driver message: ${resp['err']}`);
+            } else {
+                channels.push(resp["channel_id"]);
+                show_popup(`Opened channel OK!`, `Channel ${resp['channel_id']} was opened successfully`, false);
             }
         });
+    }
+    document.getElementById("test_filter").onclick = function() {
+        if (channels.length === 0) {
+            show_popup(`Error creating channel filter`, `No channels created`);
+        } else {
+            let mask = new Uint8Array(new Buffer([0xff, 0xff, 0xff, 0xff]));
+            let ptn = new Uint8Array(new Buffer([0x00, 0x00, 0x03, 0x08]));
+            ipcRenderer.invoke(consts.PT_SET_FILTER, channels[0], 0x01, mask, ptn, null).then((resp) => {
+                if (resp['err'] != null) {
+                    show_popup(`Error creating PT COM channel`, `PT Driver message: ${resp['err']}`);
+                } else {
+                    show_popup(`Set channel filter OK!`, `Filter ${resp['id']} was opened successfully`, false);
+                }
+            });
+        }
+    }
+    document.getElementById("test_disconnect").onclick = function() {
+        if (channels.length > 0) {
+            let target = channels.pop();
+            ipcRenderer.invoke(consts.PT_DISCONNECT, target).then((resp) => {
+                if (resp['err'] != null) {
+                    show_popup(`Error removing PT COM channel`, `PT Driver message: ${resp['err']}`);
+                } else {
+                    show_popup(`Closing channel OK!`, `Channel ${target} was closed successfully`, false);
+                }
+            })
+        } else {
+            show_popup(`Error closing channel`, `There are no more channels to close`);
+        }
     }
 
     if (themeConfig.getTheme() === 'dark') {
@@ -121,7 +155,7 @@ window.onload = function() {
     setIntervalNow(function() {
         ipcRenderer.invoke(consts.PT_GET_VBATT).then((resp) => {
             if (resp['mv'] != null) {
-                vbatt = (resp['mv'] / 1000).toFixed(1);
+                vbatt = (resp['mv'] / 1000).toFixed(2);
             }
             set_batt_voltage()
         });

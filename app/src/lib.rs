@@ -3,7 +3,7 @@ extern crate napi;
 #[macro_use]
 extern crate napi_derive;
 
-use napi::{CallContext, Result, Status, Error, JsUnknown, JsFunction, JsUndefined, Module, JsNumber, JsNull, JsString};
+use napi::{CallContext, Result, Status, Error, JsUnknown, JsFunction, JsUndefined, Module, JsNumber, JsNull, JsString, JsArrayBuffer, TypedArrayType, JsArrayBufferValue, JsTypedArray};
 
 use serde_json;
 use serde::*;
@@ -15,6 +15,7 @@ mod passthru;
 use passthru::*;
 use J2534Common::PassthruError::ERR_FAILED;
 use crate::passthru::LoadDeviceError::LibLoadError;
+use std::ops::Deref;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct LibError {
@@ -32,6 +33,11 @@ struct Ok{}
 #[derive(Debug, Serialize, Deserialize)]
 struct Voltage {
   mv: u32
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Filter {
+  id: u32
 }
 
 #[js_function]
@@ -171,8 +177,57 @@ pub fn connect(mut ctx: CallContext) -> Result<JsUnknown> {
 
 #[js_function(1)]
 pub fn disconnect(mut ctx: CallContext) -> Result<JsUnknown> {
-  let p = ctx.get::<JsString>(0)?;
-  ctx.env.to_js_value(&LibError { err: "Native library - not implemented".to_string() })
+  let channel_idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
+  if passthru::DRIVER.read().unwrap().is_none() {
+    return ctx.env.to_js_value(&LibError{ err: "No driver loaded!".to_string() });
+  }
+  match &passthru::DRIVER.write().unwrap().as_ref().unwrap().disconnect(channel_idx) {
+    Ok(channel_id) => ctx.env.to_js_value(&Ok{}),
+    Err(e) => ctx.env.to_js_value(&LibError{ err: e.to_string().to_string() })
+  }
+}
+
+#[js_function(5)]
+pub fn set_filter(mut ctx: CallContext) -> Result<JsUnknown> {
+  let channel_idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
+  let filter_type: FilterType = match FilterType::from_raw(u32::try_from(ctx.get::<JsNumber>(1)?)?) {
+    Some(f) => f,
+    None => return ctx.env.to_js_value(&LibError{ err: "Invalid filter type".to_string() })
+  };
+  let mask = ctx.get::<JsTypedArray>(2)?.into_value()?.arraybuffer.into_value()?.to_vec();
+  let mut mask_msg = PASSTHRU_MSG::default();
+  mask_msg.data_size = mask.len() as u32;
+  mask_msg.data[..mask.len()].copy_from_slice(&mask);
+
+  let ptn = ctx.get::<JsTypedArray>(3)?.into_value()?.arraybuffer.into_value()?.to_vec();
+  let mut ptn_msg = PASSTHRU_MSG::default();
+  ptn_msg.data_size = ptn.len() as u32;
+  ptn_msg.data[..ptn.len()].copy_from_slice(&ptn);
+
+  let fc_msg = match filter_type {
+    FilterType::FLOW_CONTROL_FILTER => {
+      let fc = ctx.get::<JsTypedArray>(4)?.into_value()?.arraybuffer.into_value()?.to_vec();
+      let mut fc_msg = PASSTHRU_MSG::default();
+      fc_msg.data_size = fc.len() as u32;
+      fc_msg.data[..fc.len()].copy_from_slice(&fc);
+      Some(fc_msg)
+    }
+    _ => None
+  };
+
+  if passthru::DRIVER.read().unwrap().is_none() {
+    return ctx.env.to_js_value(&LibError{ err: "No driver loaded!".to_string() });
+  }
+  match &passthru::DRIVER.write().unwrap().as_ref().unwrap().start_msg_filter(
+      channel_idx,
+      filter_type,
+      &mask_msg,
+    &ptn_msg,
+    fc_msg
+  ) {
+    Ok(filter_id) => ctx.env.to_js_value(&Filter{ id: *filter_id }),
+    Err(e) => ctx.env.to_js_value(&LibError{ err: e.to_string().to_string() })
+  }
 }
 
 #[js_function]
@@ -201,5 +256,6 @@ fn init(module: &mut Module) -> Result<()> {
   module.create_named_method("get_version", get_version)?;
   module.create_named_method("load_file", load_file)?;
   module.create_named_method("get_last_err", get_last_err)?;
+  module.create_named_method("set_filter", set_filter)?;
   Ok(())
 }
