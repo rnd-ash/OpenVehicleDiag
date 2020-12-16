@@ -291,15 +291,15 @@ impl PassthruDrv {
 
     //type PassThruStartMsgFilterFn = unsafe extern "stdcall" fn(channel_id: u32, filter_type: u32, m_msg: *const PASSTHRU_MSG, p_msg: *const PASSTHRU_MSG, fc_msg: *const PASSTHRU_MSG, filter_id: *mut u32) -> i32;
     /// Returns filter ID
-    pub fn start_msg_filter(&self, channel_id: u32, filter_type: FilterType, mask: &PASSTHRU_MSG, pattern: &PASSTHRU_MSG, flow_control: Option<&PASSTHRU_MSG>) -> Result<u32> {
+    pub fn start_msg_filter(&self, channel_id: u32, filter_type: FilterType, mask: &PASSTHRU_MSG, pattern: &PASSTHRU_MSG, flow_control: Option<PASSTHRU_MSG>) -> Result<u32> {
         let tmp = filter_type as u32;
-        if tmp == FLOW_CONTROL_FILTER as u32 && flow_control.is_none() { // TODO Derive PartialEq for FilterType
+        if tmp == FLOW_CONTROL_FILTER as u32 && flow_control.is_none() {
             return Err(PassthruError::ERR_INVALID_FILTER_ID)
         }
 
         let p_msg = match flow_control {
             None => std::ptr::null() as *const PASSTHRU_MSG,
-            Some(m) => m as *const PASSTHRU_MSG
+            Some(m) => &m as *const PASSTHRU_MSG
         };
 
         let mut filter_id: u32 = 0;

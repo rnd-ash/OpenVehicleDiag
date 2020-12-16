@@ -9,7 +9,6 @@ let dev_id = 0;
 let dev_desc = null;
 
 // If any Passthru functions return JSON with 'err' in the key, then it is an API Error
-
 function log(msg) {
     console.log(`IPC_PASSTHRU => ${msg}`)
 }
@@ -81,4 +80,19 @@ ipc.handle(consts.PT_CONNECT, async (event, protocol, baud, flags) => {
     return log_res(res);
 });
 
+ipc.handle(consts.PT_SET_FILTER, async (event, channel_id, type, mask, ptn, flow_control) => {
+    log(`Creating channel filter`);
+    let fc = flow_control;
+    if (fc == null) {
+        fc = new Uint8Array(0);
+    }
+    let res = passthru_lib.set_filter(channel_id, type, mask, ptn, flow_control)
+    return log_res(res);
+});
+
+ipc.handle(consts.PT_DISCONNECT, async (event, id) => {
+    log(`Removing channel ${id}`);
+    let res = passthru_lib.disconnect(id);
+    return log_res(res);
+});
 
