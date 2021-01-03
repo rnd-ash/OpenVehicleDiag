@@ -23,7 +23,7 @@ use J2534Common::PassthruError::ERR_FAILED;
 use J2534Common::FilterType::FLOW_CONTROL_FILTER;
 
 /// Result which contains a PASSTHRU_ERROR in it's Err() variant
-type Result<T> = std::result::Result<T, J2534Common::PassthruError>;
+pub type Result<T> = std::result::Result<T, J2534Common::PassthruError>;
 
 type PassThruOpenFn = unsafe extern "stdcall" fn(name: *const libc::c_void, device_id: *mut u32) -> i32;
 type PassThruCloseFn = unsafe extern "stdcall" fn(device_id: u32) -> i32;
@@ -96,7 +96,6 @@ fn ret_res<T>(res: i32, ret: T) -> Result<T> {
 impl PassthruDrv {
     pub fn load_lib(path: String) -> std::result::Result<PassthruDrv, libloading::Error> {
         let lib = Library::new(path)?;
-        println!("{:?}", lib);
         unsafe {
             let open_fn = *lib.get::<PassThruOpenFn>(b"PassThruOpen\0")?.into_raw();
             let close_fn = *lib.get::<PassThruCloseFn>(b"PassThruClose\0")?.into_raw();
@@ -174,7 +173,7 @@ impl PassthruDrv {
 
     //type PassThruReadMsgsFn = unsafe extern "stdcall" fn(channel_id: u32, msgs: *mut PASSTHRU_MSG, num_msgs: *mut u32, timeout: u32) -> i32;
     pub fn read_messages(&self, channel_id: u32, max_msgs: u32, timeout: u32) -> Result<Vec<PASSTHRU_MSG>> {
-        let mut msg_count : u32 = 0;
+        let mut msg_count : u32 = max_msgs;
         // Create a blank array of empty passthru messages according to the max we should read
         let mut write_array: Vec<PASSTHRU_MSG> = vec![
             PASSTHRU_MSG{
@@ -196,6 +195,10 @@ impl PassthruDrv {
                 timeout
             )
         };
+        if res == PassthruError::ERR_BUFFER_EMPTY as i32 && msg_count != 0 {
+            write_array.truncate(msg_count as usize);
+            return ret_res(0x00, write_array);
+        }
         if msg_count != max_msgs { // Trim the output vector to size
             write_array.truncate(msg_count as usize);
         }
@@ -204,7 +207,6 @@ impl PassthruDrv {
 
     //type PassThruReadVersionFn = unsafe extern "stdcall" fn(device_id: u32, firmware_version: *mut libc::c_char, dll_version: *mut libc::c_char, api_version: *mut libc::c_char) -> i32;
     pub fn get_version(&self, dev_id: u32) ->  Result<DrvVersion> {
-        println!("PT -> CALLING GET_VERSION");
         let mut firmware_version: [u8; 80] = [0; 80];
         let mut dll_version: [u8; 80] = [0; 80];
         let mut api_version: [u8; 80] = [0; 80];
@@ -227,7 +229,6 @@ impl PassthruDrv {
 
     //type PassThruGetLastErrorFn = unsafe extern "stdcall" fn(error_description: *mut libc::c_char) -> i32;
     pub fn get_last_error(&self) -> Result<String> {
-        println!("PT -> CALLING GET_LAST_ERROR");
         let mut err: [u8; 80] = [0; 80];
         let res = unsafe {
             (&self.get_last_err_fn)(err.as_mut_ptr() as *mut libc::c_char)
@@ -331,7 +332,7 @@ impl PassthruDrv {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PassthruDevice {
     /// Driver path
     pub drv_path: String,
@@ -515,7 +516,6 @@ impl PassthruDevice {
     #[cfg(windows)]
     /// Reads a device entry from windows registry and loads it into a Passthru device
     pub fn read_device(r: &RegKey) -> DeviceError<PassthruDevice> {
-        println!("Found reg {:?}", r);
         let lib: String = match r.get_value("FunctionLibrary") {
             Ok (s) => s,
             Err(_) => return Err(LoadDeviceError::NoFunctionLib)
@@ -548,10 +548,4 @@ impl PassthruDevice {
             //drv: driver
         })
     }
-}
-
-#[test]
-fn testget() {
-    use super::*;
-    println!("{:?}", PassthruDevice::find_all().unwrap());
 }

@@ -60,7 +60,7 @@ fn create_egs52() {
     let meta = ECUMeta {
         name: "EGS52".to_string(),
         vendor: "Mercedes-Benz".to_string(),
-        desc: "722.6 Controller Generation 2".to_string()
+        desc: "722.6 Controller Generation".to_string()
     };
     println!("{:#?}", meta);
 }

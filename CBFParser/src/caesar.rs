@@ -42,7 +42,6 @@ impl CReader {
         reader.read_bytes(size)
     }
 
-
     pub fn read_bitflag_i8(bitflag: &mut u64, reader: &mut Raf, default: i8) -> i8 {
         match Self::check_and_advance_bitflag(bitflag) {
             true => reader.read_i8().expect("Error reading i8"),
@@ -117,7 +116,9 @@ impl CContainer {
         reader.adv(cff_header_size as usize);
 
         let cff_header = Self::read_cff(reader);
-        let ctf_header = Self::read_ctf(&cff_header, reader);
+        let mut ctf_header = Self::read_ctf(&cff_header, reader);
+        ctf_header.translate();
+
         let mut res = Self {
             cff_header,
             ctf_header,

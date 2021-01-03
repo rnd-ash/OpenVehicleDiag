@@ -18,7 +18,7 @@ pub struct Raf {
     bo: RafByteOrder,
 }
 
-type Result<T> = std::result::Result<T, RafError>;
+pub type Result<T> = std::result::Result<T, RafError>;
 
 /// Errors that can be returned during reading of data
 #[derive(Debug)]
