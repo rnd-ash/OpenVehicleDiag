@@ -2,6 +2,7 @@
 extern crate napi;
 #[macro_use]
 extern crate napi_derive;
+mod passthru_test;
 
 use napi::{CallContext, Result, Status, Error, JsUnknown, JsFunction, JsUndefined, Module, JsNumber, JsNull, JsString, JsArrayBuffer, TypedArrayType, JsArrayBufferValue, JsTypedArray};
 
@@ -241,6 +242,18 @@ pub fn get_last_err(mut ctx: CallContext) -> Result<JsString> {
   }
 }
 
+#[js_function]
+pub fn send_msgs(mut ctx: CallContext) -> Result<JsUnknown>  {
+  if passthru::DRIVER.read().unwrap().is_none() {
+    return ctx.env.to_js_value(&LibError{ err: "No driver loaded!".to_string() });
+  }
+  let channel_idx: u32 = u32::try_from(ctx.get::<JsNumber>(0)?)?;
+  let msgs = ctx.get::<JsTypedArray>(1)?.into_value()?.arraybuffer.into_value()?.to_vec();
+  let timeout: u32 = u32::try_from(ctx.get::<JsNumber>(1)?)?;
+  println!("Channel ID: {}, msgs: {:?}, timeout: {}", channel_idx, msgs, timeout);
+  ctx.env.to_js_value(&LibError{ err: "OK".to_string().to_string() })
+}
+
 
 // Register node functions
 
@@ -257,5 +270,6 @@ fn init(module: &mut Module) -> Result<()> {
   module.create_named_method("load_file", load_file)?;
   module.create_named_method("get_last_err", get_last_err)?;
   module.create_named_method("set_filter", set_filter)?;
+  module.create_named_method("send_msgs", send_msgs)?;
   Ok(())
 }

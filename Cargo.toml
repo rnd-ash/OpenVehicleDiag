@@ -8,5 +8,6 @@ members = [
 
 exclude = [
     "MacchinaM2-J2534-Rust/Driver",
-    "app"
+    "app",
+    "app_rust"
 ]

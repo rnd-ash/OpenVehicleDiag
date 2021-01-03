@@ -1,7 +1,13 @@
 
+use std::vec;
+
 use common::raf;
 use crate::caesar::CReader;
 use serde::*;
+use std::io::Read;
+use hyper::Client;
+use hyper::header::Connection;
+
 pub const STUB_HEADER_SIZE: usize = 0x410;
 pub const FILE_HEADER: &[u8] = "CBF-TRANSLATOR-VERSION:04.00".as_bytes();
 
@@ -92,6 +98,9 @@ pub struct CTFLanguage {
     strings: Vec<String>,
 }
 
+// Translation url- Source is DE (German)
+const translate_url: &'static str = "http://translate.googleapis.com/translate_a/single?client=gtx&sl=DE&tl=";
+
 impl CTFLanguage {
     pub fn new(reader: &mut raf::Raf, base_addr: i64, header: &CFFHeader) -> Self {
         println!("Starting at {}", base_addr);
@@ -127,6 +136,46 @@ impl CTFLanguage {
                 CReader::read_string(reader)
             })
             .collect()
+    }
+
+    pub fn translate(&mut self) {
+        let mut ids: Vec<usize> = vec![];
+        let mut to_translate : Vec<String> = vec![];
+        for i in 0..self.str_count as usize {
+            if self.strings[i].split(' ').collect::<Vec<_>>().len() > 1 {
+                ids.push(i);
+                to_translate.push(self.strings[i].clone());
+            }
+        }
+        //ids = Vec::from(&ids[0..10]);
+        //to_translate = Vec::from(&to_translate[0..10]);
+        if to_translate.len() > 0 {
+            let batch_count = to_translate.len() / 10;
+            eprintln!("{} strings to translate in {} batches", ids.len(), batch_count);
+            let mut strings_translated = 0;
+            let mut batch = 0;
+            while strings_translated < ids.len() {
+                eprintln!("Translating batch {}/{}", batch, batch_count);
+                let max_inc = std::cmp::min(strings_translated+10, to_translate.len());
+                let source = to_translate[strings_translated..max_inc].join("\\");
+                // TODO Send API request to google
+                let mut api : String = translate_url.to_string();
+                api.push_str("EN"); // Todo - modify so we can translate to other languages other than English
+                api.push_str("&dt=t&q=");
+                api.push_str(source.as_str());
+                eprintln!("API CALL: {}", api.len());
+                match Client::new().get(&api).header(Connection::close()).send() {
+                    Ok(mut response) => {
+                        api.clear();
+                        response.read_to_string(&mut api).unwrap();
+                        println!("{}", api);
+                        strings_translated += 10;
+                    },
+                    Err(e) => println!("{}", e)
+                }
+                
+            }
+        }
     }
 
     pub fn get_string(&self, idx: i32) -> Option<String> {
@@ -181,5 +230,9 @@ impl CTFHeader {
             ctf_unk_str,
             ctf_langs
         }
+    }
+
+    pub fn translate(&mut self) {
+        self.ctf_langs[0].translate()
     }
 }

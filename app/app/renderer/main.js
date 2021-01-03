@@ -1,7 +1,11 @@
 const { ipcRenderer } = require('electron')
 let consts = require('./../ptconsts');
 require('bootstrap-darkmode');
-
+require("./../passthru_lib");
+const {FILTER_TYPE} = require("../passthru_lib");
+const {TX_FLAG} = require("../passthru_lib");
+const {PROTOCOL} = require("../passthru_lib");
+const {PASSTHRU_MSG} = require("../passthru_lib");
 
 let vbatt = 0.0;
 
@@ -95,7 +99,7 @@ window.onload = function() {
 
     let channels = [];
     document.getElementById("test_connect").onclick = function() {
-        ipcRenderer.invoke(consts.PT_CONNECT, 0x05, 500000, 0x00).then((resp) => {
+        ipcRenderer.invoke(consts.PT_CONNECT, 0x06, 500000, 0x00).then((resp) => {
             if (resp['err'] != null) {
                 show_popup(`Error creating PT COM channel`, `PT Driver message: ${resp['err']}`);
             } else {
@@ -108,9 +112,10 @@ window.onload = function() {
         if (channels.length === 0) {
             show_popup(`Error creating channel filter`, `No channels created`);
         } else {
-            let mask = new Uint8Array(new Buffer([0xff, 0xff, 0xff, 0xff]));
-            let ptn = new Uint8Array(new Buffer([0x00, 0x00, 0x03, 0x08]));
-            ipcRenderer.invoke(consts.PT_SET_FILTER, channels[0], 0x01, mask, ptn, null).then((resp) => {
+            let mask = new Uint8Array(new Buffer.from([0xff, 0xff, 0xff, 0xff]));
+            let ptn = new Uint8Array(new Buffer.from([0x00, 0x00, 0x07, 0xE8]));
+            let fc = new Uint8Array(new Buffer.from([0x00, 0x00, 0x07, 0xE0]));
+            ipcRenderer.invoke(consts.PT_SET_FILTER, channels[0], FILTER_TYPE.FLOW_CONTROL_FILTER, mask, ptn, fc).then((resp) => {
                 if (resp['err'] != null) {
                     show_popup(`Error creating PT COM channel`, `PT Driver message: ${resp['err']}`);
                 } else {
@@ -132,6 +137,15 @@ window.onload = function() {
         } else {
             show_popup(`Error closing channel`, `There are no more channels to close`);
         }
+    }
+
+    document.getElementById("test_send").onclick = function() {
+        let ptmsg = new PASSTHRU_MSG(PROTOCOL.ISO15765, new Uint8Array(new Buffer.from([0x00, 0x00, 0x07, 0xE0, 0x3E, 0x01])));
+        ptmsg.set_tx_flags([TX_FLAG.ISO15765_FRAME_PAD]);
+        console.log(ptmsg)
+        ipcRenderer.invoke(consts.PT_SEND_MSGS, channels[0], [ptmsg], 0).then((resp) => {
+            console.log(resp);
+        })
     }
 
     if (themeConfig.getTheme() === 'dark') {

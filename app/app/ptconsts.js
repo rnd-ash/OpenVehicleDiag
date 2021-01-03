@@ -10,4 +10,6 @@ module.exports = {
     "PT_LOAD_FILE": "load_file",
     "PT_SET_FILTER": "set_filter",
     "PT_DEL_FILTER": "del_filter",
+    "PT_SEND_MSGS": "write_msgs",
+    "PT_READ_MSGS": "read_msgs"
 }

@@ -2,11 +2,14 @@
 // File that handles IPC with the passthru library
 const ipc = require('electron').ipcMain;
 const passthru_lib = require('../index.node');
+require("./passthru_lib");
 let consts = require('./ptconsts');
 
 let dev_lock = false;
 let dev_id = 0;
 let dev_desc = null;
+
+
 
 // If any Passthru functions return JSON with 'err' in the key, then it is an API Error
 function log(msg) {
@@ -89,6 +92,15 @@ ipc.handle(consts.PT_SET_FILTER, async (event, channel_id, type, mask, ptn, flow
     let res = passthru_lib.set_filter(channel_id, type, mask, ptn, flow_control)
     return log_res(res);
 });
+
+ipc.handle(consts.PT_SEND_MSGS, async(event, channel_id, msgs, timeout) => {
+    let tmp = [];
+    for (let i = 0; i < msgs.length; i++) {
+        tmp.push(msgs[i].to_raw())
+    }
+    let res = passthru_lib.send_msgs(channel_id, tmp, timeout);
+    return log_res(res);
+})
 
 ipc.handle(consts.PT_DISCONNECT, async (event, id) => {
     log(`Removing channel ${id}`);

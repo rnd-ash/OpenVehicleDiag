@@ -13,3 +13,4 @@ binary-reader="0.3.0"
 encoding_rs = "0.8.24"
 common = { path = "../common" }
 serde = {version = "1.0.80", features = ["derive"]}
+hyper = "^ 0.10"
