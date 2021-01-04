@@ -1,10 +1,12 @@
 use std::fmt::format;
 
-use crate::passthru::*;
+use crate::{comserver, passthru::*};
+use comserver::ComServer;
 use iced::{
     button, executor, pick_list, Align, Application, Button, Column, Command, Container, Element,
-    Length, PickList, Row, Sandbox, Text,
+    Length, PickList, Row, Settings, Text,
 };
+use J2534Common::Loggable;
 
 #[derive(Debug, Default)]
 pub struct Launcher {
@@ -14,6 +16,7 @@ pub struct Launcher {
     btn_state: button::State,
     selected_device: String,
     summary_text: String,
+    server: Option<ComServer>
 }
 
 #[derive(Debug, Clone)]
@@ -70,7 +73,12 @@ impl Application for Launcher {
                 // Try to connect with the device
                 match self.load_device() {
                     Ok((details, driver, idx)) => {
-                        println!("Ready to launch!")
+                        println!("Ready to launch!");
+                        let mut s = comserver::ComServer::new(details, driver, idx);
+                        s.create_can_channel(500_000, false);
+                        println!("{}", s.get_batt_voltage().unwrap());
+                        
+                        // Create main window
                     }
                     Err(e) => self.summary_text = e,
                 }
@@ -121,7 +129,10 @@ impl Launcher {
             Some(d) => match PassthruDrv::load_lib(d.drv_path.clone()) {
                 Ok(mut dev) => match dev.open() {
                     Ok(idx) => Ok((d.clone(), dev, idx)),
-                    Err(e) => Err(format!("Driver failed to open device {:?}", e)),
+                    Err(e) => Err(format!(
+                        "Driver error when opening device: {}",
+                        e.to_string()
+                    )),
                 },
                 Err(e) => Err(format!("Failed to open device library {:?}", e)),
             },

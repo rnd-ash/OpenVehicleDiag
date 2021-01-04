@@ -1,34 +1,10 @@
-use iced::{executor, Application};
+use iced::{executor, Application, Column, Command, Text};
 
 use crate::passthru::{PassthruDevice, PassthruDrv};
 
-enum mainapp {
-    Launcher,
-    MainWindow,
+use super::launcher::{self, Launcher};
+
+enum AppWindow {
+    Launcher {},
+    Home {},
 }
-
-/*
-impl Application for mainapp {
-    type Executor = executor::Default;
-
-    type Message;
-
-    type Flags;
-
-    fn new(flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
-        todo!()
-    }
-
-    fn title(&self) -> String {
-        todo!()
-    }
-
-    fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
-        todo!()
-    }
-
-    fn view(&mut self) -> iced::Element<'_, Self::Message> {
-        todo!()
-    }
-}
-*/
