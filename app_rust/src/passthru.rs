@@ -2,8 +2,8 @@ use lazy_static::lazy_static;
 use libc;
 use libloading::{Library, Symbol};
 use serde::{Deserialize, Serialize};
-use std::ffi::*;
 use std::sync::{Arc, RwLock};
+use std::{ffi::*, fmt};
 use J2534Common::*;
 
 lazy_static! {
@@ -124,6 +124,15 @@ pub struct PassthruDrv {
     ioctl_fn: PassThruIoctlFn,
     /// Get driver details
     read_version_fn: PassThruReadVersionFn,
+}
+
+impl fmt::Debug for PassthruDrv {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PassthruDrv")
+            .field("is_connected", &self.is_connected)
+            .field("library", &self.lib)
+            .finish()
+    }
 }
 
 #[inline(always)]
