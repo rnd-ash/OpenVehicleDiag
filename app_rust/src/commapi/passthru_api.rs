@@ -1,7 +1,7 @@
 use crate::commapi;
 use crate::passthru;
 use crate::passthru::{PassthruDevice, PassthruDrv};
-use crate::commapi::comm_api::{ComServer, ISO15765Data, FilterType, CanFrame, ComServerError};
+use crate::commapi::comm_api::{ComServer, ISO15765Data, FilterType, CanFrame, ComServerError, DeviceCapabilities, Capability};
 use J2534Common::{PassthruError, PASSTHRU_MSG, Protocol, IoctlID, SConfig, IoctlParam, SConfigList, ConnectFlags, RxFlag, TxFlag, Loggable};
 use J2534Common::IoctlID::READ_VBATT;
 use std::os::raw::c_void;
@@ -269,6 +269,25 @@ impl ComServer for PassthruApi {
                 iso9141_channel_idx: self.iso9141_channel_idx.clone()
             }
         )
+    }
+
+    fn get_capabilities(&self) -> DeviceCapabilities {
+        DeviceCapabilities {
+            name: self.device.name.clone(),
+            vendor: self.device.vendor.clone(),
+            library_path: self.device.drv_path.clone(),
+            j1850vpw: Capability::from_bool(self.device.j1850vpw),
+            j1850pwm: Capability::from_bool(self.device.j1850pwm),
+            can: Capability::from_bool(self.device.can),
+            iso15765: Capability::from_bool(self.device.iso15765),
+            iso9141: Capability::from_bool(self.device.iso9141),
+            iso14230: Capability::from_bool(self.device.iso14230),
+            ip: Capability::NA
+        }
+    }
+
+    fn get_api(&self) -> &str {
+        "SAE J2534"
     }
 }
 
