@@ -1,5 +1,5 @@
 use crate::passthru::{PassthruDevice, PassthruDrv};
-use iced::{pick_list, button, Text, Row, Element, Radio, Align, Column, PickList, Container, Length, Button};
+use iced::{pick_list, button, Text, Row, Element, Radio, Align, Column, PickList, Container, Length, Button, Command};
 use crate::commapi::comm_api::{ComServerError, ComServer};
 use crate::commapi::passthru_api::PassthruApi;
 use crate::windows::window::ApplicationError;
@@ -35,7 +35,8 @@ pub enum API {
 pub enum LauncherMessage {
     SwitchAPI(API),
     DeviceSelected(String),
-    LaunchRequested
+    LaunchRequested,
+    Start(Box<dyn ComServer>)
 }
 
 impl ToString for ApplicationError {
@@ -67,7 +68,7 @@ impl Launcher {
         }
     }
 
-    pub fn update(&mut self, msg: LauncherMessage){
+    pub fn update(&mut self, msg: LauncherMessage) -> Option<Box<dyn ComServer>> {
         match msg {
             LauncherMessage::SwitchAPI(api) => { self.api_selection = api },
             LauncherMessage::DeviceSelected(d) => {
@@ -86,6 +87,7 @@ impl Launcher {
                                 self.status_text = e.to_string()
                             } else {
                                 // Ready to launch OVD!
+                                return Some(Box::new(server))
                             }
                         },
                         Err(x) => {
@@ -96,7 +98,9 @@ impl Launcher {
                     // TODO D-PDU Launching
                 }
             }
+            _ => {}
         }
+        None
     }
 
     pub fn view(&mut self) -> Element<LauncherMessage> {

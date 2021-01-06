@@ -1,6 +1,6 @@
 use crate::commapi;
 use commapi::comm_api::ComServer;
-use crate::commapi::comm_api::{ISO15765Data, CanFrame, FilterType, ComServerError};
+use crate::commapi::comm_api::{ISO15765Data, CanFrame, FilterType, ComServerError, DeviceCapabilities};
 use std::sync::Arc;
 
 #[derive(Debug, Copy, Clone)]
@@ -90,6 +90,14 @@ impl ComServer for DpduAPI {
     }
 
     fn clone_box(&self) -> Box<dyn ComServer> {
+        unimplemented!()
+    }
+
+    fn get_capabilities(&self) -> DeviceCapabilities {
+        unimplemented!()
+    }
+
+    fn get_api(&self) -> &str {
         unimplemented!()
     }
 }

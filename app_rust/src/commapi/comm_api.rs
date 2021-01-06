@@ -2,6 +2,7 @@ use std::result::Result;
 use std::cmp::min;
 use serde::export::Formatter;
 use std::sync::Arc;
+use std::fmt::Debug;
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct CanFrame {
@@ -65,7 +66,57 @@ impl std::fmt::Display for ComServerError {
     }
 }
 
-pub trait ComServer : Send + Sync {
+#[derive(Debug, Copy, Clone, Eq, Ord, PartialOrd, PartialEq)]
+pub enum Capability {
+    // The device supports the capability
+    Yes,
+    // The device does not support the capability
+    No,
+    // The API the device uses does not support the capability
+    NA
+}
+
+impl Capability {
+    pub (crate) fn from_bool(b: bool) -> Self {
+        if b { Capability::Yes } else { Capability::No }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct DeviceCapabilities {
+    pub (crate) name: String,
+    pub (crate) vendor: String,
+    pub (crate) library_path: String,
+    /// Supports J1850VPW
+    pub (crate) j1850vpw: Capability,
+    /// Supports J1850PWM
+    pub (crate) j1850pwm: Capability,
+    /// Supports regular CAN
+    pub (crate) can: Capability,
+    /// Supports ISO15765 (ISO-TP)
+    pub (crate) iso15765: Capability,
+    /// Supports K-Line ODB ISO9141
+    pub (crate) iso9141: Capability,
+    /// Supports K-Line KWP2000 ISO14230
+    pub (crate) iso14230: Capability,
+    /// Supports Ethernet DoIP
+    pub (crate) ip: Capability,
+}
+
+impl DeviceCapabilities {
+    pub fn get_name(&self) -> String { self.name.clone() }
+    pub fn get_vendor(&self) -> String { self.vendor.clone() }
+    pub fn get_lib_path(&self) -> String { self.library_path.clone() }
+
+    pub fn support_can_fd(&self) -> Capability { self.can }
+    pub fn supports_iso15765(&self) -> Capability { self.iso15765 }
+    pub fn supports_iso9141(&self) -> Capability { self.iso9141 }
+    pub fn supports_iso14230(&self) -> Capability { self.iso14230 }
+    pub fn supports_doip(&self) -> Capability { self.ip }
+}
+
+
+pub trait ComServer : Send + Sync + Debug {
     /// Attempts to open and connect to the device
     fn open_device(&mut self) -> Result<(), ComServerError>;
 
@@ -208,7 +259,14 @@ pub trait ComServer : Send + Sync {
     /// * Returns the voltage in Volts
     fn read_battery_voltage(&self) -> Result<f32, ComServerError>;
 
+    /// Clones this in memory into a new Box
     fn clone_box(&self) -> Box::<dyn ComServer>;
+
+    /// Retrieves the device's capabilities
+    fn get_capabilities(&self) -> DeviceCapabilities;
+
+    /// Returns a 1 word string indicating which hardware API the device uses
+    fn get_api(&self) -> &str;
 }
 
 impl Clone for Box<dyn ComServer> {
