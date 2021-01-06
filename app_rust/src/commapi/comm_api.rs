@@ -87,6 +87,9 @@ pub struct DeviceCapabilities {
     pub (crate) name: String,
     pub (crate) vendor: String,
     pub (crate) library_path: String,
+    pub (crate) device_fw_version: String,
+    pub (crate) library_version: String,
+
     /// Supports J1850VPW
     pub (crate) j1850vpw: Capability,
     /// Supports J1850PWM
@@ -110,9 +113,16 @@ impl DeviceCapabilities {
 
     pub fn support_can_fd(&self) -> Capability { self.can }
     pub fn supports_iso15765(&self) -> Capability { self.iso15765 }
+
+    pub fn supports_j1850pwm(&self) -> Capability { self.j1850pwm }
+    pub fn supports_j1850vpw(&self) -> Capability { self.j1850vpw }
+
     pub fn supports_iso9141(&self) -> Capability { self.iso9141 }
     pub fn supports_iso14230(&self) -> Capability { self.iso14230 }
     pub fn supports_doip(&self) -> Capability { self.ip }
+
+    pub fn get_device_fw_version(&self) -> String { self.device_fw_version.clone() }
+    pub fn get_library_version(&self) -> String { self.library_version.clone() }
 }
 
 
