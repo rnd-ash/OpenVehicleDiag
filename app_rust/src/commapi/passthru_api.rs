@@ -1,6 +1,6 @@
 use crate::commapi;
 use crate::passthru;
-use crate::passthru::{PassthruDevice, PassthruDrv};
+use crate::passthru::{PassthruDevice, PassthruDrv, DrvVersion};
 use crate::commapi::comm_api::{ComServer, ISO15765Data, FilterType, CanFrame, ComServerError, DeviceCapabilities, Capability};
 use J2534Common::{PassthruError, PASSTHRU_MSG, Protocol, IoctlID, SConfig, IoctlParam, SConfigList, ConnectFlags, RxFlag, TxFlag, Loggable};
 use J2534Common::IoctlID::READ_VBATT;
@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex, RwLock};
 pub struct PassthruApi {
     device: Arc<PassthruDevice>,
     driver: Arc<Mutex<PassthruDrv>>,
+    caps: Arc<RwLock<Option<DeviceCapabilities>>>,
     device_idx: Arc<RwLock<u32>>,
     can_channel_idx: Arc<RwLock<Option<u32>>>,
     iso15765_channel_idx: Arc<RwLock<Option<u32>>>,
@@ -263,6 +264,7 @@ impl ComServer for PassthruApi {
             Self {
                 device: self.device.clone(),
                 driver: self.driver.clone(),
+                caps: self.caps.clone(),
                 device_idx: self.device_idx.clone(),
                 can_channel_idx: self.can_channel_idx.clone(),
                 iso15765_channel_idx: self.iso15765_channel_idx.clone(),
@@ -272,8 +274,20 @@ impl ComServer for PassthruApi {
     }
 
     fn get_capabilities(&self) -> DeviceCapabilities {
-        DeviceCapabilities {
+        if let Some(caps) = self.caps.read().unwrap().as_ref() {
+            return caps.clone();
+        }
+        let version = self.driver.lock().unwrap().get_version(*self.device_idx.read().unwrap()).unwrap_or(
+            DrvVersion {
+                dll_version: "Unknown".into(),
+                api_version: "Unknown".into(),
+                fw_version: "Unknown".into()
+            }
+        );
+        let caps = DeviceCapabilities {
             name: self.device.name.clone(),
+            library_version: version.dll_version.clone(),
+            device_fw_version: version.fw_version.clone(),
             vendor: self.device.vendor.clone(),
             library_path: self.device.drv_path.clone(),
             j1850vpw: Capability::from_bool(self.device.j1850vpw),
@@ -283,7 +297,9 @@ impl ComServer for PassthruApi {
             iso9141: Capability::from_bool(self.device.iso9141),
             iso14230: Capability::from_bool(self.device.iso14230),
             ip: Capability::NA
-        }
+        };
+        *self.caps.write().unwrap() = Some(caps.clone());
+        caps
     }
 
     fn get_api(&self) -> &str {
@@ -296,10 +312,11 @@ impl PassthruApi {
         Self {
             device: Arc::from(desc),
             driver: Arc::from(Mutex::new(driver)),
+            caps: Arc::new(Default::default()),
             device_idx: Arc::from(RwLock::new(0)),
             can_channel_idx: Arc::from(RwLock::new(None)),
             iso15765_channel_idx: Arc::from(RwLock::new(None)),
-            iso9141_channel_idx: Arc::from(RwLock::new(None))
+            iso9141_channel_idx: Arc::from(RwLock::new(None)),
         }
     }
 
