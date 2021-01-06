@@ -28,9 +28,45 @@ pub struct CommData {
     protocol: Protocol,
     baud: u32,
 }
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum InputType {
+    /// Hex input type EG: '0D'
+    Hex,
+    /// ASCII input type EG: 'Test string'
+    Ascii,
+    /// Dec input type EG: '12345'
+    Dec,
+    /// Binary input type EG: '100010'
+    Binary,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InputParams {
+    min_length: usize,
+    max_length: usize,
+    input_type: InputType,
+    bit_offset: usize,
+    bit_length: usize
+}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Function {
+    input_params: Option<InputParams>
+    
+}
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PresentationFormat {
+    bit_offset: usize,
+    bit_length: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Measurement {
+    ecu_request: Vec<u8>,
+    ecu_resp_length: usize,
+    outputs: Vec<PresentationFormat>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
