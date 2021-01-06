@@ -1,2 +1,2 @@
-pub mod application;
-pub mod launcher;
+pub mod window;
+pub (crate) mod launcher;

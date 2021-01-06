@@ -339,12 +339,12 @@ impl PassthruDrv {
     //type PassThruIoctlFn = unsafe extern "stdcall" fn(handle_id: u32, ioctl_id: u32, input: *mut libc::c_void, output: *mut libc::c_void) -> i32;
     pub fn ioctl(
         &self,
-        dev_id: u32,
+        handle_id: u32,
         ioctl_id: IoctlID,
         input: *mut c_void,
         output: *mut c_void,
     ) -> Result<()> {
-        let res = unsafe { (&self.ioctl_fn)(dev_id, ioctl_id as u32, input, output) };
+        let res = unsafe { (&self.ioctl_fn)(handle_id, ioctl_id as u32, input, output) };
         ret_res(res, ())
     }
 
