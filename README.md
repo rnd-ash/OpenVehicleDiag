@@ -1,16 +1,16 @@
 # OpenVehicleDiag
-A Electron open source vehicle ECU diagnostic platform, using the J2534-2 protocol, with a Rust native back-end.
+A Rust based open source vehicle ECU diagnostic platform, using the J2534-2 protocol.
 
 This is for my University FYP for my degree at the University of Reading
 
 ## Project goals
 * JSON Schema creation - Create a custom JSON specification outlying field names that the program will use to understand what packets are sent to the ECU, over which protocol, and how to interpret the ECUs response (See schema drafting documentation)[SCHEMA.md]
 
-* J2534-2 support - The diagnostics application will utilize the J2534-2 protocol for easy use with existing diagnostic hardware from various vendors
+* J2534-2 support - The diagnostics application will utilize the J2534-2 protocol for easy use with existing diagnostic hardware from various vendors **DONE**
 
 * Cross OEM support - Using the JSON Schema created, the tool will be able to work regardless of the ECU / Vehicle manufacture, just has to have valid JSON as input
 
-* Cross platform support - Using Electron, the diagnostic application can work on any operation system - **DONE**
+* Cross platform support - Using Iced, the diagnostic application can work on any operation system - **DONE**
 
 * Reverse engineering framework - Build up a framework to help others with reverse engineering OEM database files (Mercedes CBF/SMR-D etc...)
 
@@ -24,9 +24,9 @@ Features marked with '(**WIP**)' are actively being developed!
 - [ ] Reverse engineering note on MB CBF (**WIP**)
 ### Diagnostic application
 - [x] J2534-2 API
-- [ ] Packet tracing support
+- [x] Packet tracing support
 - [ ] Support K-Line 
-- [ ] Support CAN 
+- [x] Support CAN 
 - [ ] Send and receive custom UDS Commands
 - [ ] Realtime performance data viewer for certain views
 - [ ] DTC View and clearer
@@ -36,8 +36,8 @@ Features marked with '(**WIP**)' are actively being developed!
 - [ ] ISO9141
 - [ ] ISO14230 (KWP2000)
 - [ ] J1850 (VPW + PWM)
-- [ ] CAN (**WIP**)
-- [ ] ISO15765 (ISO-TP) (**WIP**)
+- [x] CAN
+- [x] ISO15765 (ISO-TP)
 - [ ] ~~SAE J2610~~
 - [ ] ~~J1939~~
 
@@ -48,8 +48,8 @@ Features marked with '(**WIP**)' are actively being developed!
 
 ## Repository structure
 
-### App
-Directory of the OVD app
+### app_rust
+Directory of the OVD app (See contained README)
 
 ### CBFParser
 Parses Mercedes CBF Files into JSON
