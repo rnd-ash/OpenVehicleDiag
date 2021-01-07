@@ -16,14 +16,16 @@ pub enum HomeMessage {
 #[derive(Debug, Clone)]
 pub struct Home {
     server: Box<dyn ComServer>,
-    state: button::State
+    can_state: button::State,
+    uds_state: button::State
 }
 
 impl Home {
     pub(crate) fn new(server: Box<dyn ComServer>) -> Self {
         let mut ret = Self {
             server,
-            state: button::State::default()
+            can_state: button::State::default(),
+            uds_state: button::State::default()
         };
         // To guarantee everything works as it should, home screen should have NO interfaces open
         ret.server.close_can_interface();
@@ -78,7 +80,8 @@ impl Home {
                 .height(Length::FillPortion(2))
             ).push( Column::new()
             .push(Text::new("Tools"))
-            .push(button::Button::new(&mut self.state, Text::new("Launch CAN Tracer")).on_press(WindowMessage::GoCanTracer))
+            .push(button::Button::new(&mut self.can_state, Text::new("Launch CAN Tracer")).on_press(WindowMessage::GoCanTracer))
+            .push(button::Button::new(&mut self.uds_state, Text::new("Launch UDS Scanner")).on_press(WindowMessage::GoUDS))
             ).height(Length::FillPortion(1));
         contents.into()
     }
