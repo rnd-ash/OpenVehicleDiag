@@ -100,4 +100,8 @@ impl ComServer for DpduAPI {
     fn get_api(&self) -> &str {
         unimplemented!()
     }
+
+    fn is_connected(&self) -> bool {
+        false
+    }
 }

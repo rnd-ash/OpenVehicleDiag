@@ -305,6 +305,12 @@ impl ComServer for PassthruApi {
     fn get_api(&self) -> &str {
         "SAE J2534"
     }
+
+    fn is_connected(&self) -> bool {
+        return self.iso15765_channel_idx.read().unwrap().is_some() ||
+            self.can_channel_idx.read().unwrap().is_some() ||
+            self.iso9141_channel_idx.read().unwrap().is_some()
+    }
 }
 
 impl PassthruApi {
