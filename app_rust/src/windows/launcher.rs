@@ -2,7 +2,7 @@ use crate::passthru::{PassthruDevice, PassthruDrv};
 use iced::{pick_list, button, Text, Row, Element, Radio, Align, Column, PickList, Container, Length, Button, Command};
 use crate::commapi::comm_api::{ComServerError, ComServer};
 use crate::commapi::passthru_api::PassthruApi;
-use crate::windows::window::ApplicationError;
+use crate::windows::window::{ApplicationError, WindowMessage};
 use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::launcher::LauncherMessage::LaunchRequested;
 
@@ -68,7 +68,7 @@ impl Launcher {
         }
     }
 
-    pub fn update(&mut self, msg: LauncherMessage) -> Option<Box<dyn ComServer>> {
+    pub fn update(&mut self, msg: LauncherMessage) -> Option<WindowMessage> {
         match msg {
             LauncherMessage::SwitchAPI(api) => { self.api_selection = api },
             LauncherMessage::DeviceSelected(d) => {
@@ -87,7 +87,7 @@ impl Launcher {
                                 self.status_text = e.to_string()
                             } else {
                                 // Ready to launch OVD!
-                                return Some(Box::new(server))
+                                return Some(WindowMessage::StartApp(server.clone_box()))
                             }
                         },
                         Err(x) => {

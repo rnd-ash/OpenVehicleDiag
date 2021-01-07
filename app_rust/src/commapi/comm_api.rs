@@ -147,6 +147,10 @@ pub trait ComServer : Send + Sync + Debug {
     /// number will always be equal to the number of frames that were provided.
     fn send_can_packets(&self, data: &[CanFrame], timeout_ms: u32) -> Result<usize, ComServerError>;
 
+    /// Returns a boolean indicating if there is at least 1 channel communicating with the car
+    fn is_connected(&self) -> bool;
+
+
     /// Attempts to read a list of [can frames](CanFrame) from the vehicle's can network.
     ///
     /// *NOTE*: You must set a filter prior to using this function, or no data will ever be read.
