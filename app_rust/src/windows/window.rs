@@ -12,6 +12,7 @@ use crate::windows::home::{Home, HomeMessage};
 use std::time::Instant;
 use crate::windows::cantracer::{CanTracer, TracerMessage};
 use std::ops::Sub;
+use crate::windows::uds_scanner::{UDSHomeMessage, UDSHome};
 
 #[derive(Debug, Clone)]
 pub (crate) enum ApplicationError {
@@ -23,13 +24,15 @@ pub enum WindowState {
     Launcher(Launcher),
     Home(Home),
     CanTracer(CanTracer),
+    UDSHome(UDSHome),
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum WindowStateName {
     Launcher,
     Home,
-    CanTracer
+    CanTracer,
+    UDSHome,
 }
 
 impl<'a> WindowState {
@@ -38,6 +41,7 @@ impl<'a> WindowState {
             Self::Launcher(launcher) => launcher.view().map(|x| WindowMessage::Launcher(x)).into(),
             Self::Home (home) => home.view().into(),
             Self::CanTracer (tracer) => tracer.view().map(|x| WindowMessage::CanTracer(x)).into(),
+            Self::UDSHome (h) => h.view().map(|x| WindowMessage::UDSScanner(x)).into(),
             _ => unimplemented!()
         }
     }
@@ -71,6 +75,7 @@ impl WindowState {
             WindowState::Launcher { .. } => WindowStateName::Launcher,
             WindowState::Home { .. } => WindowStateName::Home,
             WindowState::CanTracer { .. } => WindowStateName::CanTracer,
+            WindowState::UDSHome { .. } => WindowStateName::UDSHome,
         }
     }
 }
@@ -82,11 +87,13 @@ pub enum WindowMessage {
     Launcher(LauncherMessage),
     Home(HomeMessage),
     CanTracer(TracerMessage),
+    UDSScanner(UDSHomeMessage),
     StartApp(Box<dyn ComServer>),
     LaunchFileBrowser,
     StatusUpdate(Instant),
     GoHome, // Goto home page
     GoCanTracer, // Goto Can Tracer page
+    GoUDS, // Goto UDS Scanner page
 }
 
 
@@ -115,7 +122,8 @@ impl Application for MainWindow {
         match &self.state {
             WindowState::Launcher { .. } => "OpenVehicleDiag launcher".into(),
             WindowState::Home { .. } => format!("OpenVehicleDiag ({} mode)", self.server.as_ref().map(|s| s.get_api()).unwrap_or("Unknown")),
-            WindowState::CanTracer { .. } => "OpenVehicleDiag CanTracer".into()
+            WindowState::CanTracer { .. } => "OpenVehicleDiag CanTracer".into(),
+            WindowState::UDSHome { .. } => "OpenVehicleDiag UDS Scanner".into()
         }
     }
 
@@ -131,6 +139,9 @@ impl Application for MainWindow {
             },
             WindowMessage::GoCanTracer => {
                 self.state = WindowState::CanTracer(CanTracer::new(self.server.clone().unwrap()))
+            },
+            WindowMessage::GoUDS => {
+                self.state = WindowState::UDSHome(UDSHome::new(self.server.clone().unwrap()))
             }
             _ => return self.update_children(message)
         }
