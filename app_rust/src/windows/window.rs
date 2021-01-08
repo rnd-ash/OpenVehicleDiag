@@ -1,6 +1,6 @@
 use std::fmt::{format, Debug};
 use crate::{commapi, passthru::*};
-use iced::{button, executor, pick_list, Align, Application, Button, Column, Command, Container, Element, Length, PickList, Row, Settings, Text, Sandbox, Radio, Subscription, Color, time, Rule};
+use iced::{button, executor, pick_list, Align, Application, Button, Column, Command, Container, Element, Length, PickList, Row, Settings, Text, Sandbox, Radio, Subscription, Color, time, Rule, Space};
 use J2534Common::Loggable;
 use crate::commapi::passthru_api::PassthruApi;
 use crate::commapi::comm_api::{ComServer, FilterType, ComServerError};
@@ -61,6 +61,11 @@ impl<'a> WindowState {
             Self::CanTracer (tracer) => {
                 if let WindowMessage::CanTracer(x) = msg {
                     return tracer.update(x);
+                }
+            },
+            Self::UDSHome (uds) => {
+                if let WindowMessage::UDSScanner(x) = msg {
+                    return uds.update(x).map(|t| WindowMessage::UDSScanner(t))
                 }
             }
             _ => unimplemented!()
@@ -159,6 +164,8 @@ impl Application for MainWindow {
             // See if either other pages request update
             if let WindowState::CanTracer(tracer) = &self.state {
                 batch.push(tracer.subscription().map(|x| WindowMessage::CanTracer(x)))
+            } else if let WindowState::UDSHome(uds) = &self.state {
+                batch.push(uds.subscription().map(|x| WindowMessage::UDSScanner(x)))
             }
             return Subscription::batch(batch)
         }
@@ -185,31 +192,30 @@ impl Application for MainWindow {
             );
             let page_name = &self.state.get_name();
             let view_contents = self.state.view();
-            let mut s_bar = Row::new()
-                .push(
-                   Row::new().spacing(5)
-                       .push(Text::new("Status: "))
-                       .push(t).width(Length::FillPortion(1))
+            let mut s_bar = Row::new().padding(5).spacing(5).height(Length::Units(40))
+                    .push(Row::new().spacing(5)
+                    .push(Text::new("Status: "))
+                    .push(t)
                 )
-
-                .push(
-                Row::new()
+                .push(Space::with_width(Length::Units(50)))
+                .push(Row::new()
                     .spacing(5)
                     .push(Text::new("Battery voltage: "))
-                    .push(v).width(Length::FillPortion(1))
-            );
+                    .push(v)
+                ).push(Space::with_width(Length::Fill)
+                );
             if page_name != &WindowStateName::Home {
-                // Not at home, so add the button to allow the user to go home
                 s_bar = s_bar.push(
-                    Row::new()
-                        .spacing(5)
-                        .push(Button::new(&mut self.back_btn_state,Text::new("Go home"))
-                            .on_press(WindowMessage::GoHome)
-                        ).width(Length::FillPortion(1))
+                Row::new()
+                    .spacing(5)
+                    .push(Button::new(&mut self.back_btn_state,Text::new("Go home"))
+                        .on_press(WindowMessage::GoHome)
+                    )
                 )
             }
             let c = Column::new()
                 .push(view_contents)
+                .push(Space::with_height(Length::Fill))
                 .push(Rule::horizontal(2))
                 .push(s_bar);
             c.height(Length::Fill).width(Length::Fill).into()

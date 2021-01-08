@@ -8,6 +8,7 @@ use std::sync::{Arc, RwLock};
 use J2534Common::*;
 mod commapi;
 mod passthru;
+mod themes;
 mod windows;
 
 use windows::window::MainWindow;

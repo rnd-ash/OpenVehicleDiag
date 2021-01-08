@@ -118,13 +118,16 @@ impl<'a> CanTracer {
 
     pub fn build_can_list(binary: &bool, curr_data: &HashMap<u32, CanFrame>, old_data: &mut HashMap<u32, CanFrame>) -> Element<'a, TracerMessage> {
         let mut col = Column::new();
-        for i in curr_data {
+        let mut x : Vec<u32> = curr_data.keys().into_iter().map(|x| *x).collect();
+        x.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        for cid in x {
+            let i = curr_data.get(&cid).unwrap();
             let mut container = Row::new();
-            container = container.push(Row::new().push(Text::new(format!("CID: {:04X}", i.1.id))).width(Length::Units(100)));
-            if let Some(old_frame) = old_data.get(&i.0) {
+            container = container.push(Row::new().push(Text::new(format!("CID: {:04X}", i.id))).width(Length::Units(100)));
+            if let Some(old_frame) = old_data.get(&cid) {
                 // Old frame exists, try to work out what changed
                 let old_data = old_frame.get_data();
-                for (i, byte) in i.1.get_data().iter().enumerate() {
+                for (i, byte) in i.get_data().iter().enumerate() {
                     container = if *byte == old_data[i] { // Same as old data
                         match binary {
                             &true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
@@ -140,14 +143,14 @@ impl<'a> CanTracer {
                 col = col.push(container)
             } else {
                 // New frame, just add it
-                for byte in i.1.get_data() {
+                for byte in i.get_data() {
                     container = match binary {
                         &true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
                         &false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).width(Length::Units(30))))
                     }
                 }
             }
-            old_data.insert(*i.0, *i.1); // Update the old table
+            old_data.insert(cid, *i); // Update the old table
 
         }
         col.into()
