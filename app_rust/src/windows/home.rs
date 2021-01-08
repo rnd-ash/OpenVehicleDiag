@@ -66,7 +66,7 @@ impl Home {
                             .push(Home::gen_cap_contents(cap.supports_iso15765()))
                             .push(Home::gen_cap_contents(cap.supports_iso9141()))
                             .push(Home::gen_cap_contents(cap.supports_iso14230())))
-                .push(Rule::vertical(5))
+                .push(Space::with_width(Length::Units(50)))
                   .push(
                         Column::new()
                             .push(Text::new("J1850PWM"))
@@ -77,12 +77,13 @@ impl Home {
                         .push(Home::gen_cap_contents(cap.supports_j1850pwm()))
                         .push(Home::gen_cap_contents(cap.supports_j1850vpw()))
                         .push(Home::gen_cap_contents(cap.supports_doip())))
-                .height(Length::FillPortion(2))
             ).push( Column::new()
+            .align_items(Align::Center)
+            .spacing(5)
             .push(Text::new("Tools"))
-            .push(button::Button::new(&mut self.can_state, Text::new("Launch CAN Tracer")).on_press(WindowMessage::GoCanTracer))
-            .push(button::Button::new(&mut self.uds_state, Text::new("Launch UDS Scanner")).on_press(WindowMessage::GoUDS))
-            ).height(Length::FillPortion(1));
+            .push(button::Button::new(&mut self.can_state, Text::new("CAN Tracer")).on_press(WindowMessage::GoCanTracer))
+            .push(button::Button::new(&mut self.uds_state, Text::new("UDS Scanner")).on_press(WindowMessage::GoUDS))
+            );
         contents.into()
     }
 }
