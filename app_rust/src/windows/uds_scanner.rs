@@ -23,6 +23,9 @@ pub enum UDSHomeMessage {
     Listen(Instant),
 }
 
+const MAX_CID_STD: u32 = 0x07FF; // 11bit ID
+const MAX_CID_EXT: u32 = 0x1FFFFFFF; // 29bit - Damn this scan will take forever!
+
 #[derive(Debug, Clone, Copy)]
 struct IsoTpResp {
     id: u32,
@@ -96,7 +99,7 @@ impl<'a> UDSHome {
                 self.in_home = true;
             },
             UDSHomeMessage::ScanNextCID(u) => {
-                if self.curr_cid > 0x7FF { // Done!
+                if self.curr_cid >= MAX_CID_STD { // Done!
                     self.scan_stage += 1;
                     // Close the can channel , it is no longer needed
                     self.server.close_can_interface();
@@ -112,6 +115,8 @@ impl<'a> UDSHome {
                                 if self.ignore_ids.get(&candidate.id).is_none() {
                                     // Push the CAN ID that was sent previously and the locate response ID
                                     self.auto_found_ids.push((self.curr_cid-1, IsoTpResp { id: candidate.id, bs: data[1], st: data[2] }));
+                                    // Also, add the new ID to the ignore list so we don't scan on the Flow control ID
+                                    self.ignore_ids.insert(candidate.id, candidate);
                                     break;
                                 }
                             }
@@ -130,6 +135,7 @@ impl<'a> UDSHome {
                 if self.listen_duration_ms >= 5000 {
                     self.scan_stage += 1;
                     // send first bogus CAN Packet
+                    self.curr_cid = 0x0700;
                     self.get_next_cid();
                     self.server.send_can_packets(&[CanFrame::new(self.curr_cid, &[0x10, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0);
                     self.get_next_cid();
@@ -152,7 +158,7 @@ impl<'a> UDSHome {
             match self.scan_stage {
                 0 => time::every(std::time::Duration::from_millis(4000)).map(UDSHomeMessage::Wait),
                 1 => time::every(std::time::Duration::from_millis(100)).map(UDSHomeMessage::Listen),
-                2 => time::every(std::time::Duration::from_millis(100)).map(UDSHomeMessage::ScanNextCID),
+                2 => time::every(std::time::Duration::from_millis(50)).map(UDSHomeMessage::ScanNextCID),
                 _ => Subscription::none()
             }
         } else {
@@ -216,7 +222,9 @@ impl<'a> UDSHome {
         match self.scan_stage {
             0 => {
                 Column::new()
-                    .push(Text::new("Please wait..."))
+                    .push(Text::new("Please wait - Waiting for CAN to settle"))
+                    .align_items(Align::Center)
+                    .height(Length::Fill)
                     .into()
             },
             1 => {
@@ -226,18 +234,25 @@ impl<'a> UDSHome {
                     .push(Text::new(format!("Listened to {} CAN Messages", self.ignore_ids.len())))
                     .into()
             },
-            2 | 3 => {
+            2 => {
                 let mut c = Column::new()
                     .push(Text::new(format!("Testing CID 0x{:04X}", self.curr_cid)))
                     .push(ProgressBar::new((0.0 as f32)..=(0x07FF as f32), self.curr_cid as f32))
                     .push(Text::new("CIDs found"));
-
                 for (x, y) in &self.auto_found_ids {
                     c = c.push(Text::new(format!("Found request ID 0x{:04X}, Control found with ID 0x{:04X}. ECU asked for a block size of {} and a separation time of {}ms", x, y.id, y.bs, y.st)))
                 }
                 c.into()
             }
-            _ => unimplemented!()
+            _ => {
+                println!("{}", self.scan_stage);
+                let mut c = Column::new()
+                    .push(Text::new(format!("Scan completed, found {} possible ECUs", self.auto_found_ids.len())));
+                for (x, y) in &self.auto_found_ids {
+                    c = c.push(Text::new(format!("Potential Send ID 0x{:04X}, FC found with ID 0x{:04X}, asked for block size of {} and a separation time of {}ms", x, y.id, y.bs, y.st)))
+                }
+                c.into()
+            }
         }
     }
 
