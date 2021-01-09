@@ -20,14 +20,17 @@ pub enum UDSHomeMessage {
     NextMode,
     PrevMode,
     GoHome,
-    ScanNextCID(Instant),
+    ScanNextCID,
     Wait(Instant),
     Listen(Instant),
-    InterrogateECU(Instant)
+    InterrogateECU
 }
 
 const MAX_CID_STD: u32 = 0x07FF; // 11bit ID
 const MAX_CID_EXT: u32 = 0x1FFFFFFF; // 29bit - Damn this scan will take forever!
+
+const WAIT_MS: u128 = 5000;
+const LISTEN_MS: u128 = 10000;
 
 #[derive(Debug, Clone, Copy)]
 struct IsoTpResp {
@@ -97,7 +100,7 @@ impl<'a> UDSHome {
         return x;
     }
 
-    pub fn update(&mut self, msg: UDSHomeMessage) -> Option<UDSHomeMessage> {
+    pub fn update(&mut self, msg: &UDSHomeMessage) -> Option<UDSHomeMessage> {
         match msg {
             UDSHomeMessage::LaunchManual => {
                 self.auto_mode = false;
@@ -111,7 +114,7 @@ impl<'a> UDSHome {
                         self.auto_mode = true;
                         self.scan_stage = 0;
                         self.in_home = false;
-                        return None
+                        return Some(UDSHomeMessage::Wait(Instant::now()))
                     }
                 }
             },
@@ -124,7 +127,7 @@ impl<'a> UDSHome {
             UDSHomeMessage::GoHome => {
                 self.in_home = true;
             },
-            UDSHomeMessage::ScanNextCID(u) => {
+            UDSHomeMessage::ScanNextCID => {
                 if self.curr_cid >= MAX_CID_STD { // Done!
                     self.scan_stage = 3;
                     // Close the can channel , it is no longer needed
@@ -132,33 +135,49 @@ impl<'a> UDSHome {
                     return None
                 }
                 // Filter should be already open
-                if let Ok(msgs) = self.server.read_can_packets(0, 1000) {
-                    for candidate in msgs {
-                        if candidate.dlc == 8 {
-                            let data = candidate.get_data();
-                            if data[0] == 0x30 { // Potential flow control
-                                // Also its a frame we haven't seen before!
-                                if self.ignore_ids.get(&candidate.id).is_none() {
-                                    // Push the CAN ID that was sent previously and the locate response ID
-                                    self.auto_found_ids.push((self.curr_cid-1, IsoTpResp { fc_id: candidate.id, bs: data[1], st: data[2], uds_support: None }));
-                                    // Also, add the new ID to the ignore list so we don't scan on the Flow control ID
-                                    self.ignore_ids.insert(candidate.id, candidate);
-                                    break;
+                let mut found = false;
+                let clock = Instant::now();
+                while clock.elapsed().as_millis() < 50 && found == false {
+                    if let Ok(msgs) = self.server.read_can_packets(0, 1000) {
+                        for candidate in msgs {
+                            if candidate.dlc == 8 {
+                                let data = candidate.get_data();
+                                if data[0] == 0x30 { // Potential flow control
+                                    // Also its a frame we haven't seen before!
+                                    if self.ignore_ids.get(&candidate.id).is_none() {
+                                        // Push the CAN ID that was sent previously and the locate response ID
+                                        self.auto_found_ids.push((self.curr_cid - 1, IsoTpResp { fc_id: candidate.id, bs: data[1], st: data[2], uds_support: None }));
+                                        // Also, add the new ID to the ignore list so we don't scan on the Flow control ID
+                                        self.ignore_ids.insert(candidate.id, candidate);
+                                        found = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
+                    std::thread::sleep(std::time::Duration::from_millis(5)); // Stops the machine from exploding
                 }
                 self.server.clear_can_rx_buffer(); // Clear any remaining packets in Rx buffer
                 self.server.send_can_packets(&[CanFrame::new(self.curr_cid, &[0x10, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0);
                 self.get_next_cid();
+                return Some(UDSHomeMessage::ScanNextCID)
             },
-            UDSHomeMessage::Wait(u) => {
-                self.scan_stage += 1;
-                self.server.add_can_filter(FilterType::Pass, 0x0000, 0x000);
+            UDSHomeMessage::Wait(elapsed) => {
+                return if elapsed.elapsed().as_millis() > WAIT_MS { // Finished waiting...
+                    self.listen_duration_ms = 0;
+                    self.scan_stage += 1;
+                    self.server.add_can_filter(FilterType::Pass, 0x0000, 0x000);
+                    Some(UDSHomeMessage::Listen(Instant::now())) // Begin listening!
+                } else {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    self.listen_duration_ms = elapsed.elapsed().as_millis();
+                    Some(UDSHomeMessage::Wait(*elapsed)) // Continue to wait
+                }
             }
-            UDSHomeMessage::Listen(_) => {
-                if self.listen_duration_ms >= 5000 {
+            UDSHomeMessage::Listen(x) => {
+                return if x.elapsed().as_millis() >= LISTEN_MS {
+                    println!("Listen complete");
                     self.scan_stage += 1;
                     // send first bogus CAN Packet
                     self.curr_cid = 0x07D0;
@@ -166,20 +185,22 @@ impl<'a> UDSHome {
                     self.server.send_can_packets(&[CanFrame::new(self.curr_cid, &[0x10, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0);
                     self.get_next_cid();
                     self.ignore_ids.insert(0x07DF, CanFrame::new(0x07DF, &[0x00])); // Add the ODB-II ID since we don't want to test it
+                    Some(UDSHomeMessage::ScanNextCID)
                 } else {
-                    self.listen_duration_ms += 100;
+                    self.listen_duration_ms = x.elapsed().as_millis();
+                    std::thread::sleep(std::time::Duration::from_millis(10));
                     if let Ok(msgs) = self.server.read_can_packets(0, 1000) {
                         for m in msgs {
                             self.ignore_ids.insert(m.id, m);
                         }
                     }
+                    Some(UDSHomeMessage::Listen(*x))
                 }
             },
-            UDSHomeMessage::InterrogateECU(_) => {
+            UDSHomeMessage::InterrogateECU => {
                 if self.curr_ecu_idx as usize == self.auto_found_ids.len()-1 {
                     self.scan_stage += 1
                 }
-
                 let ecu_id = self.auto_found_ids[self.curr_ecu_idx as usize].0;
                 let req1 = UDSRequest::new(UDSCommand::TesterPresent, &[0x01]);
                 match self.interrogateECU(req1, self.curr_ecu_idx as usize) {
@@ -201,18 +222,7 @@ impl<'a> UDSHome {
     }
 
     pub fn subscription(&self) -> Subscription<UDSHomeMessage> {
-        if self.auto_mode && !self.in_home {
-            match self.scan_stage {
-                0 => time::every(std::time::Duration::from_millis(4000)).map(UDSHomeMessage::Wait),
-                1 => time::every(std::time::Duration::from_millis(100)).map(UDSHomeMessage::Listen),
-                2 => time::every(std::time::Duration::from_millis(50)).map(UDSHomeMessage::ScanNextCID),
-                3 => Subscription::none(), // Scan summary page
-                4 => time::every(std::time::Duration::from_millis(1000)).map(UDSHomeMessage::InterrogateECU),
-                _ => Subscription::none()
-            }
-        } else {
-            Subscription::none()
-        }
+        Subscription::none()
     }
 
     pub fn draw_home(&mut self) -> Element<UDSHomeMessage> {
@@ -271,15 +281,14 @@ impl<'a> UDSHome {
         match self.scan_stage {
             0 => {
                 Column::new()
-                    .push(Text::new("Please wait - Waiting for CAN to settle"))
-                    .align_items(Align::Center)
-                    .height(Length::Fill)
+                    .push(Text::new("Waiting for network to settle"))
+                    .push(ProgressBar::new((0.0 as f32)..=(WAIT_MS as f32), self.listen_duration_ms as f32))
                     .into()
             },
             1 => {
                 Column::new()
                     .push(Text::new("Listening for existing CAN Traffic"))
-                    .push(ProgressBar::new((0.0 as f32)..=(5000.0 as f32), self.listen_duration_ms as f32))
+                    .push(ProgressBar::new((0.0 as f32)..=(LISTEN_MS as f32), self.listen_duration_ms as f32))
                     .push(Text::new(format!("Found {} CAN ID's", self.ignore_ids.len())))
                     .into()
             },
@@ -299,7 +308,7 @@ impl<'a> UDSHome {
                 for (x, y) in &self.auto_found_ids {
                     c = c.push(Text::new(format!("Potential Send ID 0x{:04X}, FC found with ID 0x{:04X}, asked for block size of {} and a separation time of {}ms", x, y.fc_id, y.bs, y.st)))
                 }
-                c = c.push(button::Button::new(&mut self.auto_state, Text::new("Begin UDS Interrogation")).on_press(UDSHomeMessage::NextMode));
+                c = c.push(button::Button::new(&mut self.auto_state, Text::new("Begin UDS Interrogation")).on_press(UDSHomeMessage::InterrogateECU));
                 c.into()
             },
             _ => {

@@ -52,7 +52,7 @@ impl<'a> CanTracer {
         }
     }
 
-    pub fn update(&mut self, msg: TracerMessage) -> Option<WindowMessage> {
+    pub fn update(&mut self, msg: &TracerMessage) -> Option<WindowMessage> {
         match msg {
             TracerMessage::NewData(data) => {
                 if let Ok(m) = self.server.as_ref().read_can_packets(0, 100) {
@@ -81,7 +81,7 @@ impl<'a> CanTracer {
                 }
             },
             TracerMessage::ToggleBinaryMode(b) => {
-                self.is_binary_fmt = b
+                self.is_binary_fmt = *b
             }
         }
         None

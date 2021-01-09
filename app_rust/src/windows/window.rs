@@ -46,7 +46,7 @@ impl<'a> WindowState {
         }
     }
 
-    fn update(&mut self, msg: WindowMessage) -> Option<WindowMessage> {
+    fn update(&mut self, msg: &WindowMessage) -> Option<WindowMessage> {
         match self {
             Self::Launcher(launcher) => {
                 if let WindowMessage::Launcher(x) = msg {
@@ -148,7 +148,7 @@ impl Application for MainWindow {
             WindowMessage::GoUDS => {
                 self.state = WindowState::UDSHome(UDSHome::new(self.server.clone().unwrap()))
             }
-            _ => return self.update_children(message)
+            _ => return self.update_children(&message)
         }
         Command::none()
     }
@@ -225,18 +225,20 @@ impl Application for MainWindow {
 }
 
 impl MainWindow {
-    fn update_children(&mut self, message: WindowMessage) -> Command<WindowMessage> {
+    fn update_children(&mut self, message: &WindowMessage) -> Command<WindowMessage> {
         // Special case handling
         if let Some(state) = self.state.update(message) {
             match state {
                 WindowMessage::StartApp(srv) => {
                     self.server = Some(srv.clone_box());
                     self.voltage = self.server.as_ref().unwrap().read_battery_voltage().unwrap_or(0.0);
-                    self.state = WindowState::Home(Home::new(srv))
+                    self.state = WindowState::Home(Home::new(srv));
+                    Command::none()
                 },
-                _ => println!("Unhandled window event")
+                _ => Command::perform(async move { state.clone() }, |x| x)
             }
+        } else {
+            Command::none()
         }
-        Command::none()
     }
 }

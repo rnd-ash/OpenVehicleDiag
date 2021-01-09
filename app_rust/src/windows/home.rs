@@ -33,7 +33,7 @@ impl Home {
         ret
     }
 
-    pub fn update(&mut self, msg: HomeMessage) -> Option<WindowMessage> {
+    pub fn update(&mut self, msg: &HomeMessage) -> Option<WindowMessage> {
         None
     }
 
