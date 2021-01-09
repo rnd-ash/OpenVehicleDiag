@@ -68,14 +68,23 @@ impl ComServer for PassthruApi {
     }
 
     fn read_iso15765_packets(&self, timeout_ms: u32, max_msgs: usize) -> Result<Vec<ISO15765Data>, ComServerError> {
-        let channel_id = match *self.can_channel_idx.read().unwrap() {
+        let channel_id = match *self.iso15765_channel_idx.read().unwrap() {
             Some(id) => id,
             None => return Err(self.convert_error(ERR_INVALID_CHANNEL_ID))
         };
-        self.driver.lock().unwrap().read_messages(channel_id, max_msgs as u32, timeout_ms)
+        let res = self.driver.lock().unwrap().read_messages(channel_id, max_msgs as u32, timeout_ms)
             .map(|read| {
                 read.iter().map(|msg| { PassthruApi::pt_msg_to_iso15765(msg) }).filter_map(Option::Some).map(|x| {x.unwrap()}).collect()
-            }).map_err(|e| self.convert_error(e))
+            });
+        return if let Err(e) = res {
+            if e == PassthruError::ERR_BUFFER_EMPTY {
+                Ok(Vec::new())
+            } else {
+                Err(e).map_err(|e| self.convert_error(e))
+            }
+        } else {
+            res.map_err(|e| self.convert_error(e))
+        }
     }
 
     fn open_can_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError> {
@@ -162,7 +171,7 @@ impl ComServer for PassthruApi {
     }
 
     fn add_iso15765_filter(&self, id: u32, mask: u32, flow_control_id: u32) -> Result<u32, ComServerError> {
-        match *self.can_channel_idx.read().unwrap() {
+        match *self.iso15765_channel_idx.read().unwrap() {
             None => Err(self.convert_error(ERR_INVALID_CHANNEL_ID)),
             Some(idx) => {
                 let mut mask_msg = PASSTHRU_MSG::default();

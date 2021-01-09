@@ -3,6 +3,7 @@ use std::cmp::min;
 use serde::export::Formatter;
 use std::sync::Arc;
 use std::fmt::Debug;
+use std::fmt;
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct CanFrame {
@@ -37,16 +38,31 @@ impl std::fmt::Display for CanFrame {
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct ISO15765Data {
     pub(crate) id: u32,
     pub(crate) data: Vec<u8>,
     pub(crate) pad_frame: bool
 }
 
+impl std::fmt::Display for ISO15765Data {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "ISO15765: ID: 0x{:04X}, Payload: {:02X?}", self.id, self.data)
+    }
+}
+
 unsafe impl Send for ISO15765Data{}
 unsafe impl Sync for ISO15765Data{}
 
+#[derive(Clone, Copy, Debug)]
+pub struct ISO15765Config {
+    pub send_id: u32,
+    pub recv_id: u32,
+    pub block_size: u32,
+    pub sep_time: u32
+}
+unsafe impl Send for ISO15765Config{}
+unsafe impl Sync for ISO15765Config{}
 
 #[derive(Debug, Copy, Clone)]
 pub enum FilterType {
