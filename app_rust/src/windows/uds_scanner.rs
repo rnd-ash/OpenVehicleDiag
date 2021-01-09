@@ -11,7 +11,7 @@ use std::fs::FileType;
 use std::collections::HashMap;
 use iced::widget::pane_grid::TitleBar;
 use std::ops::Index;
-use crate::commapi::protocols::uds::{UDSCommand, UDSRequest};
+use crate::commapi::protocols::uds::{UDSCommand, UDSRequest, UDSResponse, UDSProcessError};
 
 #[derive(Debug, Clone)]
 pub enum UDSHomeMessage {
@@ -50,7 +50,8 @@ pub struct UDSHome {
     listen_duration_ms: u128,
     interrogation_state: u32,
     curr_ecu_idx: u32,
-    auto_found_ids: Vec<(u32, IsoTpResp)>
+    auto_found_ids: Vec<(u32, IsoTpResp)>,
+    auto_scan_result_ids: Vec<(u32, String)>,
 }
 
 impl<'a> UDSHome {
@@ -65,6 +66,7 @@ impl<'a> UDSHome {
             curr_cid: 0,
             ignore_ids: HashMap::new(),
             auto_found_ids: Vec::new(),
+            auto_scan_result_ids: Vec::new(),
             listen_duration_ms: 0,
             interrogation_state: 0,
             curr_ecu_idx: 0
@@ -78,7 +80,7 @@ impl<'a> UDSHome {
         }
     }
 
-    pub fn interrogateECU(&mut self, req: UDSRequest, ecu_idx: usize) {
+    pub fn interrogateECU(&mut self, req: UDSRequest, ecu_idx: usize) -> Result<UDSResponse, UDSProcessError> {
         let comm_data: (u32, IsoTpResp) = self.auto_found_ids[ecu_idx].clone();
         let comm_settings = ISO15765Config {
             send_id: comm_data.0,
@@ -86,10 +88,13 @@ impl<'a> UDSHome {
             block_size: comm_data.1.bs as u32,
             sep_time: comm_data.1.st as u32
         };
-        match req.run_cmd_can(&mut self.server, &comm_settings) {
-            Ok(resp) => println!("ECU Response: {:?}", resp),
-            Err(e) => println!("UDS Error: {:?}", e),
-        }
+        let x = req.run_cmd_can(&mut self.server, &comm_settings);
+        match &x {
+            Ok(e) => println!("OK: {:?}", e),
+            Err(e) => println!("ERR: {:?}", e)
+        };
+
+        return x;
     }
 
     pub fn update(&mut self, msg: UDSHomeMessage) -> Option<UDSHomeMessage> {
@@ -175,11 +180,21 @@ impl<'a> UDSHome {
                     self.scan_stage += 1
                 }
 
-                let req1 = UDSRequest::new(UDSCommand::DiagnosticSessionControl, &[0x92]);
-                let req2 = UDSRequest::new(UDSCommand::TesterPresent, &[0x01]);
-
-                self.interrogateECU(req1, 0);
-                self.interrogateECU(req2, 0);
+                let ecu_id = self.auto_found_ids[self.curr_ecu_idx as usize].0;
+                let req1 = UDSRequest::new(UDSCommand::TesterPresent, &[0x01]);
+                match self.interrogateECU(req1, self.curr_ecu_idx as usize) {
+                    Ok(_) => self.auto_scan_result_ids.push((ecu_id, "ECU Supports UDS!".into())),
+                    Err(e) => {
+                        match e {
+                            UDSProcessError::CommError(ce) => self.auto_scan_result_ids.push((ecu_id, format!("Failed to scan - Protocol error: {}!", ce))),
+                            UDSProcessError::NoResponse => self.auto_scan_result_ids.push((ecu_id, "ECU did not reply! - Probably doesn't support UDS".into())),
+                            UDSProcessError::InvalidDataLen => self.auto_scan_result_ids.push((ecu_id, "ECU replied with an invalid data length - Probably doesn't support UDS".into())),
+                            UDSProcessError::InvalidErrorCode => self.auto_scan_result_ids.push((ecu_id, "ECU replied with an error which was not recognised! - Probably doesn't support UDS".into())),
+                            UDSProcessError::InvalidCommand => self.auto_scan_result_ids.push((ecu_id, "ECU did not reply with a valid CMD ID! - Probably doesn't support UDS".into())),
+                        }
+                    }
+                }
+                self.curr_ecu_idx += 1;
             }
         }
         None
@@ -265,7 +280,7 @@ impl<'a> UDSHome {
                 Column::new()
                     .push(Text::new("Listening for existing CAN Traffic"))
                     .push(ProgressBar::new((0.0 as f32)..=(5000.0 as f32), self.listen_duration_ms as f32))
-                    .push(Text::new(format!("Listened to {} CAN Messages", self.ignore_ids.len())))
+                    .push(Text::new(format!("Found {} CAN ID's", self.ignore_ids.len())))
                     .into()
             },
             2 => {
@@ -287,12 +302,18 @@ impl<'a> UDSHome {
                 c = c.push(button::Button::new(&mut self.auto_state, Text::new("Begin UDS Interrogation")).on_press(UDSHomeMessage::NextMode));
                 c.into()
             },
-            4 => {
+            _ => {
+                let curr_ecu_id = if self.curr_ecu_idx as usize >= self.auto_found_ids.len() { self.auto_found_ids.len() - 1 } else { self.curr_ecu_idx as usize };
                 let mut c = Column::new()
-                    .push(Text::new(format!("Scanning ECU  {} possible ECUs", self.auto_found_ids.len())));
+                    .push(Text::new(format!("Scanning ECU  {} possible ECUs...Currently scanning 0x{:04X}", self.auto_found_ids.len(), self.auto_found_ids[curr_ecu_id].0)))
+                    .push(ProgressBar::new((0.0 as f32)..=(self.auto_found_ids.len() as f32), self.curr_ecu_idx as f32))
+                    .push(Space::with_height(Length::Units(10)));
+                for (x, y) in &self.auto_scan_result_ids {
+                    c = c.push(Text::new(format!("Result for ECU 0x{:04X} - {}", x, y)))
+                }
                 c.into()
             },
-            _ => unimplemented!()
+            //_ => unimplemented!()
         }
     }
 
