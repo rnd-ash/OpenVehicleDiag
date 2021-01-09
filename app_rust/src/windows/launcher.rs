@@ -68,14 +68,14 @@ impl Launcher {
         }
     }
 
-    pub fn update(&mut self, msg: LauncherMessage) -> Option<WindowMessage> {
+    pub fn update(&mut self, msg: &LauncherMessage) -> Option<WindowMessage> {
         match msg {
-            LauncherMessage::SwitchAPI(api) => { self.api_selection = api },
+            LauncherMessage::SwitchAPI(api) => { self.api_selection = *api },
             LauncherMessage::DeviceSelected(d) => {
                 if self.api_selection == API::Passthru {
-                    self.selected_device_passthru = d
+                    self.selected_device_passthru = d.clone()
                 } else {
-                    self.selected_device_dpdu = d
+                    self.selected_device_dpdu = d.clone()
                 }
             }
             LauncherMessage::LaunchRequested => {
