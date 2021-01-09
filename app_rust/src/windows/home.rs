@@ -17,7 +17,8 @@ pub enum HomeMessage {
 pub struct Home {
     server: Box<dyn ComServer>,
     can_state: button::State,
-    uds_state: button::State
+    uds_state: button::State,
+    odb_state: button::State
 }
 
 impl Home {
@@ -25,7 +26,8 @@ impl Home {
         let mut ret = Self {
             server,
             can_state: button::State::default(),
-            uds_state: button::State::default()
+            uds_state: button::State::default(),
+            odb_state: button::State::default()
         };
         // To guarantee everything works as it should, home screen should have NO interfaces open
         ret.server.close_can_interface();
@@ -83,6 +85,7 @@ impl Home {
             .push(Text::new("Tools"))
             .push(button::Button::new(&mut self.can_state, Text::new("CAN Tracer")).on_press(WindowMessage::GoCanTracer))
             .push(button::Button::new(&mut self.uds_state, Text::new("UDS Scanner")).on_press(WindowMessage::GoUDS))
+            .push(button::Button::new(&mut self.odb_state, Text::new("ODB Toolbox")).on_press(WindowMessage::GoODB))
             );
         contents.into()
     }

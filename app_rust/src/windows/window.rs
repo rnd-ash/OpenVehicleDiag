@@ -13,6 +13,8 @@ use std::time::Instant;
 use crate::windows::cantracer::{CanTracer, TracerMessage};
 use std::ops::Sub;
 use crate::windows::uds_scanner::{UDSHomeMessage, UDSHome};
+use crate::windows::odb::{ODBMessage, ODBHome};
+use crate::windows::window::WindowMessage::ODBTools;
 
 #[derive(Debug, Clone)]
 pub (crate) enum ApplicationError {
@@ -25,6 +27,7 @@ pub enum WindowState {
     Home(Home),
     CanTracer(CanTracer),
     UDSHome(UDSHome),
+    ODBTools(ODBHome),
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -33,6 +36,7 @@ pub enum WindowStateName {
     Home,
     CanTracer,
     UDSHome,
+    ODBTools,
 }
 
 impl<'a> WindowState {
@@ -42,6 +46,7 @@ impl<'a> WindowState {
             Self::Home (home) => home.view().into(),
             Self::CanTracer (tracer) => tracer.view().map(|x| WindowMessage::CanTracer(x)).into(),
             Self::UDSHome (h) => h.view().map(|x| WindowMessage::UDSScanner(x)).into(),
+            Self::ODBTools (h) => h.view().map(|x| WindowMessage::ODBTools(x)).into(),
             _ => unimplemented!()
         }
     }
@@ -81,6 +86,7 @@ impl WindowState {
             WindowState::Home { .. } => WindowStateName::Home,
             WindowState::CanTracer { .. } => WindowStateName::CanTracer,
             WindowState::UDSHome { .. } => WindowStateName::UDSHome,
+            WindowState::ODBTools { .. } => WindowStateName::ODBTools,
         }
     }
 }
@@ -93,12 +99,14 @@ pub enum WindowMessage {
     Home(HomeMessage),
     CanTracer(TracerMessage),
     UDSScanner(UDSHomeMessage),
+    ODBTools(ODBMessage),
     StartApp(Box<dyn ComServer>),
     LaunchFileBrowser,
     StatusUpdate(Instant),
     GoHome, // Goto home page
     GoCanTracer, // Goto Can Tracer page
     GoUDS, // Goto UDS Scanner page
+    GoODB, // Goto ODB Toolbox page
 }
 
 
@@ -128,7 +136,8 @@ impl Application for MainWindow {
             WindowState::Launcher { .. } => "OpenVehicleDiag launcher".into(),
             WindowState::Home { .. } => format!("OpenVehicleDiag ({} mode)", self.server.as_ref().map(|s| s.get_api()).unwrap_or("Unknown")),
             WindowState::CanTracer { .. } => "OpenVehicleDiag CanTracer".into(),
-            WindowState::UDSHome { .. } => "OpenVehicleDiag UDS Scanner".into()
+            WindowState::UDSHome { .. } => "OpenVehicleDiag UDS Scanner".into(),
+            WindowState::ODBTools { .. } => "OpenVehicleDiag ODB Toolbox".into()
         }
     }
 
@@ -147,6 +156,9 @@ impl Application for MainWindow {
             },
             WindowMessage::GoUDS => {
                 self.state = WindowState::UDSHome(UDSHome::new(self.server.clone().unwrap()))
+            },
+            WindowMessage::GoODB => {
+                self.state = WindowState::ODBTools(ODBHome::new(self.server.clone().unwrap()))
             }
             _ => return self.update_children(&message)
         }
@@ -184,7 +196,7 @@ impl Application for MainWindow {
             };
 
             let v = Text::new(format!("{}V", self.voltage)).color(
-                if self.voltage > 11.0 { // Low battery alert threshold
+                if self.voltage > 11.3 { // Low battery alert threshold
                     Color::from_rgb8(0, 128, 0)
                 } else {
                     Color::from_rgb8(128, 0, 0)

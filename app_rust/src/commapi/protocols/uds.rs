@@ -80,23 +80,23 @@ pub enum UDSCommand {
     /// * "Extended Diagnostic Session" used to unlock additional diagnostic functions, such as the adjustment of sensors.
     /// * "Safety system diagnostic session" used to test all safety-critical diagnostic functions, such as airbag tests.
     /// In addition, there are reserved session identifiers that can be defined for vehicle manufacturers and vehicle suppliers specific use.
-    DiagnosticSessionControl,
+    DiagnosticSessionControl = 0x10,
 
     /// The service "ECU reset" is used to restart the control unit (ECU). Depending on the control unit hardware and implementation, different forms of reset can be used:
     /// * "Hard Reset" simulates a shutdown of the power supply.
     /// * "key off on Reset" simulates the drain and turn on the ignition with the key.
     /// * "Soft Reset" allows the initialization of certain program units and their storage structures.
     /// Again, there are reserved values that can be defined for vehicle manufacturers and vehicle suppliers specific use.
-    ECUReset,
+    ECUReset = 0x11,
 
     /// Asks the ECU to clear any DTCs (Diagnostic trouble codes) that may be stored on the control
     /// unit.
     ///
     /// *NOTE* - On certain ECUs such as safety critical ones, this requires a high security access
-    ClearDTCInformation,
+    ClearDTCInformation = 0x14,
 
     /// Asks the ECU to read and DTCs that may be present on the control module
-    ReadDTCInformation,
+    ReadDTCInformation = 0x19,
 
     /// With this service, it is possible to retrieve one or more values of a control unit.
     /// This can be information of all kinds and of different lengths such as Partnumber or the
@@ -105,35 +105,45 @@ pub enum UDSCommand {
     /// are meant for information that some ECU uses in its functionality. DID data is sent on
     /// request only, and is for information that no ECU uses, but a service tool or a software
     /// tester can benefit from.
-    ReadDataByID,
+    ReadDataByID = 0x22,
 
     /// Read data from the physical memory at the provided address. This function can be used by a
     /// testing tool, in order to read the internal behaviour of the software.
-    ReadMemoryByAddress,
+    ReadMemoryByAddress = 0x23,
 
     /// TODO
-    ReadScalingDataById,
+    ReadScalingDataById = 0x24,
 
     /// Security check is available to enable the most security-critical services. For this purpose a
     /// "Seed" is generated and sent to the client by the control unit. From this "Seed" the client
     /// has to compute a "Key" and send it back to the control unit to unlock the
     /// security-critical services.
-    SecurityAccess,
+    SecurityAccess = 0x27,
 
     /// With this service, both the sending and receiving of messages can be turned off in the control unit.
-    CommunicationControl,
+    CommunicationControl = 0x28,
 
     /// An update (2020) of the standard added this service to provide a standardized approach to
     /// more modern methods of authentication than are permitted by the Security Access (0x27)
     /// service, including bidirectional authentication with PKI-based Certificate Exchange.
-    Authentication,
+    Authentication = 0x29,
 
     /// TODO
-    ReadDataByPeriodicID,
+    ReadDataByPeriodicID = 0x2A,
+
+    /// This service offers the possibility of a fix for a device specified Data Identifier (DID)
+    /// pool to configure another Data Identifier. This is usually a combination of parts of different
+    /// DIDs or simply a concatenation of complete DIDs. The requested data may be configured or
+    /// grouped in the following manner:
+    ///
+    /// * Source DID, position, length (in bytes), Sub-Function Byte: defineByIdentifier
+    /// * Memory address length (in bytes), Sub-Function Byte: defineByMemoryAddress
+    /// * Combinations of the two above methods through multiple requests.
+    DynamicDefineDataId = 0x2C,
 
     /// With the same Data Identifier (DID), values can also be changed.
     /// In addition to the identifier, the new value is sent along.
-    WriteDataByID,
+    WriteDataByID = 0x2E,
 
     /// This service allows an external system intervention on internal / external signals via the diagnostic interface.
     /// By specifying a so-called option bytes additional conditions for a request can be specified, the following values are specified:
@@ -145,53 +155,62 @@ pub enum UDSCommand {
     /// * Freeze Current State: The device shall freeze the current signal value.
     ///
     /// * ShortTermAdjustment: The device shall use the provided value for the signal
-    IOCTLById,
+    IOCTLById = 0x2F,
 
     /// The Control service routine services of all kinds can be performed. There are three different message types:
     /// * With the start-message, a service can be initiated. It can be defined to confirm the beginning of the execution or to notify when the service is completed.
     /// * With the Stop message, a running service can be interrupted at any time.
     /// * The third option is a message to query the results of the service.
     /// The start and stop message parameters can be specified. This makes it possible to implement every possible project-specific service.
-    RoutineControl,
+    RoutineControl = 0x31,
 
     /// Downloading new software or other data into the control unit is introduced using the
     /// "Request Download". Here, the location and size of the data is specified. In turn,
     /// the controller specifies how large the data packets can be.
-    RequestDownload,
+    RequestDownload = 0x34,
 
     /// The service "request upload" is almost identical to the service "Request Download". With this service,
     /// the software from the control unit is transferred to the tester. The location and size must be
     /// specified. Again, the size of the data blocks are specified by the tester.
-    RequestUpload,
+    RequestUpload = 0x35,
 
     /// For the actual transmission of data, the service "Transfer Data" is used. This service is
     /// used for both uploading and downloading data. The transfer direction is notified in advance
     /// by the service "Request Download" or "Upload Request". This service should try to send packets
     /// at maximum length, as specified in previous services. If the data set is larger than the maximum,
     /// the "Transfer Data" service must be used several times in succession until all data has arrived.
-    TransferData,
+    TransferData = 0x36,
 
     /// A data transmission can be 'completed' when using the "Transfer Exit" service.
     /// This service is used for comparison between the control unit and the tester. When it is
     /// running, a control unit can answer negatively on this request to stop a data transfer request.
     /// This will be used when the amount of data (set in "Request Download" or "Upload Request") has not
     /// been transferred.
-    TransferExit,
+    TransferExit = 0x37,
 
     /// The “Write Memory By Address” service allows the external diagnostic tool to write
     /// information into the ECU at one or more contiguous memory locations.
-    WriteMemoryByAddress,
+    WriteMemoryByAddress = 0x3D,
 
     /// If no communication is exchanged with the client for a long time, the control unit
     /// automatically exits the current session and returns to the "Default Session" back, and
     /// might go to sleep mode. Therefore, there is an extra service which purpose is to signal to
     /// the device that the client is still present.
-    TesterPresent,
+    TesterPresent = 0x3E,
+
+    /// This service is used to initiate a file download from the client to the server or upload
+    /// from the server to the client. Additionally information about the file system are available
+    /// by this service.
+    RequestFileTransfer = 0x3F,
 
     /// Enable or disable the detection of any or all errors. This is important when
     /// diagnostic work is performed in the car, which can cause an anomalous behavior of
     /// individual devices.
-    ControlDTCSetting
+    ControlDTCSetting = 0x85,
+
+    /// The Service Link Control is used to set the baud rate of the diagnostic access.
+    /// It is usually implemented only at the central gateway.
+    LinkControl = 0x87
 }
 
 impl UDSCommand {
@@ -212,6 +231,7 @@ impl UDSCommand {
             0x28 | 0x68 => Ok(Self::CommunicationControl),
             0x29 | 0x69 => Ok(Self::Authentication),
             0x2A | 0x6A => Ok(Self::ReadDataByPeriodicID),
+            0x2C | 0x6C => Ok(Self::DynamicDefineDataId),
             0x2E | 0x6E => Ok(Self::WriteDataByID),
             0x2F | 0x6F => Ok(Self::IOCTLById),
             0x31 | 0x71 => Ok(Self::RoutineControl),
@@ -219,9 +239,11 @@ impl UDSCommand {
             0x35 | 0x75 => Ok(Self::RequestUpload),
             0x36 | 0x76 => Ok(Self::TransferData),
             0x37 | 0x77 => Ok(Self::TransferExit),
+            0x38 | 0x78 => Ok(Self::RequestFileTransfer),
             0x3D | 0x7D => Ok(Self::WriteMemoryByAddress),
             0x3E | 0x7E => Ok(Self::TesterPresent),
             0x85 | 0xC5 => Ok(Self::ControlDTCSetting),
+            0x87 | 0xC7 => Ok(Self::LinkControl),
             _ => Err(UDSProcessError::InvalidCommand)
         }
     }
