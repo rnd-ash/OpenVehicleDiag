@@ -16,6 +16,7 @@ serde_derive = "1.0.80"
 lazy_static="1.4.0"
 serde = {version = "1.0.80", features = ["derive"]}
 J2534Common = { path = "../MacchinaM2-J2534-Rust/J2534Common/"}
+bitfield = "0.13.2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.7"
