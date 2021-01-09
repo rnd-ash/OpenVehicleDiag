@@ -70,27 +70,127 @@ impl UDSRequest {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialOrd, PartialEq)]
+/// UDS Commands AKA SID (Service identifiers)
 pub enum UDSCommand {
+    /// UDS uses different operating sessions, which can be changed using the "Diagnostic Session Control".
+    /// Depending on which session is active, different services are available. On start, the control
+    /// unit is by default in the "Default Session". Other sessions are defined, but are not required to be
+    /// implemented depending on the type of device:
+    /// * "Programming Session" used to upload software.
+    /// * "Extended Diagnostic Session" used to unlock additional diagnostic functions, such as the adjustment of sensors.
+    /// * "Safety system diagnostic session" used to test all safety-critical diagnostic functions, such as airbag tests.
+    /// In addition, there are reserved session identifiers that can be defined for vehicle manufacturers and vehicle suppliers specific use.
     DiagnosticSessionControl,
+
+    /// The service "ECU reset" is used to restart the control unit (ECU). Depending on the control unit hardware and implementation, different forms of reset can be used:
+    /// * "Hard Reset" simulates a shutdown of the power supply.
+    /// * "key off on Reset" simulates the drain and turn on the ignition with the key.
+    /// * "Soft Reset" allows the initialization of certain program units and their storage structures.
+    /// Again, there are reserved values that can be defined for vehicle manufacturers and vehicle suppliers specific use.
     ECUReset,
+
+    /// Asks the ECU to clear any DTCs (Diagnostic trouble codes) that may be stored on the control
+    /// unit.
+    ///
+    /// *NOTE* - On certain ECUs such as safety critical ones, this requires a high security access
     ClearDTCInformation,
+
+    /// Asks the ECU to read and DTCs that may be present on the control module
     ReadDTCInformation,
+
+    /// With this service, it is possible to retrieve one or more values of a control unit.
+    /// This can be information of all kinds and of different lengths such as Partnumber or the
+    /// software version. Dynamic values such as the current state of the sensor can be queried.
+    /// Each value is associated to a Data Identifier (DID) between 0 and 65535. Normal CAN signals
+    /// are meant for information that some ECU uses in its functionality. DID data is sent on
+    /// request only, and is for information that no ECU uses, but a service tool or a software
+    /// tester can benefit from.
     ReadDataByID,
+
+    /// Read data from the physical memory at the provided address. This function can be used by a
+    /// testing tool, in order to read the internal behaviour of the software.
     ReadMemoryByAddress,
+
+    /// TODO
     ReadScalingDataById,
+
+    /// Security check is available to enable the most security-critical services. For this purpose a
+    /// "Seed" is generated and sent to the client by the control unit. From this "Seed" the client
+    /// has to compute a "Key" and send it back to the control unit to unlock the
+    /// security-critical services.
     SecurityAccess,
+
+    /// With this service, both the sending and receiving of messages can be turned off in the control unit.
     CommunicationControl,
+
+    /// An update (2020) of the standard added this service to provide a standardized approach to
+    /// more modern methods of authentication than are permitted by the Security Access (0x27)
+    /// service, including bidirectional authentication with PKI-based Certificate Exchange.
     Authentication,
+
+    /// TODO
     ReadDataByPeriodicID,
+
+    /// With the same Data Identifier (DID), values can also be changed.
+    /// In addition to the identifier, the new value is sent along.
     WriteDataByID,
+
+    /// This service allows an external system intervention on internal / external signals via the diagnostic interface.
+    /// By specifying a so-called option bytes additional conditions for a request can be specified, the following values are specified:
+    ///
+    /// * ReturnControlToECU: The device must get back controls of the mentioned signals.
+    ///
+    /// * ResetToDefault: The tester prompts to reset signals to the system wide default value.
+    ///
+    /// * Freeze Current State: The device shall freeze the current signal value.
+    ///
+    /// * ShortTermAdjustment: The device shall use the provided value for the signal
     IOCTLById,
+
+    /// The Control service routine services of all kinds can be performed. There are three different message types:
+    /// * With the start-message, a service can be initiated. It can be defined to confirm the beginning of the execution or to notify when the service is completed.
+    /// * With the Stop message, a running service can be interrupted at any time.
+    /// * The third option is a message to query the results of the service.
+    /// The start and stop message parameters can be specified. This makes it possible to implement every possible project-specific service.
     RoutineControl,
+
+    /// Downloading new software or other data into the control unit is introduced using the
+    /// "Request Download". Here, the location and size of the data is specified. In turn,
+    /// the controller specifies how large the data packets can be.
     RequestDownload,
+
+    /// The service "request upload" is almost identical to the service "Request Download". With this service,
+    /// the software from the control unit is transferred to the tester. The location and size must be
+    /// specified. Again, the size of the data blocks are specified by the tester.
     RequestUpload,
+
+    /// For the actual transmission of data, the service "Transfer Data" is used. This service is
+    /// used for both uploading and downloading data. The transfer direction is notified in advance
+    /// by the service "Request Download" or "Upload Request". This service should try to send packets
+    /// at maximum length, as specified in previous services. If the data set is larger than the maximum,
+    /// the "Transfer Data" service must be used several times in succession until all data has arrived.
     TransferData,
+
+    /// A data transmission can be 'completed' when using the "Transfer Exit" service.
+    /// This service is used for comparison between the control unit and the tester. When it is
+    /// running, a control unit can answer negatively on this request to stop a data transfer request.
+    /// This will be used when the amount of data (set in "Request Download" or "Upload Request") has not
+    /// been transferred.
     TransferExit,
+
+    /// The “Write Memory By Address” service allows the external diagnostic tool to write
+    /// information into the ECU at one or more contiguous memory locations.
     WriteMemoryByAddress,
+
+    /// If no communication is exchanged with the client for a long time, the control unit
+    /// automatically exits the current session and returns to the "Default Session" back, and
+    /// might go to sleep mode. Therefore, there is an extra service which purpose is to signal to
+    /// the device that the client is still present.
     TesterPresent,
+
+    /// Enable or disable the detection of any or all errors. This is important when
+    /// diagnostic work is performed in the car, which can cause an anomalous behavior of
+    /// individual devices.
     ControlDTCSetting
 }
 
@@ -102,6 +202,7 @@ impl UDSCommand {
         match *resp {
             0x10 | 0x50 => Ok(Self::DiagnosticSessionControl),
             0x11 | 0x51 => Ok(Self::ECUReset),
+            0x13 | 0x53 => Ok(Self::TesterPresent),
             0x14 | 0x54 => Ok(Self::ClearDTCInformation),
             0x19 | 0x59 => Ok(Self::ReadDTCInformation),
             0x22 | 0x62 => Ok(Self::ReadDataByID),
