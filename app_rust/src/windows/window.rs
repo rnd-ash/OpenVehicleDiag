@@ -72,6 +72,11 @@ impl<'a> WindowState {
                 if let WindowMessage::UDSScanner(x) = msg {
                     return uds.update(x).map(|t| WindowMessage::UDSScanner(t))
                 }
+            },
+            Self::ODBTools(o) => {
+                if let WindowMessage::ODBTools(x) = msg {
+                    return o.update(x).map(|t| WindowMessage::ODBTools(t))
+                }
             }
             _ => unimplemented!()
         }

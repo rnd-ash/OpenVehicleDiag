@@ -54,7 +54,7 @@ impl<'a> CanTracer {
 
     pub fn update(&mut self, msg: &TracerMessage) -> Option<WindowMessage> {
         match msg {
-            TracerMessage::NewData(data) => {
+            TracerMessage::NewData(_) => {
                 if let Ok(m) = self.server.as_ref().read_can_packets(0, 100) {
                     self.insert_frames_to_map(m)
                 }
@@ -67,6 +67,8 @@ impl<'a> CanTracer {
                     self.is_connected = true;
                     if let Err(e) = self.server.as_mut().add_can_filter(FilterType::Pass, 0x0000, 0x0000) {
                         self.status_text = format!("Error setting CAN Filter {}",  e)
+                    } else {
+                        self.server.send_can_packets(&[CanFrame::new(0x07DF, &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0);
                     }
                 }
             }
