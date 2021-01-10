@@ -295,7 +295,7 @@ impl Service01 {
     /// Returns Mass airflow rate (MAF) in grams/sec
     pub fn get_maf_rate(&self, server: &mut Box<dyn ComServer>, use_can: bool) -> Result<u32> {
         let (a, b) =  Self::a_b(self.read_pid_supported(server, use_can, 0x10)?);
-        Ok((256*a + b) / 100)
+        Ok(((256.0*a + b) / 100.0) as u32)
     }
 
     /// Returns throttle position in %
