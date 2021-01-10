@@ -180,7 +180,7 @@ impl<'a> UDSHome {
                     println!("Listen complete");
                     self.scan_stage += 1;
                     // send first bogus CAN Packet
-                    self.curr_cid = 0x07D0;
+                    self.curr_cid = 0x0000;
                     self.get_next_cid();
                     self.server.send_can_packets(&[CanFrame::new(self.curr_cid, &[0x10, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0);
                     self.get_next_cid();
@@ -198,8 +198,10 @@ impl<'a> UDSHome {
                 }
             },
             UDSHomeMessage::InterrogateECU => {
+                self.scan_stage = 4;
                 if self.curr_ecu_idx as usize == self.auto_found_ids.len()-1 {
-                    self.scan_stage += 1
+                    self.scan_stage += 1;
+                    return None;
                 }
                 let ecu_id = self.auto_found_ids[self.curr_ecu_idx as usize].0;
                 let req1 = UDSRequest::new(UDSCommand::TesterPresent, &[0x01]);
@@ -216,6 +218,7 @@ impl<'a> UDSHome {
                     }
                 }
                 self.curr_ecu_idx += 1;
+                return Some(UDSHomeMessage::InterrogateECU)
             }
         }
         None
