@@ -40,8 +40,8 @@ pub enum UDSHomeMessage {
 const MAX_CID_STD: u32 = 0x07FF; // 11bit ID
 const MAX_CID_EXT: u32 = 0x1FFFFFFF; // 29bit - Damn this scan will take forever!
 
-const WAIT_MS: u128 = 5000;
-const LISTEN_MS: u128 = 10000;
+const WAIT_MS: u128 = 2000;
+const LISTEN_MS: u128 = 2000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CarECUs {
@@ -187,7 +187,6 @@ impl<'a> UDSHome {
                             let parse : serde_json::Result<CarECUs>  = serde_json::from_str(&str);
                             if let Ok(car) = parse {
                                 self.auto_mode = false;
-                                self.
                             }
                         }
                     },

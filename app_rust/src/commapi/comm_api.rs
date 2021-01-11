@@ -4,6 +4,7 @@ use serde::export::Formatter;
 use std::sync::Arc;
 use std::fmt::Debug;
 use std::fmt;
+use std::time::Instant;
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct CanFrame {
@@ -265,6 +266,35 @@ pub trait ComServer : Send + Sync + Debug {
     /// * block_size - The number of CAN frames to receive or send before waiting for another
     ///                 flow control message from the ECU
     fn set_iso15765_params(&self, separation_time_min: u32, block_size: u32) -> Result<(), ComServerError>;
+
+    /// Sends an ISOTP payload and attempts to read the ECUs response
+    /// IMPORTANT - This function assumes the ISO15765 interface is ALREADY open
+    fn send_receive_iso15765(&self, p: ISO15765Data, cfg: &ISO15765Config, max_timeout_ms: u128) -> Result<Vec<ISO15765Data>, ComServerError> {
+        let f_idx = self.add_iso15765_filter(cfg.recv_id, 0xFFFF, cfg.send_id)?;
+        self.set_iso15765_params(cfg.sep_time, cfg.block_size)?;
+
+        self.clear_iso15765_rx_buffer()?; // Clear the receive buffer
+        self.send_iso15765_data(&[p], 0)?; // Send data
+        let mut timeout = max_timeout_ms;
+        let mut payloads: Vec<ISO15765Data> = Vec::new();
+        let start = Instant::now();
+        while start.elapsed().as_millis() < timeout {
+            if let Ok(d) = self.read_iso15765_packets(0, 10) {
+                if d.len() > 0 {
+                    for msg in d {
+                        if msg.data.len() == 0 { // First frame
+                            timeout += 10;
+                        } else {
+                            payloads.push(msg)
+                        }
+                    }
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        self.rem_iso15765_filter(f_idx);
+        return Ok(payloads)
+    }
 
     /// Tells the adapter to clear any data in its Rx buffer
     /// that is from CAN protocol
