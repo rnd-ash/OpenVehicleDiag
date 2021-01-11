@@ -23,49 +23,43 @@ impl UDSRequest {
 
     pub fn run_cmd_can(&self, server: &mut Box<dyn ComServer>, tp_config: &ISO15765Config) -> Result<UDSResponse> {
         server.open_iso15765_interface(500_000, false).map_err(|e| UDSProcessError::CommError(e))?;
-        let res = {
-            server.add_iso15765_filter(tp_config.recv_id, 0xFFFF, tp_config.send_id)?;
-            server.set_iso15765_params(tp_config.sep_time, tp_config.block_size)?;
-
-            let mut packet: Vec<u8> = vec![self.cmd as u8];
-            packet.extend_from_slice(&self.args);
-
-            let payload = ISO15765Data {
-                id: tp_config.send_id,
-                data: packet,
-                pad_frame: false // Todo do we need to pad flow control frame?
-            };
-            server.send_iso15765_data(&[payload], 0)?;
-
-            let clock = Instant::now();
-            let mut p: Option<UDSResponse> = None;
-            let mut timeout = 500; // ms
-            while clock.elapsed().as_millis() < timeout {
-                if let Ok(msgs) = server.read_iso15765_packets(0, 10) {
-                    for m in msgs {
-                        if m.data.len() > 0 {
-                            let d = UDSResponse::from_data(&m.data)?;
-                            if let UDSResponse::NegativeResponse(_, x) = d {
-                                if x == UDSNegativeCode::ResponsePending {
-                                    timeout += 500; // Response is coming, keep the clock ticking
-                                    break;
-                                }
+        let mut packet = vec![self.cmd as u8];
+        packet.extend_from_slice(&self.args);
+        let payload = ISO15765Data {
+            id: tp_config.send_id,
+            data: packet,
+            pad_frame: false // Todo do we need to pad flow control frame?
+        };
+        let res =  server.send_receive_iso15765(payload, tp_config, 250);
+        server.close_iso15765_interface();
+        match res {
+            Ok(data) => {
+                if data.len() == 0 {
+                    server.close_iso15765_interface();
+                    Err(UDSProcessError::NoResponse)
+                } else {
+                    let mut resp = Err(UDSProcessError::NoResponse);
+                    for p in data {
+                        let d = UDSResponse::from_data(&p.data)?;
+                        if let UDSResponse::NegativeResponse(_, x) = d {
+                            if x == UDSNegativeCode::ResponsePending {
+                                resp = Ok(d)
                             }
-                            p = Some(d);
-                            timeout = 0; // Break
-                            break;
+                            else {
+                                return Ok(d)
+                            }
+                        } else {
+                            return Ok(d)
                         }
                     }
+                    resp
                 }
+            },
+            Err(e) => {
+                println!("ERROR: {}", e);
+                Err(UDSProcessError::CommError(e))
             }
-            match p {
-                Some(x) => Ok(x),
-                None => Err(UDSProcessError::NoResponse)
-            }
-            // Now we can send the payload with the adapter being configured
-        };
-        server.close_iso15765_interface();
-        return res
+        }
     }
 }
 
