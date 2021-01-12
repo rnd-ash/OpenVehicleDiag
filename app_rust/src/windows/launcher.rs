@@ -5,6 +5,7 @@ use crate::commapi::passthru_api::PassthruApi;
 use crate::windows::window::{ApplicationError, WindowMessage};
 use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::launcher::LauncherMessage::LaunchRequested;
+use crate::themes::dark::MaterialButton;
 
 #[derive(Debug, Clone)]
 pub struct Launcher {
@@ -143,7 +144,7 @@ impl Launcher {
                         Some(self.selected_device_passthru.clone()),
                         LauncherMessage::DeviceSelected))
                     .push(Button::new(&mut self.launch_state, Text::new("Launch OVD!"))
-                        .on_press(LaunchRequested)
+                        .on_press(LaunchRequested).style(MaterialButton)
                     )
                     .push(Text::new(&self.status_text));
             }
