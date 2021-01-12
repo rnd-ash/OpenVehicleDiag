@@ -1,0 +1,15 @@
+{
+  "vehicle_name": "Unknown",
+  "vehicle_year": 2000,
+  "vehicle_oem": "Unknown",
+  "ecus": [
+    {
+      "name": "Unknown",
+      "send_id": 2016,
+      "flow_control_id": 2024,
+      "block_size": 8,
+      "sep_time_ms": 10,
+      "supports_uds": true
+    }
+  ]
+}
