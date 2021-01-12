@@ -14,7 +14,7 @@ use std::ops::Index;
 use serde::{Serialize, Deserialize};
 use crate::commapi::protocols::uds::{UDSCommand, UDSRequest, UDSResponse, UDSProcessError};
 use std::io::{Write, Read};
-use crate::themes::dark::Button;
+use crate::themes::dark::MaterialButton;
 
 #[derive(Debug, Clone)]
 pub struct ManualMode {
