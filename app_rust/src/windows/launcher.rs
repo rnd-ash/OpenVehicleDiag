@@ -5,7 +5,7 @@ use crate::commapi::passthru_api::PassthruApi;
 use crate::windows::window::{ApplicationError, WindowMessage};
 use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::launcher::LauncherMessage::LaunchRequested;
-use crate::themes::{button_coloured, ButtonType, button_outlined, picklist, container};
+use crate::themes::{button_coloured, ButtonType, button_outlined, picklist, container, radio_btn};
 use crate::themes::dark::DropDown;
 
 #[derive(Debug, Clone)]
@@ -114,17 +114,19 @@ impl Launcher {
     pub fn view(&mut self) -> Element<LauncherMessage> {
         let selection = Row::new()
             .push(Text::new("API:"))
-            .push(Radio::new(
+            .push(radio_btn(
                 API::D_PDU,
                 "D-PDU",
                 Some(self.api_selection.clone()),
-                LauncherMessage::SwitchAPI
+                LauncherMessage::SwitchAPI,
+                ButtonType::Primary
             ))
-            .push(Radio::new(
+            .push(radio_btn(
                 API::Passthru,
                 "Passthru",
                 Some(self.api_selection.clone()),
-                LauncherMessage::SwitchAPI
+                LauncherMessage::SwitchAPI,
+                ButtonType::Primary
             ))
             .padding(20)
             .spacing(10)
