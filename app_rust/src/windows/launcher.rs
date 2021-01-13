@@ -1,11 +1,11 @@
 use crate::passthru::{PassthruDevice, PassthruDrv};
-use iced::{pick_list, button, Text, Row, Element, Radio, Align, Column, PickList, Container, Length, Button, Command};
+use iced::{pick_list, button, Text, Row, Element, Radio, Align, Column, PickList, Container, Length, Button, Command, Image};
 use crate::commapi::comm_api::{ComServerError, ComServer};
 use crate::commapi::passthru_api::PassthruApi;
 use crate::windows::window::{ApplicationError, WindowMessage};
 use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::launcher::LauncherMessage::LaunchRequested;
-use crate::themes::{button_coloured, ButtonType, button_outlined, picklist, container};
+use crate::themes::{button_coloured, ButtonType, button_outlined, picklist, container, radio_btn};
 use crate::themes::dark::DropDown;
 
 #[derive(Debug, Clone)]
@@ -114,17 +114,19 @@ impl Launcher {
     pub fn view(&mut self) -> Element<LauncherMessage> {
         let selection = Row::new()
             .push(Text::new("API:"))
-            .push(Radio::new(
+            .push(radio_btn(
                 API::D_PDU,
                 "D-PDU",
                 Some(self.api_selection.clone()),
-                LauncherMessage::SwitchAPI
+                LauncherMessage::SwitchAPI,
+                ButtonType::Primary
             ))
-            .push(Radio::new(
+            .push(radio_btn(
                 API::Passthru,
                 "Passthru",
                 Some(self.api_selection.clone()),
-                LauncherMessage::SwitchAPI
+                LauncherMessage::SwitchAPI,
+                ButtonType::Primary
             ))
             .padding(20)
             .spacing(10)
@@ -132,11 +134,13 @@ impl Launcher {
 
         let contents = if self.api_selection == API::D_PDU {
             Column::new()
+                .push(Image::new("img/logo.png").width(Length::Units(300)).height(Length::Units(300)))
                 .push(selection)
                 .push(Text::new("D-PDU API is unimplemented, check back in a future release!"))
                 .spacing(10)
         } else {
             let mut c = Column::new()
+                .push(Image::new("img/logo.png").width(Length::Units(300)).height(Length::Units(300)))
                 .spacing(10)
                 .padding(20)
                 .push(selection);

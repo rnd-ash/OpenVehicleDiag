@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iced = { version = "0.2.0", features = ["tokio"] }
+iced = { version = "0.2.0", features = ["tokio", "image"] }
 
 serde_json = "1.0"
 libloading = "0.6.4"
@@ -20,6 +20,7 @@ bitfield = "0.13.2"
 nfd = "0.0.4"
 hex-serde = "0.1.0"
 chrono = "0.4.19"
+image = "0.23.12"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.7"
