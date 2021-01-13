@@ -15,6 +15,7 @@ use std::ops::Sub;
 use crate::windows::uds_scanner::{UDSHomeMessage, UDSHome};
 use crate::windows::odb::{ODBMessage, ODBHome};
 use crate::windows::window::WindowMessage::ODBTools;
+use crate::themes::{toggle_theme, button_coloured, ButtonType, container, text, TextType};
 
 #[derive(Debug, Clone)]
 pub (crate) enum ApplicationError {
@@ -112,6 +113,7 @@ pub enum WindowMessage {
     GoCanTracer, // Goto Can Tracer page
     GoUDS, // Goto UDS Scanner page
     GoODB, // Goto ODB Toolbox page
+    ToggleTheme, // Toggle the theme
 }
 
 
@@ -119,7 +121,8 @@ pub struct MainWindow {
     state: WindowState,
     server: Option<Box<dyn ComServer>>,
     voltage: f32,
-    back_btn_state: button::State
+    back_btn_state: button::State,
+    theme_toggle: button::State,
 }
 
 impl Application for MainWindow {
@@ -132,7 +135,8 @@ impl Application for MainWindow {
             state: WindowState::Launcher(Launcher::new()),
             server: None,
             voltage: 0.0,
-            back_btn_state: button::State::default()
+            back_btn_state: button::State::default(),
+            theme_toggle: button::State::default()
         }, Command::none())
     }
 
@@ -165,6 +169,9 @@ impl Application for MainWindow {
             WindowMessage::GoODB => {
                 self.state = WindowState::ODBTools(ODBHome::new(self.server.clone().unwrap()))
             }
+            WindowMessage::ToggleTheme => {
+                toggle_theme()
+            }
             _ => return self.update_children(&message)
         }
         Command::none()
@@ -196,23 +203,24 @@ impl Application for MainWindow {
         } else {
             // Draw the status bar!
             let t = match self.server.as_ref().unwrap().is_connected() {
-                true => Text::new("Connected").color(Color::from_rgb8(0, 128, 0)),
-                false => Text::new("Disconnected").color(Color::from_rgb8(128, 0, 0))
+                true => text("Connected", TextType::Success),
+                false => text("Disconnected", TextType::Danger),
             };
 
-            let v = Text::new(format!("{}V", self.voltage)).color(
-                if self.voltage > 11.3 { // Low battery alert threshold
-                    Color::from_rgb8(0, 128, 0)
-                } else {
-                    Color::from_rgb8(128, 0, 0)
-                }
-            );
+            let v = if self.voltage < 12.0 && self.voltage > 11.5 {
+                text(format!("{}V", self.voltage).as_str(), TextType::Warning)
+            } else if self.voltage < 11.5 {
+                text(format!("{}V", self.voltage).as_str(), TextType::Danger)
+            } else {
+                text(format!("{}V", self.voltage).as_str(), TextType::Success)
+            };
             let page_name = &self.state.get_name();
             let view_contents = self.state.view();
-            let mut s_bar = Row::new().padding(5).spacing(5).height(Length::Units(40))
+            let mut s_bar = Row::new().padding(5).spacing(5).height(Length::Shrink)
                     .push(Row::new().spacing(5)
                     .push(Text::new("Status: "))
                     .push(t)
+                    .align_items(Align::Center)
                 )
                 .push(Space::with_width(Length::Units(50)))
                 .push(Row::new()
@@ -221,22 +229,25 @@ impl Application for MainWindow {
                     .push(v)
                 ).push(Space::with_width(Length::Fill)
                 );
+
+            let mut btn_row = Row::new().spacing(5)
+                .push(button_coloured(&mut self.theme_toggle, "Toggle theme", ButtonType::Secondary)
+                    .on_press(WindowMessage::ToggleTheme));
+
             if page_name != &WindowStateName::Home {
-                s_bar = s_bar.push(
-                Row::new()
-                    .spacing(5)
-                    .push(Button::new(&mut self.back_btn_state,Text::new("Go home"))
-                        .on_press(WindowMessage::GoHome)
-                    )
+                btn_row = btn_row.push(button_coloured(&mut self.back_btn_state,"Go home", ButtonType::Warning)
+                    .on_press(WindowMessage::GoHome)
                 )
             }
+            s_bar = s_bar.push(btn_row);
             let c = Column::new()
                 .push(view_contents)
                 .push(Space::with_height(Length::Fill))
                 .push(Rule::horizontal(2))
-                .push(s_bar);
-            c.height(Length::Fill).width(Length::Fill).into()
-            //Container::new(c).center_x().center_y().into()
+                .push(s_bar)
+                .height(Length::Fill)
+                .width(Length::Fill);
+            container(c).into()
         }
     }
 }
