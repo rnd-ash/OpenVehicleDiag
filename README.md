@@ -6,6 +6,9 @@ The idea is to make diagnosing and exploring your cars diagnostics functions pos
 
 This is for my University FYP for my degree at the University of Reading
 
+## Youtube video playlist
+Videos about OpenVehicleDiag and its development progress can be found [here](https://youtube.com/playlist?list=PLxrw-4Vt7xtty50LmMoLXN2iKiUknbMng)
+
 ## Project goals
 
 There are a number of initial goals this project hopes to reach: 
