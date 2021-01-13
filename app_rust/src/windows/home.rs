@@ -6,7 +6,7 @@ use std::time::Instant;
 use iced::widget::checkbox::Style;
 use crate::windows::window::WindowMessage;
 use iced::widget::button::State;
-use crate::themes::{title_text, text, TextType, button_outlined, ButtonType};
+use crate::themes::{title_text, text, TextType, button_outlined, ButtonType, TitleSize};
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
@@ -46,15 +46,15 @@ impl Home {
             .padding(10)
             .spacing(10)
             .align_items(Align::Center)
-            .push(title_text("Welcome to OpenVehicleDiag"))
+            .push(title_text("Welcome to OpenVehicleDiag", TitleSize::P1))
         // Render contents of info panel
             .push(Rule::horizontal(8))
-            .push(text("Adapter Info:", TextType::Normal))
+            .push(title_text("Adapter Info:", TitleSize::P3))
             .push(text(format!("Hardware API: {}", self.server.get_api()).as_str(), TextType::Normal))
             .push(text(format!("Hardware name: {} (FW Version {})", cap.get_name(), cap.get_device_fw_version()).as_str(), TextType::Normal))
             .push(text(format!("Hardware vendor: {}", cap.get_vendor()).as_str(), TextType::Normal))
             .push(text(format!("Library path: {} (Version {})", cap.get_lib_path(), cap.get_library_version()).as_str(), TextType::Normal))
-            .push(text(format!("Supported protocols").as_str(), TextType::Normal))
+            .push(title_text(format!("Supported protocols").as_str(), TitleSize::P3))
             .push(
             Row::new().spacing(5)
                     .push(

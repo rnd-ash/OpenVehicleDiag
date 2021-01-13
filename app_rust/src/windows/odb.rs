@@ -8,6 +8,7 @@ use crate::windows::window::WindowMessage;
 use iced::widget::button::State;
 use crate::commapi::protocols::odb2::{Service09, Service03, Service01};
 use crate::commapi::protocols::vin::Vin;
+use crate::themes::{text, TextType, title_text, TitleSize, button_outlined, ButtonType};
 
 #[derive(Debug, Clone)]
 pub enum ODBMessage {
@@ -56,17 +57,21 @@ impl ODBHome {
     }
 
     pub fn view(&mut self) -> Element<ODBMessage> {
-        let odb_btn = Button::new(&mut self.kline_state, Text::new("K-Line not implemented")); // TODO Add K-LINE ODB
+        let odb_btn = button_outlined(&mut self.kline_state, "K-Line not implemented", ButtonType::Danger); // TODO Add K-LINE ODB
         let can_btn = match self.server.get_capabilities().supports_iso15765() {
-            Capability::Yes => Button::new(&mut self.can_state, Text::new("ODB over CANBUS")).on_press(ODBMessage::InitODB),
+            Capability::Yes => button_outlined(&mut self.can_state, "ODB over CANBUS", ButtonType::Danger).on_press(ODBMessage::InitODB),
             _ => Button::new(&mut self.can_state, Text::new("No CANBUS Support on adapter"))
         };
 
 
         let mut c = Column::new()
-            .push(Text::new("ODB Diagnostics"))
+            .padding(10)
+            .spacing(10)
+            .push(title_text("ODB Diagnostics", TitleSize::P2))
             .push(Space::with_height(Length::Units(10)))
             .push(Row::new()
+                .padding(10)
+                .spacing(10)
                 .push(odb_btn)
                 .push(can_btn))
             .align_items(Align::Center);
@@ -79,13 +84,13 @@ impl ODBHome {
         }
         c = c.push(Space::with_height(Length::Units(10)));
 
-        c = c.push(Text::new("Supported Services:"));
+        c = c.push(title_text("Supported Services", TitleSize::P4));
 
         let s01 = if self.s1.is_some() { "Yes" } else { "No" };
         let s09 = if self.s1.is_some() { "Yes" } else { "No" };
 
-        c = c.push(Text::new(format!("Service 01: {}", s01)));
-        c = c.push(Text::new(format!("Service 09: {}", s09)));
+        c = c.push(text(format!("Service 01: {}", s01).as_str(), TextType::Normal));
+        c = c.push(text(format!("Service 09: {}", s09).as_str(), TextType::Normal));
 
         if let Some(service_01) = self.s1 {
             let mut pid_row = Row::new();
@@ -95,6 +100,8 @@ impl ODBHome {
             }
             c = c.push(pid_row);
         }
-        c.into()
+        c.width(Length::Fill)
+        .align_items(Align::Center)
+        .into()
     }
 }
