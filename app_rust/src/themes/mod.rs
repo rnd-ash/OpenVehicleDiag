@@ -1,7 +1,7 @@
 pub mod dark;
 pub mod light;
 
-use iced::{button, Color, Button, Text, Length, PickList, pick_list, Container, Application, Element};
+use iced::{button, Color, Button, Text, Length, PickList, pick_list, Container, Application, Element, Radio};
 use crate::themes::dark::{ButtonStyle, DropDown};
 use std::borrow::Cow;
 
@@ -29,7 +29,7 @@ const WHITE: Color = Color {
 };
 
 
-static mut CURR_THEME: Style = Style::Dark;
+static mut CURR_THEME: Style = Style::Light;
 
 pub enum Style {
     Light,
@@ -43,6 +43,8 @@ pub fn set_dark_theme() {
 pub fn set_light_theme() {
     unsafe { CURR_THEME = Style::Light }
 }
+
+pub (crate) fn get_theme<'a>() -> &'a Style { unsafe { &CURR_THEME } }
 
 pub enum ButtonType {
     Primary,
@@ -72,22 +74,12 @@ impl ButtonType {
 
 pub fn button_coloured<'a, T: Clone>(state: &'a mut button::State, text: &str, btn_type: ButtonType) -> Button<'a, T> {
     let color = btn_type.get_colour();
-    Button::new(state, Text::new(text)).style(
-        match unsafe { &CURR_THEME } {
-            Style::Light => { unimplemented!() }
-            Style::Dark => { ButtonStyle::new(color, false) }
-        }
-    ).padding(8)
+    Button::new(state, Text::new(text)).style(ButtonStyle::new(color, false)).padding(8)
 }
 
 pub fn button_outlined<'a, T: Clone>(state: &'a mut button::State, text: &str, btn_type: ButtonType) -> Button<'a, T> {
     let color = btn_type.get_colour();
-    Button::new(state, Text::new(text)).style(
-        match unsafe { &CURR_THEME } {
-            Style::Light => { unimplemented!() }
-            Style::Dark => { ButtonStyle::new(color, true) }
-        }
-    ).padding(8)
+    Button::new(state, Text::new(text)).style(ButtonStyle::new(color, true)).padding(8)
 }
 
 pub fn picklist<'a, T, Msg>(state: &'a mut pick_list::State<T>, options: impl Into<Cow<'a, [T]>>, selected: Option<T>, on_selected: impl Fn(T) -> Msg + 'static) -> PickList<'a, T, Msg>
@@ -95,21 +87,18 @@ where
     T: ToString + Eq,
     [T]: ToOwned<Owned = Vec<T>>,
 {
-    PickList::new(state, options, selected, on_selected).style(
-        match unsafe { &CURR_THEME } {
-            Style::Light => { unimplemented!() }
-            Style::Dark => { DropDown }
-        }
-    ).padding(8)
+    PickList::new(state, options, selected, on_selected).style(DropDown).padding(8)
 }
 
 pub fn container<'a, Msg, T>(contents: T) -> Container<'a, Msg>
 where T : Into<Element<'a, Msg>> {
-    Container::new(contents).style(
-        match unsafe { &CURR_THEME } {
-            Style::Light => { unimplemented!() }
-            Style::Dark => { dark::Container }
-        }
-    )
+    Container::new(contents).style(dark::Container)
 }
 
+pub fn radio_btn<'a, Msg: Clone, V, F>(value: V, label: impl Into<String>, selected: Option<V>, f: F, btn_t: ButtonType) -> Radio<Msg>
+    where
+    V: Eq + Copy,
+    F: 'static + Fn(V) -> Msg
+{
+    Radio::new(value, label, selected, f).style(dark::RadioBtn::new(btn_t))
+}
