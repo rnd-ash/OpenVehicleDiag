@@ -14,6 +14,7 @@ use std::ops::Index;
 use serde::{Serialize, Deserialize};
 use crate::commapi::protocols::uds::{UDSCommand, UDSRequest, UDSResponse, UDSProcessError};
 use std::io::{Write, Read};
+use crate::themes::{text, TextType, progress_bar, ButtonType, title_text, button_outlined, TitleSize};
 
 #[derive(Debug, Clone)]
 pub struct ManualMode {
@@ -306,10 +307,10 @@ impl<'a> UDSHome {
             .push(Space::with_width(Length::FillPortion(1)))
             .push(
                 Column::new()
-                    .spacing(5)
-                    .padding(5)
+                    .spacing(10)
+                    .padding(10)
                     .align_items(Align::Center)
-                    .push(Text::new("Welcome to the UDS Diagnostics page"))
+                    .push(title_text("Welcome to the UDS Diagnostics page", TitleSize::P2))
                     .push(Space::with_height(Length::Units(10)))
                     .push(Text::new("There are 2 modes of operation for this tool, please select wisely!"))
                     .push(Space::with_height(Length::Units(10)))
@@ -330,10 +331,10 @@ impl<'a> UDSHome {
                     .push(Text::new("If you don't know what any of this means, please select Automatic"))
                     .push(Row::new()
                         .align_items(Align::Center)
-                        .push(button::Button::new(&mut self.auto_state, Text::new("Automatic")).on_press(UDSHomeMessage::LaunchAutomatic))
+                        .push(button_outlined(&mut self.auto_state, "Automatic", ButtonType::Success).on_press(UDSHomeMessage::LaunchAutomatic))
                         .push(Space::with_width(Length::Fill))
-                        .push( button::Button::new(&mut self.manual_state, Text::new("Manual")).on_press(UDSHomeMessage::OpenFile))
-                    ).width(Length::FillPortion(1)))
+                        .push( button_outlined(&mut self.manual_state, "Manual", ButtonType::Warning).on_press(UDSHomeMessage::OpenFile))
+                    ).width(Length::FillPortion(3)))
             .push(Space::with_width(Length::FillPortion(1)))
             .into()
     }
@@ -357,34 +358,43 @@ impl<'a> UDSHome {
         match self.scan_stage {
             0 => {
                 Column::new()
-                    .push(Text::new("Waiting for network to settle"))
-                    .push(ProgressBar::new((0.0 as f32)..=(WAIT_MS as f32), self.listen_duration_ms as f32))
+                    .push(title_text("Waiting for network to settle", TitleSize::P2))
+                    .push(progress_bar((0.0 as f32)..=(WAIT_MS as f32), self.listen_duration_ms as f32, ButtonType::Info))
+                    .spacing(10)
+                    .padding(10)
                     .into()
             },
             1 => {
                 Column::new()
-                    .push(Text::new("Listening for existing CAN Traffic"))
-                    .push(ProgressBar::new((0.0 as f32)..=(LISTEN_MS as f32), self.listen_duration_ms as f32))
-                    .push(Text::new(format!("Found {} CAN ID's", self.ignore_ids.len())))
+                    .push(title_text("Listening to existing CAN Traffic", TitleSize::P2))
+                    .push(progress_bar((0.0 as f32)..=(LISTEN_MS as f32), self.listen_duration_ms as f32, ButtonType::Info))
+                    .push(text(format!("Found {} CAN ID's", self.ignore_ids.len()).as_str(), TextType::Normal))
+                    .spacing(10)
+                    .padding(10)
                     .into()
             },
             2 => {
                 let mut c = Column::new()
+                    .push(title_text("Probing for ISO-TP capable ECUs", TitleSize::P2))
                     .push(Text::new(format!("Testing CID 0x{:04X}", self.curr_cid)))
-                    .push(ProgressBar::new((0.0 as f32)..=(0x07FF as f32), self.curr_cid as f32))
+                    .push(progress_bar((0.0 as f32)..=(0x07FF as f32), self.curr_cid as f32, ButtonType::Info))
                     .push(Text::new("CIDs found"));
                 for (x, y) in &self.auto_found_ids {
                     c = c.push(Text::new(format!("Found request ID 0x{:04X}, Control found with ID 0x{:04X}. ECU asked for a block size of {} and a separation time of {}ms", x, y.flow_control_id, y.block_size, y.sep_time_ms)))
                 }
-                c.into()
+                c.spacing(10)
+                .padding(10)
+                .into()
             }
             3 => {
                 let mut c = Column::new()
-                    .push(Text::new(format!("Scan completed, found {} possible ECUs", self.auto_found_ids.len())));
+                    .spacing(10)
+                    .padding(10)
+                    .push(title_text(format!("Scan completed, found {} possible ECUs", self.auto_found_ids.len()).as_str(), TitleSize::P2));
                 for (x, y) in &self.auto_found_ids {
-                    c = c.push(Text::new(format!("Potential Send ID 0x{:04X}, FC found with ID 0x{:04X}, asked for block size of {} and a separation time of {}ms", x, y.flow_control_id, y.block_size, y.sep_time_ms)))
+                    c = c.push(text(format!("Potential Send ID 0x{:04X}, FC found with ID 0x{:04X}, asked for block size of {} and a separation time of {}ms", x, y.flow_control_id, y.block_size, y.sep_time_ms).as_str(), TextType::Success))
                 }
-                c = c.push(button::Button::new(&mut self.auto_state, Text::new("Begin UDS Interrogation")).on_press(UDSHomeMessage::InterrogateECU));
+                c = c.push(button_outlined(&mut self.auto_state, "Begin UDS Interrogation", ButtonType::Secondary).on_press(UDSHomeMessage::InterrogateECU));
                 c.into()
             },
             4 => {
@@ -397,16 +407,22 @@ impl<'a> UDSHome {
             },
             5 => {
                 let mut c = Column::new()
-                    .push(Text::new(format!("Scan results")))
+                    .spacing(10)
+                    .padding(10)
+                    .push(title_text(format!("Scan results").as_str(), TitleSize::P2))
                     .push(Space::with_height(Length::Units(10)));
                 for (x, y) in &self.auto_found_ids {
-                    c = c.push(Text::new(format!("ECU 0x{:04X} - {}", x, match y.supports_uds {
-                        None => "Could not communicate - False positive",
-                        Some(t) => if t { "UDS Supported" } else { "UDS Not supported" }
-                    })));
+                    c = c.push(match y.supports_uds {
+                        None => text(format!("CAN ID 0x{:04X}: Could not communicate - False positive", x).as_str(), TextType::Danger),
+                        Some(t) => if t {
+                            text(format!("CAN ID 0x{:04X}: UDS/KWP2000 is supported!", x).as_str(), TextType::Success)
+                        } else {
+                            text(format!("CAN ID 0x{:04X}: UDS/KWP2000 is not supported - but ECU supports ISO-TP", x).as_str(), TextType::Warning)
+                        }
+                    });
                 }
                 c = c.push(Space::with_height(Length::Units(5)));
-                c = c.push(button::Button::new(&mut self.auto_state, Text::new("Save results to file")).on_press(UDSHomeMessage::SaveScanResults));
+                c = c.push(button_outlined(&mut self.auto_state, "Save results to file", ButtonType::Secondary).on_press(UDSHomeMessage::SaveScanResults));
                 c.push(Text::new(&self.save_text))
                     .into()
             }

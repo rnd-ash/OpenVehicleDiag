@@ -9,6 +9,7 @@ use iced::widget::button::State;
 use crate::windows::home::HomeMessage;
 use std::fs::FileType;
 use std::collections::HashMap;
+use crate::themes::{button_coloured, ButtonType};
 
 #[derive(Debug, Clone)]
 pub enum TracerMessage {
@@ -97,13 +98,13 @@ impl<'a> CanTracer {
     }
 
     pub fn view(&mut self) -> Element<TracerMessage> {
-        let mut connect_btn = button::Button::new(&mut self.connect_state, Text::new("Connect"));
+        let mut connect_btn = button_coloured(&mut self.connect_state, "Connect", ButtonType::Info);
         let check = self.is_binary_fmt;
         if &self.is_connected == &false {
             connect_btn = connect_btn.on_press(TracerMessage::ConnectCan)
         }
 
-        let mut disconnect_btn = button::Button::new(&mut self.disconnect_state, Text::new("Disconnect"));
+        let mut disconnect_btn = button_coloured(&mut self.disconnect_state, "Disconnect", ButtonType::Info);
         if &self.is_connected == &true  {
             disconnect_btn = disconnect_btn.on_press(TracerMessage::DisconnectCan)
         }
@@ -111,6 +112,8 @@ impl<'a> CanTracer {
        Column::new()
            .push(Text::new("CAN Tracer"))
            .push(Row::new()
+               .padding(5)
+               .spacing(5)
                .push(connect_btn)
                .push(disconnect_btn))
            .push(Checkbox::new(check, "View CAN in Binary", TracerMessage::ToggleBinaryMode))

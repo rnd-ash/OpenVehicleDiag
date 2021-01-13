@@ -6,6 +6,7 @@ use std::time::Instant;
 use iced::widget::checkbox::Style;
 use crate::windows::window::WindowMessage;
 use iced::widget::button::State;
+use crate::themes::{title_text, text, TextType, button_outlined, ButtonType, TitleSize};
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {
@@ -45,23 +46,23 @@ impl Home {
             .padding(10)
             .spacing(10)
             .align_items(Align::Center)
-            .push(Text::new("Welcome to OpenVehicleDiag"))
+            .push(title_text("Welcome to OpenVehicleDiag", TitleSize::P1))
         // Render contents of info panel
             .push(Rule::horizontal(8))
-            .push(Text::new("Adapter Info:"))
-            .push(Text::new(format!("Hardware API: {}", self.server.get_api())))
-            .push(Text::new(format!("Hardware name: {} (FW Version {})", cap.get_name(), cap.get_device_fw_version())))
-            .push(Text::new(format!("Hardware vendor: {}", cap.get_vendor())))
-            .push(Text::new(format!("Library path: {} (Version {})", cap.get_lib_path(), cap.get_library_version())))
-            .push(Text::new(format!("Supported protocols")))
+            .push(title_text("Adapter Info:", TitleSize::P3))
+            .push(text(format!("Hardware API: {}", self.server.get_api()).as_str(), TextType::Normal))
+            .push(text(format!("Hardware name: {} (FW Version {})", cap.get_name(), cap.get_device_fw_version()).as_str(), TextType::Normal))
+            .push(text(format!("Hardware vendor: {}", cap.get_vendor()).as_str(), TextType::Normal))
+            .push(text(format!("Library path: {} (Version {})", cap.get_lib_path(), cap.get_library_version()).as_str(), TextType::Normal))
+            .push(title_text(format!("Supported protocols").as_str(), TitleSize::P3))
             .push(
             Row::new().spacing(5)
                     .push(
                 Column::new()
-                        .push(Text::new("CAN"))
-                        .push(Text::new("ISO-TP"))
-                        .push(Text::new("ISO9141"))
-                        .push(Text::new("ISO14230")))
+                        .push(text("CAN", TextType::Normal))
+                        .push(text("ISO-TP", TextType::Normal))
+                        .push(text("ISO9141", TextType::Normal))
+                        .push(text("ISO14230", TextType::Normal)))
                     .push(
                     Column::new()
                             .push(Home::gen_cap_contents(cap.support_can_fd()))
@@ -71,9 +72,9 @@ impl Home {
                 .push(Space::with_width(Length::Units(50)))
                   .push(
                         Column::new()
-                            .push(Text::new("J1850PWM"))
-                            .push(Text::new("J1850VPW"))
-                            .push(Text::new("DoIP")))
+                            .push(text("J1850PWM", TextType::Normal))
+                            .push(text("J1850VPW", TextType::Normal))
+                            .push(text("DoIP", TextType::Normal)))
                 .push(
                     Column::new()
                         .push(Home::gen_cap_contents(cap.supports_j1850pwm()))
@@ -83,9 +84,9 @@ impl Home {
             .align_items(Align::Center)
             .spacing(5)
             .push(Text::new("Tools"))
-            .push(button::Button::new(&mut self.can_state, Text::new("CAN Tracer")).on_press(WindowMessage::GoCanTracer))
-            .push(button::Button::new(&mut self.uds_state, Text::new("UDS Scanner")).on_press(WindowMessage::GoUDS))
-            .push(button::Button::new(&mut self.odb_state, Text::new("ODB Toolbox")).on_press(WindowMessage::GoODB))
+            .push(button_outlined(&mut self.can_state, "CAN Analyzer", ButtonType::Primary).on_press(WindowMessage::GoCanTracer))
+            .push(button_outlined(&mut self.uds_state, "UDS Scanner", ButtonType::Primary).on_press(WindowMessage::GoUDS))
+            .push(button_outlined(&mut self.odb_state, "OBD Tools", ButtonType::Primary).on_press(WindowMessage::GoODB))
             );
         contents.into()
     }
@@ -94,9 +95,9 @@ impl Home {
 impl<'a> Home {
     fn gen_cap_contents(cap: Capability) -> Element<'a, WindowMessage> {
         match cap {
-            Capability::Yes => Text::new("Yes").color(Color::from_rgb8(0, 128, 0)),
-            Capability::No => Text::new("No").color(Color::from_rgb8(128, 0, 0)),
-            Capability::NA => Text::new("N/A").color(Color::from_rgb8(192, 192, 192)),
+            Capability::Yes => text("Yes", TextType::Success),
+            Capability::No => text("No", TextType::Danger),
+            Capability::NA => text("N/A", TextType::Disabled),
         }.into()
     }
 }
