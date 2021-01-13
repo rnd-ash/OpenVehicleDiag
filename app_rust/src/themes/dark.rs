@@ -18,13 +18,23 @@ impl ButtonStyle {
 
 impl button::StyleSheet for ButtonStyle {
     fn active(&self) -> Style {
-        button::Style {
-            shadow_offset: Default::default(),
-            background: if self.is_outlined { DARK_BG.into() } else { self.color.into() },
-            border_radius: BUTTON_RADIUS,
-            border_width: if self.is_outlined { BUTTON_BORDER_WIDTH } else { 0.0 },
-            border_color: if self.is_outlined { self.color.into() } else { WHITE.into() },
-            text_color: if self.is_outlined { self.color.into() } else { WHITE.into() },
+        match super::get_theme() {
+            super::Style::Light => button::Style {
+                shadow_offset: Default::default(),
+                background: if self.is_outlined { WHITE.into() } else { self.color.into() },
+                border_radius: BUTTON_RADIUS,
+                border_width: if self.is_outlined { BUTTON_BORDER_WIDTH } else { 0.0 },
+                border_color: if self.is_outlined { self.color.into() } else { WHITE.into() },
+                text_color: if self.is_outlined { self.color.into() } else { WHITE.into() },
+            },
+            super::Style::Dark => button::Style {
+                shadow_offset: Default::default(),
+                background: if self.is_outlined { DARK_BG.into() } else { self.color.into() },
+                border_radius: BUTTON_RADIUS,
+                border_width: if self.is_outlined { BUTTON_BORDER_WIDTH } else { 0.0 },
+                border_color: if self.is_outlined { self.color.into() } else { WHITE.into() },
+                text_color: if self.is_outlined { self.color.into() } else { WHITE.into() },
+            }
         }
     }
 
@@ -70,13 +80,23 @@ impl pick_list::StyleSheet for DropDown {
     }
 
     fn active(&self) -> pick_list::Style {
-        pick_list::Style {
-            text_color: WHITE.into(),
-            background: DARK_BG.into(),
-            border_radius: BUTTON_RADIUS,
-            border_width: 1.0,
-            border_color: WHITE.into(),
-            icon_size: 0.5
+        match super::get_theme() {
+            super::Style::Light => pick_list::Style {
+                text_color: DARK_BG.into(),
+                background: WHITE.into(),
+                border_radius: BUTTON_RADIUS,
+                border_width: 1.0,
+                border_color: DARK_BG.into(),
+                icon_size: 0.5
+            },
+            super::Style::Dark => pick_list::Style {
+                text_color: WHITE.into(),
+                background: DARK_BG.into(),
+                border_radius: BUTTON_RADIUS,
+                border_width: 1.0,
+                border_color: WHITE.into(),
+                icon_size: 0.5
+            }
         }
     }
 
@@ -95,12 +115,66 @@ impl pick_list::StyleSheet for DropDown {
 pub struct Container;
 impl iced::container::StyleSheet for Container {
     fn style(&self) -> iced::container::Style {
-        iced::container::Style {
-            text_color: WHITE.into(),
-            background: DARK_BG.into(),
-            border_radius: 0.0,
-            border_width: 0.0,
-            border_color: Default::default()
+        match super::get_theme() {
+            super::Style::Light => iced::container::Style {
+                text_color: DARK_BG.into(),
+                background: WHITE.into(),
+                border_radius: 0.0,
+                border_width: 0.0,
+                border_color: Default::default()
+            },
+            super::Style::Dark => iced::container::Style {
+                text_color: WHITE.into(),
+                background: DARK_BG.into(),
+                border_radius: 0.0,
+                border_width: 0.0,
+                border_color: Default::default()
+            }
+        }
+    }
+}
+
+pub struct RadioBtn {
+    c: Color
+}
+impl RadioBtn {
+    pub (crate) fn new(style: ButtonType) -> Self {
+        Self { c: style.get_colour() }
+    }
+}
+
+impl iced::radio::StyleSheet for RadioBtn {
+    fn active(&self) -> iced::radio::Style {
+        match super::get_theme() {
+            super::Style::Light => iced::radio::Style {
+                background: WHITE.into(),
+                dot_color: self.c.into(),
+                border_width: 1.0,
+                border_color: DARK_BG.into()
+            },
+            super::Style::Dark => iced::radio::Style {
+                background: DARK_BG.into(),
+                dot_color: self.c.into(),
+                border_width: 1.0,
+                border_color: WHITE.into()
+            }
+        }
+    }
+
+    fn hovered(&self) -> iced::radio::Style {
+        match super::get_theme() {
+            super::Style::Light => iced::radio::Style {
+                background: WHITE.into(),
+                dot_color: self.c.into(),
+                border_width: 1.0,
+                border_color: WHITE.into()
+            },
+            super::Style::Dark => iced::radio::Style {
+                background: DARK_BG.into(),
+                dot_color: WHITE.into(),
+                border_width: 1.0,
+                border_color: WHITE.into()
+            }
         }
     }
 }
