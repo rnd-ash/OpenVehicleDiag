@@ -1,9 +1,15 @@
-# OpenVehicleDiag
-A Rust based open source vehicle ECU diagnostic platform, using the J2534-2 protocol.
+![](app_rust/src/themes/img/logo.png)
+
+Open Vehicle Diagnostics (OVD) is a Rust-based open source vehicle ECU diagnostic platform that makes use of the J2534-2 protocol.
+
+The idea is to make diagnosing and exploring your cars diagnostics functions possible, via an API, thus allowing the ability for you to reprogram ECU’s without the need for a special dealer-only tool.
 
 This is for my University FYP for my degree at the University of Reading
 
 ## Project goals
+
+There are a number of initial goals this project hopes to reach: 
+
 * JSON Schema creation - Create a custom JSON specification outlying field names that the program will use to understand what packets are sent to the ECU, over which protocol, and how to interpret the ECUs response (See schema drafting documentation)[SCHEMA.md]
 
 * J2534-2 support - The diagnostics application will utilize the J2534-2 protocol for easy use with existing diagnostic hardware from various vendors **DONE**
@@ -44,7 +50,7 @@ Features marked with '(**WIP**)' are actively being developed!
 *NOTE* SAE J2610 and J1939 are not going to be implemented due to their niche use cases  (I don't have enough time and they are mainly for HGVs)
 
 ## IMPORTANT
-**Run `git submodule init --recursive` on first clone!**
+**Run `git submodule update --init --recursive` on first clone!**
 
 ## Repository structure
 
