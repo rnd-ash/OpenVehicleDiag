@@ -39,13 +39,9 @@ impl button::StyleSheet for ButtonStyle {
     }
 
     fn hovered(&self) -> Style {
-        button::Style {
+        Style {
             shadow_offset: Vector::new(0.0, 1.0),
-            background: if self.is_outlined { DARK_BG.into() } else { self.color.into() },
-            border_radius: BUTTON_RADIUS,
-            border_width: if self.is_outlined { BUTTON_BORDER_WIDTH } else { 0.0 },
-            border_color: if self.is_outlined { self.color.into() } else { WHITE.into() },
-            text_color: if self.is_outlined { self.color.into() } else { WHITE.into() },
+            ..self.active()
         }
     }
 
@@ -175,6 +171,25 @@ impl iced::radio::StyleSheet for RadioBtn {
                 border_width: 1.0,
                 border_color: WHITE.into()
             }
+        }
+    }
+}
+
+pub struct PBar {
+    c: Color
+}
+impl PBar {
+    pub fn new(accent: ButtonType) -> Self {
+        Self { c: accent.get_colour() }
+    }
+}
+
+impl iced::progress_bar::StyleSheet for PBar {
+    fn style(&self) -> iced::progress_bar::Style {
+        iced::progress_bar::Style {
+            background: GREY.into(),
+            bar: self.c.into(),
+            border_radius: BUTTON_RADIUS
         }
     }
 }

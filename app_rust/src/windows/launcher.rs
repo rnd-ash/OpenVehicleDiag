@@ -5,8 +5,8 @@ use crate::commapi::passthru_api::PassthruApi;
 use crate::windows::window::{ApplicationError, WindowMessage};
 use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::launcher::LauncherMessage::LaunchRequested;
-use crate::themes::{button_coloured, ButtonType, button_outlined, picklist, container, radio_btn};
-use crate::themes::dark::DropDown;
+use crate::themes::{button_coloured, ButtonType, button_outlined, picklist, container, radio_btn, text, TextType};
+use crate::themes::elements::DropDown;
 
 #[derive(Debug, Clone)]
 pub struct Launcher {
@@ -21,9 +21,6 @@ pub struct Launcher {
     api_selection: API,
 
     launch_state: button::State,
-    t1: button::State,
-    t2: button::State,
-    t3: button::State,
 
     status_text: String
 
@@ -70,9 +67,6 @@ impl Launcher {
             api_selection: API::Passthru,
             launch_state: button::State::default(),
             status_text: "".into(),
-            t1: button::State::default(),
-            t2: button::State::default(),
-            t3: button::State::default(),
         }
     }
 
@@ -146,7 +140,7 @@ impl Launcher {
                 .push(selection);
             if self.selected_device_passthru.len() == 0 {
                 // No passthru devices
-                c = c.push(Text::new("No Passthru devices found on this system"))
+                c = c.push(text("No Passthru devices found on this system", TextType::Normal))
             } else {
                 c = c.push(Text::new("Select Passthru device"))
                     .push(picklist(
@@ -157,14 +151,11 @@ impl Launcher {
                     //.push(Button::new(&mut self.launch_state, Text::new("Launch OVD!"))
                     //    .on_press(LaunchRequested).style(MaterialButtonOutline)
                     .push(button_coloured(&mut self.launch_state, "Launch OVD!", ButtonType::Primary).on_press(LaunchRequested))
-                    .push(button_outlined(&mut self.t1, "Warning!", ButtonType::Warning).on_press(LaunchRequested))
-                    .push(button_coloured(&mut self.t2, "Danger!", ButtonType::Danger).on_press(LaunchRequested))
-                    .push(button_coloured(&mut self.t3, "Disabled!", ButtonType::Success))
                     .push(Text::new(&self.status_text));
             }
             c.align_items(Align::Center)
         };
-        container(contents).center_x().center_y().width(Length::Fill).height(Length::Fill).into()
+        container(contents).center_x().width(Length::Fill).height(Length::Fill).into()
     }
 
     fn get_device_passthru(&self) -> Result<(PassthruDevice, PassthruDrv)> {

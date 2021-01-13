@@ -1,9 +1,9 @@
-pub mod dark;
-pub mod light;
+pub mod elements;
 
-use iced::{button, Color, Button, Text, Length, PickList, pick_list, Container, Application, Element, Radio};
-use crate::themes::dark::{ButtonStyle, DropDown};
+use iced::{button, Color, Button, Text, Length, PickList, pick_list, Container, Application, Element, Radio, ProgressBar};
+use crate::themes::elements::{ButtonStyle, DropDown, PBar};
 use std::borrow::Cow;
+use std::ops::RangeInclusive;
 
 const BUTTON_RADIUS : f32 = 5.0;
 const BUTTON_BORDER_WIDTH: f32 = 1.5;
@@ -31,6 +31,7 @@ const WHITE: Color = Color {
 
 static mut CURR_THEME: Style = Style::Light;
 
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum Style {
     Light,
     Dark
@@ -44,6 +45,10 @@ pub fn set_light_theme() {
     unsafe { CURR_THEME = Style::Light }
 }
 
+pub fn toggle_theme() {
+    if *get_theme() == Style::Light { set_dark_theme() } else { set_light_theme() }
+}
+
 pub (crate) fn get_theme<'a>() -> &'a Style { unsafe { &CURR_THEME } }
 
 pub enum ButtonType {
@@ -55,6 +60,26 @@ pub enum ButtonType {
     Info,
     Light,
     Dark
+}
+
+pub enum TextType {
+    Success,
+    Warning,
+    Danger,
+    Normal,
+    Disabled,
+}
+
+impl TextType {
+    pub (crate) fn get_colour(&self) -> Color {
+        match &self {
+            TextType::Success => ButtonType::Success.get_colour(),
+            TextType::Warning => ButtonType::Warning.get_colour(),
+            TextType::Danger => ButtonType::Danger.get_colour(),
+            TextType::Disabled => GREY,
+            TextType::Normal => if *get_theme() == Style::Light { DARK_BG } else { WHITE }
+        }
+    }
 }
 
 impl ButtonType {
@@ -92,7 +117,7 @@ where
 
 pub fn container<'a, Msg, T>(contents: T) -> Container<'a, Msg>
 where T : Into<Element<'a, Msg>> {
-    Container::new(contents).style(dark::Container)
+    Container::new(contents).style(elements::Container)
 }
 
 pub fn radio_btn<'a, Msg: Clone, V, F>(value: V, label: impl Into<String>, selected: Option<V>, f: F, btn_t: ButtonType) -> Radio<Msg>
@@ -100,5 +125,17 @@ pub fn radio_btn<'a, Msg: Clone, V, F>(value: V, label: impl Into<String>, selec
     V: Eq + Copy,
     F: 'static + Fn(V) -> Msg
 {
-    Radio::new(value, label, selected, f).style(dark::RadioBtn::new(btn_t))
+    Radio::new(value, label, selected, f).style(elements::RadioBtn::new(btn_t))
+}
+
+pub fn title_text(text: &str) -> iced::Text {
+    Text::new(text).size(20)
+}
+
+pub fn text(text: &str, txt_type: TextType) -> iced::Text {
+    Text::new(text).color(txt_type.get_colour())
+}
+
+pub fn progress_bar(range: RangeInclusive<f32>, curr_value: f32, c_type: ButtonType) -> iced::ProgressBar {
+    ProgressBar::new(range, curr_value).style(PBar::new(c_type))
 }

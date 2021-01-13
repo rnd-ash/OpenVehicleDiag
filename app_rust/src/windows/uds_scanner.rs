@@ -14,6 +14,7 @@ use std::ops::Index;
 use serde::{Serialize, Deserialize};
 use crate::commapi::protocols::uds::{UDSCommand, UDSRequest, UDSResponse, UDSProcessError};
 use std::io::{Write, Read};
+use crate::themes::{text, TextType, progress_bar, ButtonType};
 
 #[derive(Debug, Clone)]
 pub struct ManualMode {
@@ -357,8 +358,8 @@ impl<'a> UDSHome {
         match self.scan_stage {
             0 => {
                 Column::new()
-                    .push(Text::new("Waiting for network to settle"))
-                    .push(ProgressBar::new((0.0 as f32)..=(WAIT_MS as f32), self.listen_duration_ms as f32))
+                    .push(text("Waiting for network to settle", TextType::Warning))
+                    .push(progress_bar((0.0 as f32)..=(WAIT_MS as f32), self.listen_duration_ms as f32, ButtonType::Primary))
                     .into()
             },
             1 => {

@@ -95,7 +95,6 @@ impl ODBHome {
             }
             c = c.push(pid_row);
         }
-
         c.into()
     }
 }
