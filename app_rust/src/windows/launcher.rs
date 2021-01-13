@@ -1,5 +1,5 @@
 use crate::passthru::{PassthruDevice, PassthruDrv};
-use iced::{pick_list, button, Text, Row, Element, Radio, Align, Column, PickList, Container, Length, Button, Command};
+use iced::{pick_list, button, Text, Row, Element, Radio, Align, Column, PickList, Container, Length, Button, Command, Image};
 use crate::commapi::comm_api::{ComServerError, ComServer};
 use crate::commapi::passthru_api::PassthruApi;
 use crate::windows::window::{ApplicationError, WindowMessage};
@@ -134,11 +134,13 @@ impl Launcher {
 
         let contents = if self.api_selection == API::D_PDU {
             Column::new()
+                .push(Image::new("img/logo.png").width(Length::Units(300)).height(Length::Units(300)))
                 .push(selection)
                 .push(Text::new("D-PDU API is unimplemented, check back in a future release!"))
                 .spacing(10)
         } else {
             let mut c = Column::new()
+                .push(Image::new("img/logo.png").width(Length::Units(300)).height(Length::Units(300)))
                 .spacing(10)
                 .padding(20)
                 .push(selection);
