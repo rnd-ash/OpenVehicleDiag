@@ -128,8 +128,20 @@ pub fn radio_btn<'a, Msg: Clone, V, F>(value: V, label: impl Into<String>, selec
     Radio::new(value, label, selected, f).style(elements::RadioBtn::new(btn_t))
 }
 
-pub fn title_text(text: &str) -> iced::Text {
-    Text::new(text).size(20)
+pub enum TitleSize {
+    P1,
+    P2,
+    P3,
+    P4
+}
+
+pub fn title_text(text: &str, size: TitleSize) -> iced::Text {
+    Text::new(text).size(match size {
+        TitleSize::P1 => 60,
+        TitleSize::P2 => 50,
+        TitleSize::P3 => 40,
+        TitleSize::P4 => 30
+    })
 }
 
 pub fn text(text: &str, txt_type: TextType) -> iced::Text {
