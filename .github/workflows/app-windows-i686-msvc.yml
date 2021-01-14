@@ -10,7 +10,7 @@ env:
 
 defaults:
   run:
-    working-directory: "app"
+    working-directory: "app_rust"
 
 jobs:
   build:
@@ -23,39 +23,11 @@ jobs:
     - name: Init Macchina module
       run: git submodule update --init --recursive
       
-    - name: Setup node
-      uses: actions/setup-node@v1
-      with:
-        node-version: 14
-      
-    - name: Install LLVM
-      run: choco install -y llvm
-      
-    - name: Set llvm path
-      run: echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $GITHUB_ENV
-      shell: bash
-      
-    - name: Install
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-        override: true
-
     - name: Install i686 toolchain
       run: rustup target add i686-pc-windows-msvc
     
-    - name: NPM install
-      run: npm install
-      
-    - name: Build/release Electron app
-      uses: samuelmeuli/action-electron-builder@v1
+    - name: Build/release App
+      uses: actions-rs/cargo@v1
       with:
-        # GitHub token, automatically provided to the action
-        # (No need to define this secret in the repo settings)
-        github_token: ${{ secrets.github_token }}
-        build_script_name: "build-win"
-        package_root: "app"  
-        # If the commit is tagged with a version (e.g. "v1.0.0"),
-        # release the app after building
-        release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        command: build
+        args: --release
