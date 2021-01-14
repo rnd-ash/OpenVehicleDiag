@@ -1,6 +1,5 @@
-use crate::commapi::protocols::uds::UDSNegativeCode::RequestOutOfRange;
+
 use crate::commapi::comm_api::{ComServer, ISO15765Config, ComServerError, ISO15765Data};
-use std::time::Instant;
 
 pub type Result<T> = std::result::Result<T, UDSProcessError>;
 
@@ -30,12 +29,13 @@ impl UDSRequest {
             data: packet,
             pad_frame: false // Todo do we need to pad flow control frame?
         };
-        let res =  server.send_receive_iso15765(payload, tp_config, 250);
-        server.close_iso15765_interface();
+        let res =  server.send_receive_iso15765(payload, tp_config, 250, 1);
+        if let Err(e) = server.close_iso15765_interface() {
+            eprintln!("FATAL Cannot close ISO-TP Interface {}", e)
+        }
         match res {
             Ok(data) => {
                 if data.len() == 0 {
-                    server.close_iso15765_interface();
                     Err(UDSProcessError::NoResponse)
                 } else {
                     let mut resp = Err(UDSProcessError::NoResponse);
@@ -539,6 +539,7 @@ impl UDSNegativeCode {
             0x8A => Ok(Self::ThrottleTooHigh),
             0x8B => Ok(Self::ThrottleTooLow),
             0x8C => Ok(Self::TransmissionNotInNeutral),
+            0x8D => Ok(Self::TransmissionNotInGear),
             0x8E => Ok(Self::ISOReserved),
             0x8F => Ok(Self::BrakeNotApplied),
             0x90 => Ok(Self::ShifterNotInPark),

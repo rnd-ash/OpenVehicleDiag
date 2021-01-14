@@ -1,16 +1,8 @@
-use crate::commapi::comm_api::{ComServer, Capability, CanFrame, FilterType, ISO15765Data, ISO15765Config};
-use iced::{Element, Column, Text, Align, Container, Length, Subscription, Row, Checkbox, Rule, Color, Space, button, ProgressBar};
-use iced::time;
-use std::sync::Arc;
+use crate::commapi::comm_api::{ComServer, CanFrame, FilterType, ISO15765Config};
+use iced::{Element, Column, Text, Align, Length, Subscription, Row, Space, button, ProgressBar};
 use std::time::Instant;
-use iced::widget::checkbox::Style;
-use crate::windows::window::WindowMessage;
-use iced::widget::button::State;
-use crate::windows::home::HomeMessage;
-use std::fs::{FileType, File};
+use std::fs::{File};
 use std::collections::HashMap;
-use iced::widget::pane_grid::TitleBar;
-use std::ops::Index;
 use serde::{Serialize, Deserialize};
 use crate::commapi::protocols::uds::{UDSCommand, UDSRequest, UDSResponse, UDSProcessError};
 use std::io::{Write, Read};
@@ -106,7 +98,7 @@ impl<'a> UDSHome {
         }
     }
 
-    pub fn interrogateECU(&mut self, req: UDSRequest, ecu_idx: usize) -> Result<UDSResponse, UDSProcessError> {
+    pub fn interrogate_ecu(&mut self, req: UDSRequest, ecu_idx: usize) -> Result<UDSResponse, UDSProcessError> {
         println!("Interrogate ecu {}", ecu_idx);
         let comm_data: (u32, ECUISOTPSettings) = self.auto_found_ids[ecu_idx].clone();
         let comm_settings = ISO15765Config {
@@ -186,6 +178,7 @@ impl<'a> UDSHome {
 
                             let parse : serde_json::Result<CarECUs>  = serde_json::from_str(&str);
                             if let Ok(car) = parse {
+                                println!("{:?}", car);
                                 self.auto_mode = false;
                             }
                         }
@@ -255,7 +248,7 @@ impl<'a> UDSHome {
                     println!("Listen complete");
                     self.scan_stage += 1;
                     // send first bogus CAN Packet
-                    self.curr_cid = 0x07D0;
+                    self.curr_cid = 0x0000;
                     self.get_next_cid();
                     self.server.send_can_packets(&[CanFrame::new(self.curr_cid, &[0x10, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0);
                     self.get_next_cid();
@@ -281,7 +274,7 @@ impl<'a> UDSHome {
                     return None;
                 }
                 let req = UDSRequest::new(UDSCommand::TesterPresent, &[0x01]);
-                let res = self.interrogateECU(req, self.curr_ecu_idx as usize);
+                let res = self.interrogate_ecu(req, self.curr_ecu_idx as usize);
                 match res {
                     Ok(_) => self.auto_found_ids[self.curr_ecu_idx as usize].1.supports_uds = Some(true),
                     Err(e) => match e {
@@ -312,28 +305,26 @@ impl<'a> UDSHome {
                     .align_items(Align::Center)
                     .push(title_text("Welcome to the UDS Diagnostics page", TitleSize::P2))
                     .push(Space::with_height(Length::Units(10)))
-                    .push(Text::new("There are 2 modes of operation for this tool, please select wisely!"))
+                    .push(Text::new("This will attempt to detect all UDS/KWP2000 compatible ECUs in your car \
+                        and then let you send custom UDS commands to the ECUs based on the result of the scan"))
                     .push(Space::with_height(Length::Units(10)))
-                    .push(Text::new("Automatic").size(20))
+                    .push(Text::new("Scan mode").size(20))
                     .push(Text::new(
                         "In this mode, OpenVehicleDiag will attempt to locate \
-                all diagnosable ECU's in your vehicle, and will then determine which \
-                UDS commands each ECU supports"
-                    ))
+                all diagnosable ECU's in your vehicle by injecting ISO-TP can frames, and will then if \
+                the ECU also supports UDS or KWP2000 protocol for diagnostics"))
                     .push(Space::with_height(Length::Units(10)))
-                    .push(Text::new("Manual").size(20))
                     .push(Text::new(
-                        "In this mode, you have to know the Send and Receive ID for your \
-                ECU's, as well as ISO-TP configuration settings. Then you can manually \
-                interrogate each ECU with custom ISO-TP commands"
+                        "Once the scan is complete, you can save the results to a file, and load it \
+                        later on to play with UDS commands on various ECUs in your vehicle"
                     ))
                     .push(Space::with_height(Length::Units(10)))
-                    .push(Text::new("If you don't know what any of this means, please select Automatic"))
+                    .push(Text::new("If you don't have a scan save ovdjson file, scan the car first"))
                     .push(Row::new()
                         .align_items(Align::Center)
-                        .push(button_outlined(&mut self.auto_state, "Automatic", ButtonType::Success).on_press(UDSHomeMessage::LaunchAutomatic))
+                        .push(button_outlined(&mut self.auto_state, "Scan my car", ButtonType::Success).on_press(UDSHomeMessage::LaunchAutomatic))
                         .push(Space::with_width(Length::Fill))
-                        .push( button_outlined(&mut self.manual_state, "Manual", ButtonType::Warning).on_press(UDSHomeMessage::OpenFile))
+                        .push( button_outlined(&mut self.manual_state, "Load scan save file", ButtonType::Warning).on_press(UDSHomeMessage::OpenFile))
                     ).width(Length::FillPortion(3)))
             .push(Space::with_width(Length::FillPortion(1)))
             .into()

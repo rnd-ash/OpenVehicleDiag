@@ -1,7 +1,6 @@
 use std::result::Result;
 use std::cmp::min;
 use serde::export::Formatter;
-use std::sync::Arc;
 use std::fmt::Debug;
 use std::fmt;
 use std::time::Instant;
@@ -269,7 +268,7 @@ pub trait ComServer : Send + Sync + Debug {
 
     /// Sends an ISOTP payload and attempts to read the ECUs response
     /// IMPORTANT - This function assumes the ISO15765 interface is ALREADY open
-    fn send_receive_iso15765(&self, p: ISO15765Data, cfg: &ISO15765Config, max_timeout_ms: u128) -> Result<Vec<ISO15765Data>, ComServerError> {
+    fn send_receive_iso15765(&self, p: ISO15765Data, cfg: &ISO15765Config, max_timeout_ms: u128, max_resp: usize) -> Result<Vec<ISO15765Data>, ComServerError> {
         let f_idx = self.add_iso15765_filter(cfg.recv_id, 0xFFFF, cfg.send_id)?;
         self.set_iso15765_params(cfg.sep_time, cfg.block_size)?;
 
@@ -285,14 +284,19 @@ pub trait ComServer : Send + Sync + Debug {
                         if msg.data.len() == 0 { // First frame
                             timeout += 10;
                         } else {
-                            payloads.push(msg)
+                            payloads.push(msg);
+                            if max_resp != 0 && payloads.len() >= max_resp {
+                                timeout = 0; // Return now!
+                            }
                         }
                     }
                 }
             }
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
-        self.rem_iso15765_filter(f_idx);
+        if let Err(e) = self.rem_iso15765_filter(f_idx) {
+            eprintln!("FATAL: Cannot close ISO-TP filter {} {}", f_idx, e)
+        }
         return Ok(payloads)
     }
 

@@ -1,13 +1,8 @@
-use crate::commapi::comm_api::{ComServer, Capability, CanFrame, FilterType};
-use iced::{Element, Column, Text, Align, Container, Length, Subscription, Row, Checkbox, Rule, Color, Space, button};
+use crate::commapi::comm_api::{ComServer, CanFrame, FilterType};
+use iced::{Element, Column, Text, Length, Subscription, Row, Checkbox, Color, button};
 use iced::time;
-use std::sync::Arc;
 use std::time::Instant;
-use iced::widget::checkbox::Style;
 use crate::windows::window::WindowMessage;
-use iced::widget::button::State;
-use crate::windows::home::HomeMessage;
-use std::fs::FileType;
 use std::collections::HashMap;
 use crate::themes::{button_coloured, ButtonType};
 
@@ -69,7 +64,9 @@ impl<'a> CanTracer {
                     if let Err(e) = self.server.as_mut().add_can_filter(FilterType::Pass, 0x0000, 0x0000) {
                         self.status_text = format!("Error setting CAN Filter {}",  e)
                     } else {
-                        self.server.send_can_packets(&[CanFrame::new(0x07DF, &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0);
+                        if let Err(e) = self.server.send_can_packets(&[CanFrame::new(0x07DF, &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0) {
+                            self.status_text = format!("Error sending wake-up packet {}",  e)
+                        }
                     }
                 }
             }

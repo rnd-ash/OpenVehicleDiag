@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use libc;
-use libloading::{Library, Symbol};
+use libloading::Library;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use std::{ffi::*, fmt};
@@ -19,7 +19,6 @@ use winreg::enums::*;
 #[cfg(windows)]
 use winreg::{RegKey, RegValue};
 use J2534Common::FilterType::FLOW_CONTROL_FILTER;
-use J2534Common::PassthruError::ERR_FAILED;
 
 /// Result which contains a PASSTHRU_ERROR in it's Err() variant
 pub type Result<T> = std::result::Result<T, J2534Common::PassthruError>;
@@ -225,7 +224,7 @@ impl PassthruDrv {
     //type PassThruCloseFn = unsafe extern "stdcall" fn(device_id: u32) -> i32;
     pub fn close(&mut self, dev_id: u32) -> Result<()> {
         let res = unsafe { (&self.close_fn)(dev_id) };
-        if (res == 0x00) {
+        if res == 0x00 {
             self.is_connected = false;
         }
         ret_res(res, ())

@@ -1,6 +1,5 @@
 use iced::widget::button::Style;
-use iced::{button, pick_list, Color, Background, Vector};
-use iced::futures::prelude::stream::Collect;
+use iced::{button, pick_list, Color, Vector};
 use crate::themes::*;
 use iced::widget::pick_list::Menu;
 

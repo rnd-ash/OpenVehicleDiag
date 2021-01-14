@@ -1,12 +1,6 @@
 use crate::commapi::comm_api::{ComServer, Capability};
-use iced::{Element, Column, Text, Align, Container, Length, Subscription, Row, Checkbox, Rule, Color, Space, button, Button};
-use iced::time;
-use std::sync::Arc;
-use std::time::Instant;
-use iced::widget::checkbox::Style;
-use crate::windows::window::WindowMessage;
-use iced::widget::button::State;
-use crate::commapi::protocols::odb2::{Service09, Service03, Service01};
+use iced::{Element, Column, Text, Align, Length, Row, Space, button, Button};
+use crate::commapi::protocols::odb2::{Service09, Service01};
 use crate::commapi::protocols::vin::Vin;
 use crate::themes::{text, TextType, title_text, TitleSize, button_outlined, ButtonType};
 
@@ -28,15 +22,14 @@ pub struct ODBHome {
 
 impl ODBHome {
     pub(crate) fn new(server: Box<dyn ComServer>) -> Self {
-        let mut ret = Self {
+        Self {
             server,
             kline_state: Default::default(),
             can_state: Default::default(),
             vin: None,
             s1: None,
             s9: None,
-        };
-        ret
+        }
     }
 
     pub fn update(&mut self, msg: &ODBMessage) -> Option<ODBMessage> {

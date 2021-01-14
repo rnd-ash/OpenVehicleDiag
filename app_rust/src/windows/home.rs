@@ -1,11 +1,6 @@
 use crate::commapi::comm_api::{ComServer, Capability};
-use iced::{Element, Column, Text, Align, Container, Length, Subscription, Row, Checkbox, Rule, Color, Space, button};
-use iced::time;
-use std::sync::Arc;
-use std::time::Instant;
-use iced::widget::checkbox::Style;
+use iced::{Element, Column, Text, Align, Length, Row, Rule, Space, button};
 use crate::windows::window::WindowMessage;
-use iced::widget::button::State;
 use crate::themes::{title_text, text, TextType, button_outlined, ButtonType, TitleSize};
 
 #[derive(Debug, Clone)]
@@ -31,8 +26,12 @@ impl Home {
             odb_state: button::State::default()
         };
         // To guarantee everything works as it should, home screen should have NO interfaces open
-        ret.server.close_can_interface();
-        ret.server.close_iso15765_interface();
+        if let Err(e) = ret.server.close_can_interface() {
+            eprintln!("ERROR closing CAN Interface {}", e)
+        }
+        if let Err(e) = ret.server.close_iso15765_interface() {
+            eprintln!("ERROR closing ISO-TP Interface {}", e)
+        }
         ret
     }
 
