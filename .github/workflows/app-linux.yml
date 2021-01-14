@@ -1,0 +1,30 @@
+name: Linux x64 app
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: "app_rust"
+
+jobs:
+  build:
+    name: Linux x64 app
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Init Macchina module
+      run: git submodule update --init --recursive
+      
+    - name: Build/release App
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release
