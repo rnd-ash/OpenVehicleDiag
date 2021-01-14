@@ -1,9 +1,7 @@
-use crate::commapi::comm_api::{ComServerError, ComServer, ISO15765Data};
-use crate::windows::window::WindowStateName::ODBTools;
-use crate::commapi::protocols::odb2::ODBProcessError::NoResponse;
-use crate::commapi::protocols::vin::Vin;
-use crate::commapi::protocols::odb2::ODBStandard::ODB1;
+use std::env::set_current_dir;
 
+use crate::commapi::comm_api::{ComServer, ComServerError, ISO15765Config, ISO15765Data};
+use crate::commapi::protocols::vin::Vin;
 pub type Result<T> = std::result::Result<T, ODBProcessError>;
 
 fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &ODBRequest) -> Result<Vec<u8>> {
@@ -15,45 +13,25 @@ fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &ODBReques
         pad_frame: false
     };
 
-    let mut ret: Option<ISO15765Data> = None;
-    let mut err: Option<ODBProcessError> = None;
-    match server.add_iso15765_filter(0x07E8, 0xFFFF, 0x07DF) {
-        Ok(f_id) => {
-            // Good enough
-            server.set_iso15765_params(10, 8);
-
-            match server.send_iso15765_data(&[send_data], 0).map_err(|e| ODBProcessError::CommError(e)) {
-                Ok(_) => {
-                    // Send was OK, start polling
-                    let start = std::time::Instant::now();
-                    let mut found = false;
-
-                    while start.elapsed().as_millis() < 250 && !found {
-                        for msg in server.read_iso15765_packets(0, 10).unwrap_or(Vec::new()) {
-                            if msg.data.len() > 0 {
-                                found = true;
-                                ret = Some(msg);
-                                break;
-                            }
-                        }
-                        std::thread::sleep(std::time::Duration::from_millis(5))
-                    }
-
-                },
-                Err(e) => err = Some(e)
-            }
-
-        },
-        Err(e) => err = Some(ODBProcessError::CommError(e))
+    let cfg = ISO15765Config {
+        send_id: 0x07DF,
+        recv_id: 0x7E8,
+        block_size: 8, // Sensible decision
+        sep_time: 20, // Sensible decision
     };
+    let res = server.send_receive_iso15765(send_data, &cfg, 500, 1);
+
     server.close_iso15765_interface();
-    if let Some(e) = err {
-        return Err(e)
-    }
-    return if let Some(data) = ret {
-        return Ok(data.data)
-    } else {
-        Err(ODBProcessError::NoResponse)
+
+    match res {
+        Ok(pack) => {
+            if pack.len() == 0 {
+                return Err(ODBProcessError::NoResponse)
+            } else {
+                return Ok(pack[0].data.clone());
+            }
+        }
+        Err(e) => return Err(ODBProcessError::CommError(e))
     }
 }
 

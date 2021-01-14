@@ -1,12 +1,11 @@
 use crate::passthru::{PassthruDevice, PassthruDrv};
-use iced::{pick_list, button, Text, Row, Element, Radio, Align, Column, PickList, Container, Length, Button, Command, Image};
+use iced::{pick_list, button, Text, Row, Element, Align, Column, Length, Image};
 use crate::commapi::comm_api::{ComServerError, ComServer};
 use crate::commapi::passthru_api::PassthruApi;
 use crate::windows::window::{ApplicationError, WindowMessage};
 use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::launcher::LauncherMessage::LaunchRequested;
-use crate::themes::{button_coloured, ButtonType, button_outlined, picklist, container, radio_btn, text, TextType};
-use crate::themes::elements::DropDown;
+use crate::themes::{button_coloured, ButtonType, picklist, container, radio_btn, text, TextType};
 
 #[derive(Debug, Clone)]
 pub struct Launcher {
@@ -28,7 +27,7 @@ pub struct Launcher {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum API {
-    D_PDU,
+    DPdu,
     Passthru
 }
 
@@ -38,7 +37,6 @@ pub enum LauncherMessage {
     SwitchAPI(API),
     DeviceSelected(String),
     LaunchRequested,
-    Start(Box<dyn ComServer>)
 }
 
 impl ToString for ApplicationError {
@@ -100,7 +98,6 @@ impl Launcher {
                     // TODO D-PDU Launching
                 }
             }
-            _ => {}
         }
         None
     }
@@ -109,7 +106,7 @@ impl Launcher {
         let selection = Row::new()
             .push(Text::new("API:"))
             .push(radio_btn(
-                API::D_PDU,
+                API::DPdu,
                 "D-PDU",
                 Some(self.api_selection.clone()),
                 LauncherMessage::SwitchAPI,
@@ -126,7 +123,7 @@ impl Launcher {
             .spacing(10)
             .align_items(Align::Center);
 
-        let contents = if self.api_selection == API::D_PDU {
+        let contents = if self.api_selection == API::DPdu {
             Column::new()
                 .push(Image::new("img/logo.png").width(Length::Units(300)).height(Length::Units(300)))
                 .push(selection)
@@ -162,7 +159,7 @@ impl Launcher {
         match self.device_list_passthru.iter().find(|d| d.name == self.selected_device_passthru) {
             Some(d) => match PassthruDrv::load_lib(d.drv_path.clone()) {
                 Ok(lib) =>Ok((d.clone(), lib)),
-                Err(e) => Err(DriverError(ComServerError{
+                Err(_) => Err(DriverError(ComServerError{
                     err_code: 99,
                     err_desc: format!("Cannot locate driver at {}", d.drv_path)
                 })),

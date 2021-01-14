@@ -1,20 +1,12 @@
-use std::fmt::{format, Debug};
-use crate::{commapi, passthru::*};
-use iced::{button, executor, pick_list, Align, Application, Button, Column, Command, Container, Element, Length, PickList, Row, Settings, Text, Sandbox, Radio, Subscription, Color, time, Rule, Space};
-use J2534Common::Loggable;
-use crate::commapi::passthru_api::PassthruApi;
-use crate::commapi::comm_api::{ComServer, FilterType, ComServerError};
-use crate::windows::window::ApplicationError::DriverError;
-use serde::export::Formatter;
-use crate::windows::window::LauncherMessage::LaunchRequested;
+use std::fmt::{Debug};
+use iced::{button, executor, Align, Application, Column, Command, Element, Length, Row, Text, Subscription, time, Rule, Space};
+use crate::commapi::comm_api::{ComServer, ComServerError};
 use crate::windows::launcher::{Launcher, LauncherMessage};
 use crate::windows::home::{Home, HomeMessage};
 use std::time::Instant;
 use crate::windows::cantracer::{CanTracer, TracerMessage};
-use std::ops::Sub;
 use crate::windows::uds_scanner::{UDSHomeMessage, UDSHome};
 use crate::windows::odb::{ODBMessage, ODBHome};
-use crate::windows::window::WindowMessage::ODBTools;
 use crate::themes::{toggle_theme, button_coloured, ButtonType, container, text, TextType};
 
 #[derive(Debug, Clone)]
@@ -48,7 +40,6 @@ impl<'a> WindowState {
             Self::CanTracer (tracer) => tracer.view().map(|x| WindowMessage::CanTracer(x)).into(),
             Self::UDSHome (h) => h.view().map(|x| WindowMessage::UDSScanner(x)).into(),
             Self::ODBTools (h) => h.view().map(|x| WindowMessage::ODBTools(x)).into(),
-            _ => unimplemented!()
         }
     }
 
@@ -79,7 +70,6 @@ impl<'a> WindowState {
                     return o.update(x).map(|t| WindowMessage::ODBTools(t))
                 }
             }
-            _ => unimplemented!()
         }
         None
     }
@@ -107,7 +97,6 @@ pub enum WindowMessage {
     UDSScanner(UDSHomeMessage),
     ODBTools(ODBMessage),
     StartApp(Box<dyn ComServer>),
-    LaunchFileBrowser,
     StatusUpdate(Instant),
     GoHome, // Goto home page
     GoCanTracer, // Goto Can Tracer page
@@ -130,7 +119,7 @@ impl Application for MainWindow {
     type Message = WindowMessage;
     type Flags = ();
 
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
+    fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
         (Self {
             state: WindowState::Launcher(Launcher::new()),
             server: None,
@@ -193,7 +182,6 @@ impl Application for MainWindow {
             }
             return Subscription::batch(batch)
         }
-        Subscription::none()
     }
 
     fn view(&mut self) -> Element<'_, Self::Message> {
