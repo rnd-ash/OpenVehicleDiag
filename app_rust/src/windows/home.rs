@@ -14,7 +14,7 @@ pub struct Home {
     server: Box<dyn ComServer>,
     can_state: button::State,
     uds_state: button::State,
-    odb_state: button::State
+    obd_state: button::State
 }
 
 impl Home {
@@ -23,7 +23,7 @@ impl Home {
             server,
             can_state: button::State::default(),
             uds_state: button::State::default(),
-            odb_state: button::State::default()
+            obd_state: button::State::default()
         };
         // To guarantee everything works as it should, home screen should have NO interfaces open
         if let Err(e) = ret.server.close_can_interface() {
@@ -85,7 +85,7 @@ impl Home {
             .push(Text::new("Tools"))
             .push(button_outlined(&mut self.can_state, "CAN Analyzer", ButtonType::Primary).on_press(WindowMessage::GoCanTracer))
             .push(button_outlined(&mut self.uds_state, "UDS Scanner", ButtonType::Primary).on_press(WindowMessage::GoUDS))
-            .push(button_outlined(&mut self.odb_state, "OBD Tools", ButtonType::Primary).on_press(WindowMessage::GoODB))
+            .push(button_outlined(&mut self.obd_state, "OBD Tools", ButtonType::Primary).on_press(WindowMessage::GoOBD))
             );
         contents.into()
     }
