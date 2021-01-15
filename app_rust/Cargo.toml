@@ -20,6 +20,7 @@ bitfield = "0.13.2"
 nfd = "0.0.4"
 hex-serde = "0.1.0"
 chrono = "0.4.19"
+hex = "0.4.2"
 image = "0.23.12"
 
 [target.'cfg(windows)'.dependencies]
