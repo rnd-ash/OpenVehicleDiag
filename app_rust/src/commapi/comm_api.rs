@@ -114,7 +114,7 @@ pub struct DeviceCapabilities {
     pub (crate) can: Capability,
     /// Supports ISO15765 (ISO-TP)
     pub (crate) iso15765: Capability,
-    /// Supports K-Line ODB ISO9141
+    /// Supports K-Line OBD ISO9141
     pub (crate) iso9141: Capability,
     /// Supports K-Line KWP2000 ISO14230
     pub (crate) iso14230: Capability,
@@ -207,20 +207,20 @@ pub trait ComServer : Send + Sync + Debug {
     /// * max_msgs - The maximum number of messages to read from the adapter.
     fn read_iso15765_packets(&self, timeout_ms: u32, max_msgs: usize) -> Result<Vec<ISO15765Data>, ComServerError>;
 
-    /// Attempts to open a CAN interface with the adapter to the vehicles ODB-II port
+    /// Attempts to open a CAN interface with the adapter to the vehicles OBD-II port
     ///
     /// ## Params
-    /// * `bus_speed` - Speed of the vehicle Canbus in bps, typically for an ODB-II port it is 500000
+    /// * `bus_speed` - Speed of the vehicle Canbus in bps, typically for an OBD-II port it is 500000
     /// * `is_ext_can` - Tells the adapter to use extended CAN Addressing
     fn open_can_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError>;
 
     /// Attempts to destroy the CAN Interface on the adapter
     fn close_can_interface(&mut self) -> Result<(), ComServerError>;
 
-    /// Attempts to open a ISO-TP interface over CAN with the adapter to the vehicles ODB-II port
+    /// Attempts to open a ISO-TP interface over CAN with the adapter to the vehicles OBD-II port
     ///
     /// ## Params
-    /// * `bus_speed` - Speed of the vehicle Canbus in bps, typically for an ODB-II port it is 500000
+    /// * `bus_speed` - Speed of the vehicle Canbus in bps, typically for an OBD-II port it is 500000
     /// * `is_ext_can` - Tells the adapter to use extended CAN Addressing
     fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError>;
 
@@ -316,7 +316,7 @@ pub trait ComServer : Send + Sync + Debug {
     /// that is from the ISO15765 protocol
     fn clear_iso15765_tx_buffer(&self) -> Result<(), ComServerError>;
 
-    /// Returns the voltage read by the adapter on the +12V line of the ODB-II
+    /// Returns the voltage read by the adapter on the +12V line of the OBD-II
     /// adapter, which is normally connected to the car battery
     ///
     /// # Returns

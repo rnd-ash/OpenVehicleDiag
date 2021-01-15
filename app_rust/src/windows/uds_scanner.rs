@@ -252,7 +252,7 @@ impl<'a> UDSHome {
                     self.get_next_cid();
                     self.server.send_can_packets(&[CanFrame::new(self.curr_cid, &[0x10, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0);
                     self.get_next_cid();
-                    self.ignore_ids.insert(0x07DF, CanFrame::new(0x07DF, &[0x00])); // Add the ODB-II ID since we don't want to test it
+                    self.ignore_ids.insert(0x07DF, CanFrame::new(0x07DF, &[0x00])); // Add the OBD-II ID since we don't want to test it
                     Some(UDSHomeMessage::ScanNextCID)
                 } else {
                     self.listen_duration_ms = x.elapsed().as_millis();

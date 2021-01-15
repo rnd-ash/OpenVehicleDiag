@@ -6,7 +6,7 @@ use crate::windows::home::{Home, HomeMessage};
 use std::time::Instant;
 use crate::windows::cantracer::{CanTracer, TracerMessage};
 use crate::windows::uds_scanner::{UDSHomeMessage, UDSHome};
-use crate::windows::odb::{ODBMessage, ODBHome};
+use crate::windows::obd::{OBDMessage, OBDHome};
 use crate::themes::{toggle_theme, button_coloured, ButtonType, container, text, TextType};
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ pub enum WindowState {
     Home(Home),
     CanTracer(CanTracer),
     UDSHome(UDSHome),
-    ODBTools(ODBHome),
+    OBDTools(OBDHome),
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -29,7 +29,7 @@ pub enum WindowStateName {
     Home,
     CanTracer,
     UDSHome,
-    ODBTools,
+    OBDTools,
 }
 
 impl<'a> WindowState {
@@ -39,7 +39,7 @@ impl<'a> WindowState {
             Self::Home (home) => home.view().into(),
             Self::CanTracer (tracer) => tracer.view().map(|x| WindowMessage::CanTracer(x)).into(),
             Self::UDSHome (h) => h.view().map(|x| WindowMessage::UDSScanner(x)).into(),
-            Self::ODBTools (h) => h.view().map(|x| WindowMessage::ODBTools(x)).into(),
+            Self::OBDTools (h) => h.view().map(|x| WindowMessage::OBDTools(x)).into(),
         }
     }
 
@@ -65,9 +65,9 @@ impl<'a> WindowState {
                     return uds.update(x).map(|t| WindowMessage::UDSScanner(t))
                 }
             },
-            Self::ODBTools(o) => {
-                if let WindowMessage::ODBTools(x) = msg {
-                    return o.update(x).map(|t| WindowMessage::ODBTools(t))
+            Self::OBDTools(o) => {
+                if let WindowMessage::OBDTools(x) = msg {
+                    return o.update(x).map(|t| WindowMessage::OBDTools(t))
                 }
             }
         }
@@ -82,7 +82,7 @@ impl WindowState {
             WindowState::Home { .. } => WindowStateName::Home,
             WindowState::CanTracer { .. } => WindowStateName::CanTracer,
             WindowState::UDSHome { .. } => WindowStateName::UDSHome,
-            WindowState::ODBTools { .. } => WindowStateName::ODBTools,
+            WindowState::OBDTools { .. } => WindowStateName::OBDTools,
         }
     }
 }
@@ -95,13 +95,13 @@ pub enum WindowMessage {
     Home(HomeMessage),
     CanTracer(TracerMessage),
     UDSScanner(UDSHomeMessage),
-    ODBTools(ODBMessage),
+    OBDTools(OBDMessage),
     StartApp(Box<dyn ComServer>),
     StatusUpdate(Instant),
     GoHome, // Goto home page
     GoCanTracer, // Goto Can Tracer page
     GoUDS, // Goto UDS Scanner page
-    GoODB, // Goto ODB Toolbox page
+    GoOBD, // Goto OBD Toolbox page
     ToggleTheme, // Toggle the theme
 }
 
@@ -135,7 +135,7 @@ impl Application for MainWindow {
             WindowState::Home { .. } => format!("OpenVehicleDiag ({} mode)", self.server.as_ref().map(|s| s.get_api()).unwrap_or("Unknown")),
             WindowState::CanTracer { .. } => "OpenVehicleDiag CanTracer".into(),
             WindowState::UDSHome { .. } => "OpenVehicleDiag UDS Scanner".into(),
-            WindowState::ODBTools { .. } => "OpenVehicleDiag ODB Toolbox".into()
+            WindowState::OBDTools { .. } => "OpenVehicleDiag OBD Toolbox".into()
         }
     }
 
@@ -155,8 +155,8 @@ impl Application for MainWindow {
             WindowMessage::GoUDS => {
                 self.state = WindowState::UDSHome(UDSHome::new(self.server.clone().unwrap()))
             },
-            WindowMessage::GoODB => {
-                self.state = WindowState::ODBTools(ODBHome::new(self.server.clone().unwrap()))
+            WindowMessage::GoOBD => {
+                self.state = WindowState::OBDTools(OBDHome::new(self.server.clone().unwrap()))
             }
             WindowMessage::ToggleTheme => {
                 toggle_theme()

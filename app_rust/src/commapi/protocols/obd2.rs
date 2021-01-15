@@ -2,13 +2,13 @@ use std::env::set_current_dir;
 
 use crate::commapi::comm_api::{ComServer, ComServerError, ISO15765Config, ISO15765Data};
 use crate::commapi::protocols::vin::Vin;
-pub type Result<T> = std::result::Result<T, ODBProcessError>;
+pub type Result<T> = std::result::Result<T, OBDProcessError>;
 
-fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &ODBRequest) -> Result<Vec<u8>> {
-    server.open_iso15765_interface(500_000, false).map_err(|e| ODBProcessError::CommError(e))?;
+fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &OBDRequest) -> Result<Vec<u8>> {
+    server.open_iso15765_interface(500_000, false).map_err(|e| OBDProcessError::CommError(e))?;
     // Guess to use something appropriate for block size and sep time
     let send_data = ISO15765Data {
-        id: 0x07DF, // Global request ID for ODB-II over CAN
+        id: 0x07DF, // Global request ID for OBD-II over CAN
         data: Vec::from(payload.to_vec()),
         pad_frame: false
     };
@@ -26,16 +26,16 @@ fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &ODBReques
     match res {
         Ok(pack) => {
             if pack.len() == 0 {
-                return Err(ODBProcessError::NoResponse)
+                return Err(OBDProcessError::NoResponse)
             } else {
                 return Ok(pack[0].data.clone());
             }
         }
-        Err(e) => return Err(ODBProcessError::CommError(e))
+        Err(e) => return Err(OBDProcessError::CommError(e))
     }
 }
 
-fn read_write_payload(server: &mut Box<dyn ComServer>, use_can: bool, payload: &ODBRequest) -> Result<ODBResponse> {
+fn read_write_payload(server: &mut Box<dyn ComServer>, use_can: bool, payload: &OBDRequest) -> Result<OBDResponse> {
     let resp = match use_can {
         true => read_write_payload_isotp(server, payload),
         false => unimplemented!()
@@ -46,7 +46,7 @@ fn read_write_payload(server: &mut Box<dyn ComServer>, use_can: bool, payload: &
             if p[0] == payload.service | 0x40 {
                 match payload.pid {
                     None => {
-                        Ok(ODBResponse {
+                        Ok(OBDResponse {
                             service: payload.service,
                             pid: None,
                             data: Vec::from(&p[1..]),
@@ -54,21 +54,21 @@ fn read_write_payload(server: &mut Box<dyn ComServer>, use_can: bool, payload: &
                     }
                     Some(pid) => {
                         if p[1] == pid {
-                            Ok(ODBResponse {
+                            Ok(OBDResponse {
                                 service: payload.service,
                                 pid: Some(pid),
                                 data: Vec::from(&p[2..]),
                             })
                         } else {
-                            Err(ODBProcessError::InvalidResponse("Response pid did not match request pid".into()))
+                            Err(OBDProcessError::InvalidResponse("Response pid did not match request pid".into()))
                         }
                     }
                 }
             } else {
-                Err(ODBProcessError::InvalidResponse("Response service did not match request service".into()))
+                Err(OBDProcessError::InvalidResponse("Response service did not match request service".into()))
             }
         } else {
-            Err(ODBProcessError::InvalidResponse("ECU Did not reply with enough data".into()))
+            Err(OBDProcessError::InvalidResponse("ECU Did not reply with enough data".into()))
         }
     } else {
         Err(resp.err().unwrap())
@@ -76,13 +76,13 @@ fn read_write_payload(server: &mut Box<dyn ComServer>, use_can: bool, payload: &
 }
 
 #[derive(Clone, Debug)]
-pub struct ODBRequest {
+pub struct OBDRequest {
     service: u8,
     pid: Option<u8>,
     args: Vec<u8>
 }
 
-impl ODBRequest {
+impl OBDRequest {
     fn new(service: u8, pid: u8) -> Self {
         return Self {
             service,
@@ -112,14 +112,14 @@ impl ODBRequest {
 }
 
 #[derive(Clone, Debug)]
-pub struct ODBResponse {
+pub struct OBDResponse {
     service: u8,
     pid: Option<u8>,
     data: Vec<u8>
 }
 
 #[derive(Clone, Debug)]
-pub enum ODBProcessError {
+pub enum OBDProcessError {
     NoResponse,
     CommError(ComServerError),
     ServiceNotSupported,
@@ -157,34 +157,34 @@ impl Service01 {
 
     fn read_pid_supported(&self, server: &mut Box<dyn ComServer>, use_can: bool, pid: usize) -> Result<Vec<u8>> {
         if self.supported_pids[pid] {
-            read_write_payload(server, use_can, &ODBRequest::new(0x01, pid as u8)).map(|r| r.data)
+            read_write_payload(server, use_can, &OBDRequest::new(0x01, pid as u8)).map(|r| r.data)
         } else {
-            Err(ODBProcessError::PIDNotSupported)
+            Err(OBDProcessError::PIDNotSupported)
         }
     }
 
     pub(crate) fn init(server: &mut Box<dyn ComServer>, use_can: bool) -> Result<Self> {
         let mut s01 = Service01 { supported_pids: [false; 0xFF] };
-        s01.write_to_supported(read_write_payload(server, use_can, &ODBRequest::new(0x01, 0x00)).map(|r| r.data)?, 0x01);
+        s01.write_to_supported(read_write_payload(server, use_can, &OBDRequest::new(0x01, 0x00)).map(|r| r.data)?, 0x01);
 
         // Ask for the next round of supported PIDs
         if s01.supported_pids[0x20] {
-            s01.write_to_supported(read_write_payload(server, use_can, &ODBRequest::new(0x01, 0x20)).map(|r| r.data)?, 0x21);
+            s01.write_to_supported(read_write_payload(server, use_can, &OBDRequest::new(0x01, 0x20)).map(|r| r.data)?, 0x21);
         }
         if s01.supported_pids[0x40] {
-            s01.write_to_supported(read_write_payload(server, use_can, &ODBRequest::new(0x01, 0x40)).map(|r| r.data)?, 0x41);
+            s01.write_to_supported(read_write_payload(server, use_can, &OBDRequest::new(0x01, 0x40)).map(|r| r.data)?, 0x41);
         }
         if s01.supported_pids[0x60] {
-            s01.write_to_supported(read_write_payload(server, use_can, &ODBRequest::new(0x01, 0x60)).map(|r| r.data)?, 0x61);
+            s01.write_to_supported(read_write_payload(server, use_can, &OBDRequest::new(0x01, 0x60)).map(|r| r.data)?, 0x61);
         }
         if s01.supported_pids[0x80] {
-            s01.write_to_supported(read_write_payload(server, use_can, &ODBRequest::new(0x01, 0x80)).map(|r| r.data)?, 0x81);
+            s01.write_to_supported(read_write_payload(server, use_can, &OBDRequest::new(0x01, 0x80)).map(|r| r.data)?, 0x81);
         }
         if s01.supported_pids[0xA0] {
-            s01.write_to_supported(read_write_payload(server, use_can, &ODBRequest::new(0x01, 0xA0)).map(|r| r.data)?, 0xA1);
+            s01.write_to_supported(read_write_payload(server, use_can, &OBDRequest::new(0x01, 0xA0)).map(|r| r.data)?, 0xA1);
         }
         if s01.supported_pids[0xC0] {
-            s01.write_to_supported(read_write_payload(server, use_can, &ODBRequest::new(0x01, 0xC0)).map(|r| r.data)?, 0xC1);
+            s01.write_to_supported(read_write_payload(server, use_can, &OBDRequest::new(0x01, 0xC0)).map(|r| r.data)?, 0xC1);
         }
         Ok(s01)
     }
@@ -288,46 +288,46 @@ impl Service01 {
             0x02 => Ok(SecondaryAirStatus::Downstream),
             0x04 => Ok(SecondaryAirStatus::Outside),
             0x08 => Ok(SecondaryAirStatus::PumpControlled),
-            _ => Err(ODBProcessError::InvalidResponse("Secondary air status byte not valid".into()))
+            _ => Err(OBDProcessError::InvalidResponse("Secondary air status byte not valid".into()))
         }
     }
 
-    /// Returns the ODB-II Standard the vehicle supports
-    pub fn get_odb_std(&self, server: &mut Box<dyn ComServer>, use_can: bool) -> Result<Vec<ODBStandard>> {
+    /// Returns the OBD-II Standard the vehicle supports
+    pub fn get_obd_std(&self, server: &mut Box<dyn ComServer>, use_can: bool) -> Result<Vec<OBDStandard>> {
         match self.read_pid_supported(server, use_can, 0x12)?[0] {
-            01 => Ok(vec![ODBStandard::CARB]),
-            02 => Ok(vec![ODBStandard::EPA]),
-            03 => Ok(vec![ODBStandard::ODB1, ODBStandard::ODB2]),
-            04 => Ok(vec![ODBStandard::ODB1]),
-            05 => Ok(vec![ODBStandard::NA]),
-            06 => Ok(vec![ODBStandard::EOBD]),
-            07 => Ok(vec![ODBStandard::EOBD, ODBStandard::ODB2]),
-            08 => Ok(vec![ODBStandard::EOBD, ODBStandard::ODB1]),
-            09 => Ok(vec![ODBStandard::EOBD, ODBStandard::ODB1, ODBStandard::ODB2]),
-            10 => Ok(vec![ODBStandard::JOBD]),
-            11 => Ok(vec![ODBStandard::JOBD, ODBStandard::ODB2]),
-            12 => Ok(vec![ODBStandard::JOBD, ODBStandard::EOBD]),
-            13 => Ok(vec![ODBStandard::JOBD, ODBStandard::EOBD, ODBStandard::ODB2]),
-            14 | 15 | 16 => Ok(vec![ODBStandard::Reserved]),
-            17 => Ok(vec![ODBStandard::EMD]),
-            18 => Ok(vec![ODBStandard::EMD_Plus]),
-            19 => Ok(vec![ODBStandard::HD_OBD_C]),
-            20 => Ok(vec![ODBStandard::HD_OBD]),
-            21 => Ok(vec![ODBStandard::WWH_OBD]),
-            22 => Ok(vec![ODBStandard::Reserved]),
-            23 => Ok(vec![ODBStandard::HD_EOBD1]),
-            24 => Ok(vec![ODBStandard::HD_EOBD1_N]),
-            25 => Ok(vec![ODBStandard::HD_EOBD2]),
-            26 => Ok(vec![ODBStandard::HD_EOBD2_N]),
-            27 => Ok(vec![ODBStandard::Reserved]),
-            28 => Ok(vec![ODBStandard::ODB_BR_1]),
-            29 => Ok(vec![ODBStandard::ODB_BR_2]),
-            30 => Ok(vec![ODBStandard::KOBD]),
-            31 => Ok(vec![ODBStandard::IODB1]),
-            32 => Ok(vec![ODBStandard::IODB2]),
-            33 => Ok(vec![ODBStandard::HD_EOBD_5]),
-            34..=250 => Ok(vec![ODBStandard::Reserved]),
-            _ => Err(ODBProcessError::InvalidResponse("ODB Standard is SAE J1939 special".into()))
+            01 => Ok(vec![OBDStandard::CARB]),
+            02 => Ok(vec![OBDStandard::EPA]),
+            03 => Ok(vec![OBDStandard::OBD1, OBDStandard::OBD2]),
+            04 => Ok(vec![OBDStandard::OBD1]),
+            05 => Ok(vec![OBDStandard::NA]),
+            06 => Ok(vec![OBDStandard::EOBD]),
+            07 => Ok(vec![OBDStandard::EOBD, OBDStandard::OBD2]),
+            08 => Ok(vec![OBDStandard::EOBD, OBDStandard::OBD1]),
+            09 => Ok(vec![OBDStandard::EOBD, OBDStandard::OBD1, OBDStandard::OBD2]),
+            10 => Ok(vec![OBDStandard::JOBD]),
+            11 => Ok(vec![OBDStandard::JOBD, OBDStandard::OBD2]),
+            12 => Ok(vec![OBDStandard::JOBD, OBDStandard::EOBD]),
+            13 => Ok(vec![OBDStandard::JOBD, OBDStandard::EOBD, OBDStandard::OBD2]),
+            14 | 15 | 16 => Ok(vec![OBDStandard::Reserved]),
+            17 => Ok(vec![OBDStandard::EMD]),
+            18 => Ok(vec![OBDStandard::EMD_Plus]),
+            19 => Ok(vec![OBDStandard::HD_OBD_C]),
+            20 => Ok(vec![OBDStandard::HD_OBD]),
+            21 => Ok(vec![OBDStandard::WWH_OBD]),
+            22 => Ok(vec![OBDStandard::Reserved]),
+            23 => Ok(vec![OBDStandard::HD_EOBD1]),
+            24 => Ok(vec![OBDStandard::HD_EOBD1_N]),
+            25 => Ok(vec![OBDStandard::HD_EOBD2]),
+            26 => Ok(vec![OBDStandard::HD_EOBD2_N]),
+            27 => Ok(vec![OBDStandard::Reserved]),
+            28 => Ok(vec![OBDStandard::OBD_BR_1]),
+            29 => Ok(vec![OBDStandard::OBD_BR_2]),
+            30 => Ok(vec![OBDStandard::KOBD]),
+            31 => Ok(vec![OBDStandard::IOBD1]),
+            32 => Ok(vec![OBDStandard::IOBD2]),
+            33 => Ok(vec![OBDStandard::HD_EOBD_5]),
+            34..=250 => Ok(vec![OBDStandard::Reserved]),
+            _ => Err(OBDProcessError::InvalidResponse("OBD Standard is SAE J1939 special".into()))
         }
     }
 
@@ -358,7 +358,7 @@ impl Service01 {
             21 => Ok(FuelType::HybridElectricCombustion),
             22 => Ok(FuelType::HybridRegen),
             23 => Ok(FuelType::Diesel),
-            _ => Err(ODBProcessError::InvalidResponse("Fuel type is invalid".into()))
+            _ => Err(OBDProcessError::InvalidResponse("Fuel type is invalid".into()))
         }
     }
 }
@@ -377,11 +377,11 @@ pub enum SecondaryAirStatus {
 
 
 #[derive(Debug, Copy, Clone)]
-pub enum ODBStandard {
+pub enum OBDStandard {
     CARB,
     EPA,
-    ODB2,
-    ODB1,
+    OBD2,
+    OBD1,
     NA,
     EOBD,
     JOBD,
@@ -395,11 +395,11 @@ pub enum ODBStandard {
     HD_EOBD1_N,
     HD_EOBD2,
     HD_EOBD2_N,
-    ODB_BR_1,
-    ODB_BR_2,
+    OBD_BR_1,
+    OBD_BR_2,
     KOBD,
-    IODB1,
-    IODB2,
+    IOBD1,
+    IOBD2,
     HD_EOBD_5,
 }
 
@@ -437,7 +437,7 @@ pub struct Service03;
 
 impl Service03 {
     pub fn get_error_codes(server: &mut Box<dyn ComServer>, use_can: bool) -> Result<()> {
-        read_write_payload(server, use_can, &ODBRequest::new_nopid(0x03)).map(|mut res| {
+        read_write_payload(server, use_can, &OBDRequest::new_nopid(0x03)).map(|mut res| {
             println!("{:02X?}", res)
         })
     }
@@ -460,19 +460,19 @@ pub struct Service09 {
 impl Service09 {
     pub fn get_vin(&self, server: &mut Box<dyn ComServer>, use_can: bool) -> Result<Vin> {
         if self.VIN == false {
-            return Err(ODBProcessError::PIDNotSupported)
+            return Err(OBDProcessError::PIDNotSupported)
         }
-        let mut data = read_write_payload(server, use_can, &ODBRequest::new(0x09, 0x02))?.data;
+        let mut data = read_write_payload(server, use_can, &OBDRequest::new(0x09, 0x02))?.data;
         data.drain(0..1);
         return if let Some(x) = Vin::new(String::from_utf8(data).unwrap()) {
             Ok(x)
         } else {
-            Err(ODBProcessError::InvalidResponse("VIN is not correct length".into()))
+            Err(OBDProcessError::InvalidResponse("VIN is not correct length".into()))
         }
     }
 
     pub fn init(server: &mut Box<dyn ComServer>, use_can: bool) -> Result<Self> {
-        read_write_payload(server, use_can, &ODBRequest::new(0x09, 0x00)).map(|mut res| {
+        read_write_payload(server, use_can, &OBDRequest::new(0x09, 0x00)).map(|mut res| {
             Service09 {
                 VINMessageCount: res.data[0] >> 7 & 0x01 > 0,
                 VIN: res.data[0] >> 6 & 0x01 > 0,

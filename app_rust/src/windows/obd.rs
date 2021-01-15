@@ -1,17 +1,17 @@
 use crate::commapi::comm_api::{ComServer, Capability};
 use iced::{Element, Column, Text, Align, Length, Row, Space, button, Button};
-use crate::commapi::protocols::odb2::{Service09, Service01};
+use crate::commapi::protocols::obd2::{Service09, Service01};
 use crate::commapi::protocols::vin::Vin;
 use crate::themes::{text, TextType, title_text, TitleSize, button_outlined, ButtonType};
 
 #[derive(Debug, Clone)]
-pub enum ODBMessage {
-    InitODB
+pub enum OBDMessage {
+    InitOBD
 }
 
 
 #[derive(Debug, Clone)]
-pub struct ODBHome {
+pub struct OBDHome {
     server: Box<dyn ComServer>,
     kline_state: button::State,
     can_state: button::State,
@@ -20,7 +20,7 @@ pub struct ODBHome {
     s9: Option<Service09>
 }
 
-impl ODBHome {
+impl OBDHome {
     pub(crate) fn new(server: Box<dyn ComServer>) -> Self {
         Self {
             server,
@@ -32,9 +32,9 @@ impl ODBHome {
         }
     }
 
-    pub fn update(&mut self, msg: &ODBMessage) -> Option<ODBMessage> {
+    pub fn update(&mut self, msg: &OBDMessage) -> Option<OBDMessage> {
         match msg {
-            ODBMessage::InitODB => {
+            OBDMessage::InitOBD => {
                 if let Ok(s1) = Service01::init(&mut self.server, true) {
                     self.s1 = Some(s1)
                 }
@@ -49,10 +49,10 @@ impl ODBHome {
         None
     }
 
-    pub fn view(&mut self) -> Element<ODBMessage> {
-        let odb_btn = button_outlined(&mut self.kline_state, "K-Line not implemented", ButtonType::Danger); // TODO Add K-LINE ODB
+    pub fn view(&mut self) -> Element<OBDMessage> {
+        let obd_btn = button_outlined(&mut self.kline_state, "K-Line not implemented", ButtonType::Danger); // TODO Add K-LINE OBD
         let can_btn = match self.server.get_capabilities().supports_iso15765() {
-            Capability::Yes => button_outlined(&mut self.can_state, "ODB over CANBUS", ButtonType::Danger).on_press(ODBMessage::InitODB),
+            Capability::Yes => button_outlined(&mut self.can_state, "OBD over CANBUS", ButtonType::Danger).on_press(OBDMessage::InitOBD),
             _ => Button::new(&mut self.can_state, Text::new("No CANBUS Support on adapter"))
         };
 
@@ -60,12 +60,12 @@ impl ODBHome {
         let mut c = Column::new()
             .padding(10)
             .spacing(10)
-            .push(title_text("ODB Diagnostics", TitleSize::P2))
+            .push(title_text("OBD Diagnostics", TitleSize::P2))
             .push(Space::with_height(Length::Units(10)))
             .push(Row::new()
                 .padding(10)
                 .spacing(10)
-                .push(odb_btn)
+                .push(obd_btn)
                 .push(can_btn))
             .align_items(Align::Center);
 
