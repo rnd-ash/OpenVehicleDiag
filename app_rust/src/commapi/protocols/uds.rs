@@ -61,6 +61,12 @@ impl UDSRequest {
             }
         }
     }
+
+    pub fn to_byte_array(&self) -> Vec<u8> {
+        let mut packet = vec![self.cmd as u8];
+        packet.extend_from_slice(&self.args);
+        return packet;
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialOrd, PartialEq)]

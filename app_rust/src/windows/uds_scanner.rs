@@ -8,11 +8,7 @@ use crate::commapi::protocols::uds::{UDSCommand, UDSRequest, UDSResponse, UDSPro
 use std::io::{Write, Read};
 use crate::themes::{text, TextType, progress_bar, ButtonType, title_text, button_outlined, TitleSize};
 
-#[derive(Debug, Clone)]
-pub struct ManualMode {
-    ecus: Vec<ECUISOTPSettings>,
-    curr_ecu: ECUISOTPSettings
-}
+use super::uds_manual::{UDSManual, UDSManualMessage};
 
 #[derive(Debug, Clone)]
 pub enum UDSHomeMessage {
@@ -26,6 +22,7 @@ pub enum UDSHomeMessage {
     Listen(Instant),
     InterrogateECU,
     OpenFile,
+    ManualMessage(UDSManualMessage),
     SaveScanResults
 }
 
@@ -44,13 +41,13 @@ struct CarECUs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ECUISOTPSettings {
-    name: String,
-    send_id: u32,
-    flow_control_id: u32,
-    block_size: u32,
-    sep_time_ms: u32,
-    supports_uds: Option<bool>,
+pub (crate) struct ECUISOTPSettings {
+    pub name: String,
+    pub send_id: u32,
+    pub flow_control_id: u32,
+    pub block_size: u32,
+    pub sep_time_ms: u32,
+    pub supports_uds: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +66,7 @@ pub struct UDSHome {
     auto_found_ids: Vec<(u32, ECUISOTPSettings)>,
     auto_scan_result_ids: Vec<(u32, bool)>,
     save_text: String,
+    manual_ui: Option<UDSManual>
 }
 
 impl<'a> UDSHome {
@@ -87,6 +85,7 @@ impl<'a> UDSHome {
             listen_duration_ms: 0,
             interrogation_state: 0,
             curr_ecu_idx: 0,
+            manual_ui: None,
             save_text: "".into()
         }
     }
@@ -142,6 +141,12 @@ impl<'a> UDSHome {
             UDSHomeMessage::GoHome => {
                 self.in_home = true;
             },
+            UDSHomeMessage::ManualMessage(msg) => {
+                if let Some(ref mut x) = self.manual_ui {
+                    return x.update(msg).map(|m| UDSHomeMessage::ManualMessage(m))
+                }
+            }
+
             UDSHomeMessage::SaveScanResults => {
                 if self.auto_found_ids.len() > 0 {
                     let time = chrono::Utc::now();
@@ -177,9 +182,14 @@ impl<'a> UDSHome {
                             file.read_to_string(&mut str);
 
                             let parse : serde_json::Result<CarECUs>  = serde_json::from_str(&str);
-                            if let Ok(car) = parse {
-                                println!("{:?}", car);
-                                self.auto_mode = false;
+                            match parse {
+                                Ok(car) => {
+                                    println!("Creating manual mode");
+                                    self.manual_ui = Some(UDSManual::new(car.ecus, self.server.clone()))
+                                },
+                                Err(e) => {
+                                    eprintln!("Parsing of JSON failed {}", e);
+                                }
                             }
                         }
                     },
@@ -208,7 +218,7 @@ impl<'a> UDSHome {
                                     if self.ignore_ids.get(&candidate.id).is_none() {
                                         // Push the CAN ID that was sent previously and the locate response ID
                                         self.auto_found_ids.push((self.curr_cid - 1, ECUISOTPSettings {
-                                            name: "Unknown".to_string(),
+                                            name: "ECU name unknown".to_string(),
                                             send_id: self.curr_cid - 1,
                                             flow_control_id: candidate.id,
                                             block_size: data[1] as u32,
@@ -338,11 +348,15 @@ impl<'a> UDSHome {
     }
 
     pub fn view(&mut self) -> Element<UDSHomeMessage> {
-       if self.in_home {
-           self.draw_home()
-       } else {
-           self.draw_scan_stage()
-       }
+        if let Some(ref mut x) = self.manual_ui {
+            x.view().map(|ui| UDSHomeMessage::ManualMessage(ui))
+        } else {
+            if self.in_home {
+                self.draw_home()
+            } else {
+                self.draw_scan_stage()
+            }
+        }
     }
 
     pub fn draw_auto_stage(&mut self) -> Element<UDSHomeMessage> {

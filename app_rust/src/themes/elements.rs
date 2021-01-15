@@ -70,13 +70,23 @@ pub struct DropDown;
 
 impl pick_list::StyleSheet for DropDown {
     fn menu(&self) -> Menu {
-        Menu {
-            text_color: WHITE.into(),
-            background: DARK_BG.into(),
-            border_width: BUTTON_RADIUS,
-            border_color: WHITE.into(),
-            selected_text_color: WHITE.into(),
-            selected_background: GREY.into()
+        match super::get_theme() {
+            super::Style::Light => Menu {
+                text_color: DARK_BG.into(),
+                background: WHITE.into(),
+                border_width: 1.0,
+                border_color: DARK_BG.into(),
+                selected_text_color: DARK_BG.into(),
+                selected_background: GREY.into()
+            },
+            super::Style::Dark => Menu {
+                text_color: WHITE.into(),
+                background: DARK_BG.into(),
+                border_width: 1.0,
+                border_color: WHITE.into(),
+                selected_text_color: WHITE.into(),
+                selected_background: GREY.into()
+            }
         }
     }
 
