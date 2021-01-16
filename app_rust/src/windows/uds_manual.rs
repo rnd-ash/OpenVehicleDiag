@@ -18,6 +18,7 @@ pub enum UDSManualMessage {
     BSTextInput(String),
     SepTextInput(String),
     ReadErrors,
+    ClearErrors,
     ReadECUID
 }
 
@@ -47,7 +48,8 @@ pub struct UDSManual {
     sep_text_input: iced::text_input::State,
     bs_text_input: iced::text_input::State,
     scroll_state: iced:: scrollable::State,
-
+    show_clear_btn: bool,
+    state4: iced::button::State,
     textinput_strings: Vec<String>
 }
 
@@ -66,6 +68,7 @@ impl UDSManual {
             state: iced::button::State::default(),
             state2: iced::button::State::default(),
             state3: iced::button::State::default(),
+            state4: iced::button::State::default(),
             show_custom_ecu_ui: false,
             textinput_strings: vec![
                 "".into(),
@@ -81,7 +84,7 @@ impl UDSManual {
             logs: Vec::new(),
             diag_server: None,
             scroll_state: iced:: scrollable::State::default(),
-            
+            show_clear_btn: false
         };
         println!("Manual mode launching");
         // To guarantee everything works as it should, home screen should have NO interfaces open
@@ -204,6 +207,7 @@ impl UDSManual {
             },
 
             UDSManualMessage::ReadErrors => {
+                self.logs.clear();
                 if let Some(ref mut s) = self.diag_server {
                     match s.read_errors() {
                         Ok(v) => {
@@ -211,6 +215,12 @@ impl UDSManual {
                             for e in &v {
                                 s.push_str(format!("{}\n", e).as_str());
                             }
+                            if v.len() > 0 {
+                                self.show_clear_btn = true;
+                            } else {
+                                self.show_clear_btn = false;
+                            }
+
                             self.logs.push(CommDetais {
                                 req: "Send: READ_ECU_ERRORS".into(),
                                 res: if v.len() == 0 { "Resp: No Errors".into() } else { format!("Resp: Errors:\n{}", s) }
@@ -226,6 +236,7 @@ impl UDSManual {
                 }
             },
             UDSManualMessage::ReadECUID => {
+                self.logs.clear();
                 if let Some(ref mut s) = self.diag_server {
                     match s.get_ecu_info_data() {
                         Ok(v) => {
@@ -237,6 +248,26 @@ impl UDSManual {
                         Err(e) => {
                             self.logs.push(CommDetais {
                                 req: "Send: READ_ECU_ID".into(),
+                                res: format!("Err: {:?}", e)
+                            });
+                        }
+                    }
+                }
+            },
+            UDSManualMessage::ClearErrors => {
+                self.logs.clear();
+                if let Some(ref mut s) = self.diag_server {
+                    match s.clear_errors() {
+                        Ok(_) => {
+                            self.logs.push(CommDetais {
+                                req: "Send: CLEAR_ECU_ERRORS".into(),
+                                res: format!("Resp: OK")
+                            });
+                            self.show_clear_btn = false;
+                        },
+                        Err(e) => {
+                            self.logs.push(CommDetais {
+                                req: "Send: CLEAR_ECU_ERRORS".into(),
                                 res: format!("Err: {:?}", e)
                             });
                         }
@@ -295,7 +326,9 @@ impl UDSManual {
             let mut comm_view = Column::new(); // Communications overview
             comm_view = comm_view.push(button_outlined(&mut self.state2, "Read ECU errors", ButtonType::Secondary).on_press(UDSManualMessage::ReadErrors))
                 .push(button_outlined(&mut self.state3, "Read ECU ID", ButtonType::Secondary).on_press(UDSManualMessage::ReadECUID));
-
+            if self.show_clear_btn {
+                comm_view = comm_view.push(button_outlined(&mut self.state4, "Clear Errors", ButtonType::Warning).on_press(UDSManualMessage::ClearErrors));
+            }
 
 
             let mut log_scroll = iced::scrollable::Scrollable::new(&mut self.scroll_state);
@@ -305,7 +338,7 @@ impl UDSManual {
                 log_view = log_view.push(text(format!("Res: {}", log.res).as_str(), TextType::Normal));
                 log_view = log_view.push(Space::with_height(Length::Units(5)));
             }
-            log_scroll = log_scroll.push(log_view);
+            log_scroll = log_scroll.push(log_view).height(Length::Shrink);
             c = c.push(Row::new()
             .push(comm_view.width(Length::FillPortion(1)))
             .push(log_scroll.width(Length::FillPortion(1))));
@@ -334,5 +367,13 @@ impl UDSManual {
             }
         }
         return c.into();
+    }
+}
+
+impl Drop for UDSManual {
+    fn drop(&mut self) {
+        if let Some(mut s) = self.diag_server.take() {
+            s.exit_diag_session()
+        }
     }
 }

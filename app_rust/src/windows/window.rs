@@ -258,3 +258,13 @@ impl MainWindow {
         }
     }
 }
+
+impl Drop for MainWindow {
+    fn drop(&mut self) {
+        if let Some(mut s) = self.server.take() {
+            s.close_iso15765_interface();
+            s.close_can_interface();
+            s.close_device();
+        }
+    }
+}

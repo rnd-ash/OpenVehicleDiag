@@ -277,6 +277,11 @@ impl KWP2000ECU {
         diag.varient = varient;
         Ok(diag)
     }
+
+    pub fn clear_errors(&self) -> std::result::Result<(), ProtocolError> {
+        self.run_command(Service::ClearDiagnosticInformation, &[0xFF, 0x00], 1000)?;
+        Ok(())
+    }
 }
 
 impl ProtocolServer for KWP2000ECU {
