@@ -29,7 +29,7 @@ impl UDSRequest {
             data: packet,
             pad_frame: false // Todo do we need to pad flow control frame?
         };
-        let res =  server.send_receive_iso15765(payload, tp_config, 250, 1);
+        let res =  server.send_receive_iso15765(payload, tp_config, 250, 2);
         if let Err(e) = server.close_iso15765_interface() {
             eprintln!("FATAL Cannot close ISO-TP Interface {}", e)
         }
@@ -61,7 +61,6 @@ impl UDSRequest {
             }
         }
     }
-
     pub fn to_byte_array(&self) -> Vec<u8> {
         let mut packet = vec![self.cmd as u8];
         packet.extend_from_slice(&self.args);
