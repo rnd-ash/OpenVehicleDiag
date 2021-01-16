@@ -1,10 +1,10 @@
 use std::{collections::vec_deque, default};
 
-use crate::{commapi::{comm_api::{Capability, ComServer, ISO15765Config}, protocols::uds::{UDSCommand, UDSRequest}}, themes::button_coloured};
+use crate::{commapi::{comm_api::{Capability, ComServer, ISO15765Config}, protocols::{ProtocolServer, kwp2000::{self, KWP2000ECU}, uds::{UDSCommand, UDSRequest}}}, themes::button_coloured};
 use iced::{Align, Column, Element, Length, Row, Rule, Space, Text, TextInput, button};
 use crate::windows::window::WindowMessage;
 use crate::themes::{title_text, text, TextType, button_outlined, ButtonType, TitleSize, picklist};
-
+use crate::commapi::protocols::kwp2000::*;
 use super::uds_scanner::ECUISOTPSettings;
 
 #[derive(Debug, Clone)]
@@ -17,8 +17,8 @@ pub enum UDSManualMessage {
     FCTextInput(String),
     BSTextInput(String),
     SepTextInput(String),
-    SendTesterPresent,
-    SwitchDiagMode,
+    ReadErrors,
+    ReadECUID
 }
 
 #[derive(Debug, Clone)]
@@ -41,11 +41,12 @@ pub struct UDSManual {
     state3: iced::button::State,
     show_custom_ecu_ui: bool,
     logs: Vec<CommDetais>,
-    
+    diag_server: Option<KWP2000ECU>,
     send_text_input: iced::text_input::State,
     fc_text_input: iced::text_input::State,
     sep_text_input: iced::text_input::State,
     bs_text_input: iced::text_input::State,
+    scroll_state: iced:: scrollable::State,
 
     textinput_strings: Vec<String>
 }
@@ -77,7 +78,9 @@ impl UDSManual {
             fc_text_input: iced::text_input::State::default(),
             sep_text_input: iced::text_input::State::default(),
             bs_text_input: iced::text_input::State::default(),
-            logs: Vec::new()
+            logs: Vec::new(),
+            diag_server: None,
+            scroll_state: iced:: scrollable::State::default(),
             
         };
         println!("Manual mode launching");
@@ -108,12 +111,21 @@ impl UDSManual {
                 }
             },
             UDSManualMessage::ConnectECU => {
-                self.in_session = true;
-                if let Err(e) = self.server.open_iso15765_interface(500_000, false) {
-                    eprintln!("Error starting COM Interface {}", e);
-                    self.in_session = false;
-                }
                 self.logs.clear();
+                if self.diag_server.is_none() {
+                    let cfg = ISO15765Config {
+                        send_id: self.curr_ecu_settings.send_id,
+                        recv_id: self.curr_ecu_settings.flow_control_id,
+                        block_size: self.curr_ecu_settings.block_size,
+                        sep_time: self.curr_ecu_settings.sep_time_ms,
+
+                    };
+
+                    if let Ok(server) = KWP2000ECU::start_diag_session(self.server.clone(), &cfg) {
+                        self.in_session = true;
+                        self.diag_server = Some(server);
+                    }
+                }
             },
         
             UDSManualMessage::ConnectCustomECU => {
@@ -147,8 +159,11 @@ impl UDSManual {
             }
         
             UDSManualMessage::DisconnectECU => {
-                self.server.close_iso15765_interface();
-                self.in_session = false;
+                if let Some(ref mut s) = self.diag_server {
+                    s.exit_diag_session();
+                    self.in_session = false;
+                }
+                self.diag_server = None;
             }
         
             
@@ -188,12 +203,45 @@ impl UDSManual {
                 }
             },
 
-            UDSManualMessage::SendTesterPresent => {
-                self.log_run_uds_cmd(UDSRequest::new(UDSCommand::ECUReset, &[0x01]))
-            }
-
-            UDSManualMessage::SwitchDiagMode => {
-                self.log_run_uds_cmd(UDSRequest::new(UDSCommand::DiagnosticSessionControl, &[0x92]))
+            UDSManualMessage::ReadErrors => {
+                if let Some(ref mut s) = self.diag_server {
+                    match s.read_errors() {
+                        Ok(v) => {
+                            let mut s: String = "".into();
+                            for e in &v {
+                                s.push_str(format!("{}\n", e).as_str());
+                            }
+                            self.logs.push(CommDetais {
+                                req: "Send: READ_ECU_ERRORS".into(),
+                                res: if v.len() == 0 { "Resp: No Errors".into() } else { format!("Resp: Errors:\n{}", s) }
+                            });
+                        },
+                        Err(e) => {
+                            self.logs.push(CommDetais {
+                                req: "Send: READ_ECU_ERRORS".into(),
+                                res: format!("Err: {:?}", e)
+                            });
+                        }
+                    }
+                }
+            },
+            UDSManualMessage::ReadECUID => {
+                if let Some(ref mut s) = self.diag_server {
+                    match s.get_ecu_info_data() {
+                        Ok(v) => {
+                            self.logs.push(CommDetais {
+                                req: "Send: READ_ECU_ID".into(),
+                                res: format!("Resp: {:#?}", v)
+                            });
+                        },
+                        Err(e) => {
+                            self.logs.push(CommDetais {
+                                req: "Send: READ_ECU_ID".into(),
+                                res: format!("Err: {:?}", e)
+                            });
+                        }
+                    }
+                }
             }
 
             _ => {},
@@ -245,20 +293,22 @@ impl UDSManual {
             );
 
             let mut comm_view = Column::new(); // Communications overview
-            comm_view = comm_view.push(button_outlined(&mut self.state2, "Reset ECU", ButtonType::Secondary).on_press(UDSManualMessage::SendTesterPresent))
-                                    .push(button_outlined(&mut self.state3, "Switch diag mode", ButtonType::Secondary).on_press(UDSManualMessage::SwitchDiagMode));
+            comm_view = comm_view.push(button_outlined(&mut self.state2, "Read ECU errors", ButtonType::Secondary).on_press(UDSManualMessage::ReadErrors))
+                .push(button_outlined(&mut self.state3, "Read ECU ID", ButtonType::Secondary).on_press(UDSManualMessage::ReadECUID));
 
 
 
+            let mut log_scroll = iced::scrollable::Scrollable::new(&mut self.scroll_state);
             let mut log_view = Column::new(); // Log view
             for log in self.logs.iter() {
                 log_view = log_view.push(text(format!("Req: {}", log.req).as_str(), TextType::Normal));
                 log_view = log_view.push(text(format!("Res: {}", log.res).as_str(), TextType::Normal));
                 log_view = log_view.push(Space::with_height(Length::Units(5)));
             }
+            log_scroll = log_scroll.push(log_view);
             c = c.push(Row::new()
             .push(comm_view.width(Length::FillPortion(1)))
-            .push(log_view.width(Length::FillPortion(1))));
+            .push(log_scroll.width(Length::FillPortion(1))));
         } else {
             c = c
             .push(title_text("UDS Manual", TitleSize::P2))
