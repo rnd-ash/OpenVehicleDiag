@@ -334,8 +334,8 @@ impl UDSManual {
             let mut log_scroll = iced::scrollable::Scrollable::new(&mut self.scroll_state);
             let mut log_view = Column::new(); // Log view
             for log in self.logs.iter() {
-                log_view = log_view.push(text(format!("Req: {}", log.req).as_str(), TextType::Normal));
-                log_view = log_view.push(text(format!("Res: {}", log.res).as_str(), TextType::Normal));
+                log_view = log_view.push(text(format!("{}", log.req).as_str(), TextType::Normal));
+                log_view = log_view.push(text(format!("{}", log.res).as_str(), TextType::Normal));
                 log_view = log_view.push(Space::with_height(Length::Units(5)));
             }
             log_scroll = log_scroll.push(log_view).height(Length::Shrink);

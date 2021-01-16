@@ -387,13 +387,20 @@ impl ProtocolServer for KWP2000ECU {
         // 0x02 - Request Hex DTCs as 2 bytes
         // 0xFF00 - Request all DTCs (Mandatory per KWP2000)
         let mut bytes = self.run_command(Service::ReadDTCByStatus, &[0x02, 0xFF, 0x00], 500)?;
-
+        println!("{:02X?}", bytes);
         let count = bytes[0] as usize;
         bytes.drain(0..1);
 
         let mut res: Vec<DTC> = Vec::new();
         for _ in 0..count {
-            let name = format!("{:02X}{:02X}", bytes[0], bytes[1]);
+            let code = match bytes[0] {
+                x if x < 0x40 => 'P', // Powertrain DTC
+                x if x < 0x80 => 'B', // Body DTC
+                x if x < 0xC0 => 'C', // Chassis DTC
+                x if x < 0xFF => 'N', // Network DTC
+                _ => '?', // WTF is this error??
+            };
+            let name = format!("{}{:02X}{:02X}", code, bytes[0], bytes[1]);
             let status = bytes[2];
             println!("{:08b}", status);
             let flag = (status >> 4 & 0b00000001) > 0;
