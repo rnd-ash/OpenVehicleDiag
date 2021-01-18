@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use libc;
 use libloading::Library;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
@@ -9,9 +8,6 @@ use J2534Common::*;
 lazy_static! {
     pub static ref DRIVER: Arc<RwLock<Option<PassthruDrv>>> = Arc::new(RwLock::new(None));
 }
-
-#[cfg(unix)]
-use serde_json;
 
 #[cfg(windows)]
 use winreg::enums::*;
@@ -206,7 +202,7 @@ impl PassthruDrv {
     }
 
     pub fn is_connected(&self) -> bool {
-        return self.is_connected;
+        self.is_connected
     }
 
     //type PassThruOpenFn = unsafe extern "stdcall" fn(name: *const libc::c_void, device_id: *mut u32) -> i32;
@@ -237,7 +233,7 @@ impl PassthruDrv {
         msgs: &mut [PASSTHRU_MSG],
         timeout: u32,
     ) -> Result<usize> {
-        if msgs.len() == 0 {
+        if msgs.is_empty() {
             // No messages? Just tell application everything is OK
             return Ok(0);
         }
@@ -570,10 +566,7 @@ impl PassthruDevice {
     #[cfg(unix)]
     #[inline]
     pub fn read_bool(j: &serde_json::Value, s: &str) -> bool {
-        match j[s].as_bool() {
-            Some(x) => x,
-            None => false,
-        }
+        j[s].as_bool().unwrap_or(false)
     }
 
     #[cfg(unix)]

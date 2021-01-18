@@ -51,9 +51,9 @@ type Result<T> = std::result::Result<T, ApplicationError>;
 impl Launcher {
 
     pub fn new() -> Self {
-        let passthru_devices = PassthruDevice::find_all().unwrap_or(Vec::new());
+        let passthru_devices = PassthruDevice::find_all().unwrap_or_default();
         let passthru_device_names: Vec<String> = passthru_devices.iter().map(|d| d.name.clone()).collect();
-        let selected_passthru_device: String = passthru_device_names.get(0).map(|s| s.clone()).unwrap_or(String::new());
+        let selected_passthru_device: String = passthru_device_names.get(0).cloned().unwrap_or_default();
 
         Self {
             device_list_passthru: passthru_devices,
@@ -108,14 +108,14 @@ impl Launcher {
             .push(radio_btn(
                 API::DPdu,
                 "D-PDU",
-                Some(self.api_selection.clone()),
+                Some(self.api_selection),
                 LauncherMessage::SwitchAPI,
                 ButtonType::Primary
             ))
             .push(radio_btn(
                 API::Passthru,
                 "Passthru",
-                Some(self.api_selection.clone()),
+                Some(self.api_selection),
                 LauncherMessage::SwitchAPI,
                 ButtonType::Primary
             ))
@@ -135,7 +135,7 @@ impl Launcher {
                 .spacing(10)
                 .padding(20)
                 .push(selection);
-            if self.selected_device_passthru.len() == 0 {
+            if self.selected_device_passthru.is_empty() {
                 // No passthru devices
                 c = c.push(text("No Passthru devices found on this system", TextType::Normal))
             } else {
@@ -167,7 +167,7 @@ impl Launcher {
             // This should NEVER happen.
             None => Err(DriverError(ComServerError{
                 err_code: 99,
-                err_desc: format!("WTF. Located device is not valid??")
+                err_desc: "WTF. Located device is not valid??".to_string()
             }))
         }
     }

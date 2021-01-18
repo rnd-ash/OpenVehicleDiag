@@ -9,7 +9,6 @@ use crate::themes::{button_coloured, ButtonType};
 #[derive(Debug, Clone)]
 pub enum TracerMessage {
     NewData(Instant),
-    ClearQueue,
     ConnectCan,
     DisconnectCan,
     ToggleBinaryMode(bool)
@@ -55,7 +54,6 @@ impl<'a> CanTracer {
                     self.insert_frames_to_map(m)
                 }
             },
-            TracerMessage::ClearQueue => self.can_queue.clear(),
             TracerMessage::ConnectCan => {
                 if let Err(e) = self.server.as_mut().open_can_interface(500_000, false) {
                     self.status_text = format!("Error opening CAN Interface {}",  e)
@@ -63,10 +61,8 @@ impl<'a> CanTracer {
                     self.is_connected = true;
                     if let Err(e) = self.server.as_mut().add_can_filter(FilterType::Pass, 0x0000, 0x0000) {
                         self.status_text = format!("Error setting CAN Filter {}",  e)
-                    } else {
-                        if let Err(e) = self.server.send_can_packets(&[CanFrame::new(0x07DF, &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0) {
-                            self.status_text = format!("Error sending wake-up packet {}",  e)
-                        }
+                    } else if let Err(e) = self.server.send_can_packets(&[CanFrame::new(0x07DF, &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0) {
+                        self.status_text = format!("Error sending wake-up packet {}",  e)
                     }
                 }
             }
@@ -97,12 +93,12 @@ impl<'a> CanTracer {
     pub fn view(&mut self) -> Element<TracerMessage> {
         let mut connect_btn = button_coloured(&mut self.connect_state, "Connect", ButtonType::Info);
         let check = self.is_binary_fmt;
-        if &self.is_connected == &false {
+        if !self.is_connected {
             connect_btn = connect_btn.on_press(TracerMessage::ConnectCan)
         }
 
         let mut disconnect_btn = button_coloured(&mut self.disconnect_state, "Disconnect", ButtonType::Info);
-        if &self.is_connected == &true  {
+        if self.is_connected  {
             disconnect_btn = disconnect_btn.on_press(TracerMessage::DisconnectCan)
         }
 
@@ -120,7 +116,7 @@ impl<'a> CanTracer {
 
     pub fn build_can_list(binary: &bool, curr_data: &HashMap<u32, CanFrame>, old_data: &mut HashMap<u32, CanFrame>) -> Element<'a, TracerMessage> {
         let mut col = Column::new();
-        let mut x : Vec<u32> = curr_data.keys().into_iter().map(|x| *x).collect();
+        let mut x : Vec<u32> = curr_data.keys().into_iter().copied().collect();
         x.sort_by(|a, b| a.partial_cmp(b).unwrap());
         for cid in x {
             let i = curr_data.get(&cid).unwrap();
@@ -132,13 +128,13 @@ impl<'a> CanTracer {
                 for (i, byte) in i.get_data().iter().enumerate() {
                     container = if *byte == old_data[i] { // Same as old data
                         match binary {
-                            &true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
-                            &false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).width(Length::Units(30))))
+                            true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
+                            false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).width(Length::Units(30))))
                         }
                     } else { // Different data at this index, colour the text red
                         match binary {
-                            &true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)).color(Color::from_rgb8(192, 0, 0)))), // Cram all binary bits together
-                            &false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).color(Color::from_rgb8(192, 0, 0)).width(Length::Units(30))))
+                            true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)).color(Color::from_rgb8(192, 0, 0)))), // Cram all binary bits together
+                            false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).color(Color::from_rgb8(192, 0, 0)).width(Length::Units(30))))
                         }
                     }
                 }
@@ -147,8 +143,8 @@ impl<'a> CanTracer {
                 // New frame, just add it
                 for byte in i.get_data() {
                     container = match binary {
-                        &true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
-                        &false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).width(Length::Units(30))))
+                        true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
+                        false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).width(Length::Units(30))))
                     }
                 }
             }

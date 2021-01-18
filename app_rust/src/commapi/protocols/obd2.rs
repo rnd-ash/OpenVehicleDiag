@@ -9,7 +9,7 @@ fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &OBDReques
     // Guess to use something appropriate for block size and sep time
     let send_data = ISO15765Data {
         id: 0x07DF, // Global request ID for OBD-II over CAN
-        data: Vec::from(payload.to_vec()),
+        data: payload.to_vec(),
         pad_frame: false
     };
 
@@ -25,13 +25,13 @@ fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &OBDReques
 
     match res {
         Ok(pack) => {
-            if pack.len() == 0 {
-                return Err(OBDProcessError::NoResponse)
+            if pack.is_empty() {
+                Err(OBDProcessError::NoResponse)
             } else {
-                return Ok(pack[0].data.clone());
+                Ok(pack[0].data.clone())
             }
         }
-        Err(e) => return Err(OBDProcessError::CommError(e))
+        Err(e) => Err(OBDProcessError::CommError(e))
     }
 }
 
@@ -84,7 +84,7 @@ pub struct OBDRequest {
 
 impl OBDRequest {
     fn new(service: u8, pid: u8) -> Self {
-        return Self {
+        Self {
             service,
             pid: Some(pid),
             args: vec![]
@@ -92,7 +92,7 @@ impl OBDRequest {
     }
 
     fn new_nopid(service: u8) -> Self {
-        return Self {
+        Self {
             service,
             pid: None,
             args: vec![]
@@ -132,6 +132,7 @@ pub struct Service01 {
     supported_pids: [bool; 0xFF]
 }
 
+#[allow(dead_code)]
 impl Service01 {
     pub fn get_supported_pids(&self) -> Vec<u8> {
         let mut res: Vec<u8> = Vec::new();
@@ -140,16 +141,16 @@ impl Service01 {
                 res.push(pos as u8);
             }
         }
-        return res;
+        res
     }
 
     fn write_to_supported(&mut self, data: Vec<u8>, start_id: usize) {
         println!("{:?}", data);
         let mut curr_idx = start_id;
-        for i in 0..4 as usize {
+        for i in 0..4 {
             let curr_byte = data[i];
-            for shift in 0..=7 as usize {
-                self.supported_pids[curr_idx] = (curr_byte >> 7-shift) & 0x01 > 0;
+            for shift in 0..=7 {
+                self.supported_pids[curr_idx] = (curr_byte >> (7-shift)) & 0x01 > 0;
                 curr_idx += 1;
             }
         }
@@ -295,15 +296,15 @@ impl Service01 {
     /// Returns the OBD-II Standard the vehicle supports
     pub fn get_obd_std(&self, server: &mut Box<dyn ComServer>, use_can: bool) -> Result<Vec<OBDStandard>> {
         match self.read_pid_supported(server, use_can, 0x12)?[0] {
-            01 => Ok(vec![OBDStandard::CARB]),
-            02 => Ok(vec![OBDStandard::EPA]),
-            03 => Ok(vec![OBDStandard::OBD1, OBDStandard::OBD2]),
-            04 => Ok(vec![OBDStandard::OBD1]),
-            05 => Ok(vec![OBDStandard::NA]),
-            06 => Ok(vec![OBDStandard::EOBD]),
-            07 => Ok(vec![OBDStandard::EOBD, OBDStandard::OBD2]),
-            08 => Ok(vec![OBDStandard::EOBD, OBDStandard::OBD1]),
-            09 => Ok(vec![OBDStandard::EOBD, OBDStandard::OBD1, OBDStandard::OBD2]),
+            1 => Ok(vec![OBDStandard::CARB]),
+            2 => Ok(vec![OBDStandard::EPA]),
+            3 => Ok(vec![OBDStandard::OBD1, OBDStandard::OBD2]),
+            4 => Ok(vec![OBDStandard::OBD1]),
+            5 => Ok(vec![OBDStandard::NA]),
+            6 => Ok(vec![OBDStandard::EOBD]),
+            7 => Ok(vec![OBDStandard::EOBD, OBDStandard::OBD2]),
+            8 => Ok(vec![OBDStandard::EOBD, OBDStandard::OBD1]),
+            9 => Ok(vec![OBDStandard::EOBD, OBDStandard::OBD1, OBDStandard::OBD2]),
             10 => Ok(vec![OBDStandard::JOBD]),
             11 => Ok(vec![OBDStandard::JOBD, OBDStandard::OBD2]),
             12 => Ok(vec![OBDStandard::JOBD, OBDStandard::EOBD]),
@@ -459,12 +460,12 @@ pub struct Service09 {
 }
 impl Service09 {
     pub fn get_vin(&self, server: &mut Box<dyn ComServer>, use_can: bool) -> Result<Vin> {
-        if self.VIN == false {
+        if !self.VIN {
             return Err(OBDProcessError::PIDNotSupported)
         }
         let mut data = read_write_payload(server, use_can, &OBDRequest::new(0x09, 0x02))?.data;
         data.drain(0..1);
-        return if let Some(x) = Vin::new(String::from_utf8(data).unwrap()) {
+        if let Some(x) = Vin::new(String::from_utf8(data).unwrap()) {
             Ok(x)
         } else {
             Err(OBDProcessError::InvalidResponse("VIN is not correct length".into()))

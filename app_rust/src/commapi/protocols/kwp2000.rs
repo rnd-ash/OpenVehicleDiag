@@ -244,7 +244,7 @@ fn bcd_decode(input: u8) -> String {
 }
 
 impl KWP2000ECU {
-    pub (crate) fn send_kwp2000_cmd(server: &Box<dyn ComServer>, send_id: u32, cmd: Service, args: &[u8]) -> std::result::Result<usize, ComServerError> {
+    pub (crate) fn send_kwp2000_cmd(server: &dyn ComServer, send_id: u32, cmd: Service, args: &[u8]) -> std::result::Result<usize, ComServerError> {
         let mut data = ISO15765Data {
             id: send_id,
             data: vec![],
@@ -285,15 +285,15 @@ impl KWP2000ECU {
 }
 
 impl ProtocolServer for KWP2000ECU {
-    type command = Service;
+    type Command = Service;
     fn start_diag_session(mut comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> std::result::Result<Self, ProtocolError> {
-        comm_server.open_iso15765_interface(500_000, false).map_err(|e| ProtocolError::CommError(e))?;
+        comm_server.open_iso15765_interface(500_000, false).map_err(ProtocolError::CommError)?;
         comm_server.add_iso15765_filter(
             cfg.recv_id,
             0xFFF, 
             cfg.send_id
-        ).map_err(|e| ProtocolError::CommError(e))?;
-        comm_server.set_iso15765_params(cfg.sep_time, cfg.block_size).map_err(|e| ProtocolError::CommError(e))?;
+        ).map_err(ProtocolError::CommError)?;
+        comm_server.set_iso15765_params(cfg.sep_time, cfg.block_size).map_err(ProtocolError::CommError)?;
     
 
         let should_run = Arc::new(AtomicBool::new(true));
@@ -313,7 +313,7 @@ impl ProtocolServer for KWP2000ECU {
                     last_send = std::time::Instant::now();
                     if !stop_tester_present_t.load(Relaxed) {
                         // Tell the ECU Tester is still here, no response required though :)
-                        KWP2000ECU::send_kwp2000_cmd(&server_t, ecu_id, Service::TesterPresent, &[0x01]);
+                        KWP2000ECU::send_kwp2000_cmd(server_t.as_ref(), ecu_id, Service::TesterPresent, &[0x01]);
                     }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(1));
@@ -324,19 +324,19 @@ impl ProtocolServer for KWP2000ECU {
 
 
         let mut ecu = KWP2000ECU {
-            comm_server: comm_server,
-            iso_tp_settings: cfg.clone(),
+            comm_server,
+            iso_tp_settings: *cfg,
             stop_tester_present: stop_send_tester_present,
-            should_run: should_run,
+            should_run,
 
         };
         if let Err(e) = ecu.run_command(Service::StartDiagSession, &[0x92], 250) {
             eprintln!("Error sending tester present {:?}", e);
             ecu.comm_server.close_iso15765_interface();
-            return Err(e)
+            Err(e)
         } else {
             ecu.stop_tester_present.store(false, Relaxed);
-            return Ok(ecu)
+            Ok(ecu)
         }
     
     }
@@ -346,19 +346,19 @@ impl ProtocolServer for KWP2000ECU {
         self.comm_server.close_iso15765_interface();
     }
 
-    fn run_command(&self, cmd: Self::command, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
-        if let Err(e) =  KWP2000ECU::send_kwp2000_cmd(&self.comm_server, self.iso_tp_settings.send_id, cmd, args) {
+    fn run_command(&self, cmd: Self::Command, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
+        if let Err(e) =  KWP2000ECU::send_kwp2000_cmd(self.comm_server.as_ref(), self.iso_tp_settings.send_id, cmd, args) {
             self.stop_tester_present.store(false, Relaxed); // Wait for response
             return Err(ProtocolError::CommError(e));
         }
         if max_timeout_ms == 0 {
-            return Ok(vec![]);
+            Ok(vec![])
         } else {
             let start = std::time::Instant::now();
             while start.elapsed().as_millis() < max_timeout_ms {
                 if let Ok(msgs) = self.comm_server.read_iso15765_packets(0, 1) {
                     for m in msgs {
-                        if m.data.len() != 0 { // Avoid FF indications
+                        if !m.data.is_empty() { // Avoid FF indications
                             if m.data[0] == cmd.get_byte() + 0x40 {
                                 self.stop_tester_present.store(false, Relaxed);
                                 return Ok(Vec::from(&m.data[1..]))
@@ -369,7 +369,7 @@ impl ProtocolServer for KWP2000ECU {
                                 } else {
                                     // Other error
                                     self.stop_tester_present.store(false, Relaxed);
-                                    return Err(ProtocolError::ProtocolError(format!("{}", NegativeResponse::from_byte(m.data[1]).get_name())))
+                                    return Err(ProtocolError::ProtocolError(NegativeResponse::from_byte(m.data[1]).get_name()))
                                 }
                             }
                         }
@@ -378,7 +378,7 @@ impl ProtocolServer for KWP2000ECU {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
             self.stop_tester_present.store(false, Relaxed);
-            return Err(ProtocolError::Timeout)
+            Err(ProtocolError::Timeout)
         }
     }
 
@@ -415,6 +415,6 @@ impl ProtocolServer for KWP2000ECU {
             });
             bytes.drain(0..3);
         }
-        return Ok(res);
+        Ok(res)
     }
 }

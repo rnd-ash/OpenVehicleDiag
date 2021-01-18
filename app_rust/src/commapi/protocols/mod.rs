@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use comm_api::ISO15765Config;
 
-use super::comm_api::{self, ComServer, ComServerError};
+use super::comm_api::{self, ComServer};
 
 pub mod uds;
 pub mod obd2;
@@ -58,11 +58,11 @@ impl Display for DTC {
 }
 
 pub trait ProtocolServer : Clone {
-    type command: Selectable + CommandLevel;
+    type Command: Selectable + CommandLevel;
     
     fn start_diag_session(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> std::result::Result<Self, ProtocolError>;
     fn exit_diag_session(&mut self);
-    fn run_command(&self, cmd: Self::command, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>>;
+    fn run_command(&self, cmd: Self::Command, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>>;
 
     fn read_errors(&self) -> std::result::Result<Vec<DTC>, ProtocolError>;
 }

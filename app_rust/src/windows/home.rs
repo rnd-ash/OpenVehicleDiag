@@ -35,7 +35,7 @@ impl Home {
         ret
     }
 
-    pub fn update(&mut self, msg: &HomeMessage) -> Option<WindowMessage> {
+    pub fn update(&mut self, _msg: &HomeMessage) -> Option<WindowMessage> {
         None
     }
 
@@ -53,7 +53,7 @@ impl Home {
             .push(text(format!("Hardware name: {} (FW Version {})", cap.get_name(), cap.get_device_fw_version()).as_str(), TextType::Normal))
             .push(text(format!("Hardware vendor: {}", cap.get_vendor()).as_str(), TextType::Normal))
             .push(text(format!("Library path: {} (Version {})", cap.get_lib_path(), cap.get_library_version()).as_str(), TextType::Normal))
-            .push(title_text(format!("Supported protocols").as_str(), TitleSize::P3))
+            .push(title_text("Supported protocols", TitleSize::P3))
             .push(
             Row::new().spacing(5)
                     .push(

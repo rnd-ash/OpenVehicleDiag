@@ -76,7 +76,7 @@ impl Vin {
             "WDC" | "WDD" | "WMX" => ("Germany", "Daimler AG"),
             _ => ("Unknown", "Unknown")
         };
-        return (res.0.into(), res.1.into())
+        (res.0.into(), res.1.into())
     }
 
 

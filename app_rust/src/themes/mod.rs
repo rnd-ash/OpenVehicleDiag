@@ -120,7 +120,7 @@ where T : Into<Element<'a, Msg>> {
     Container::new(contents).style(elements::Container)
 }
 
-pub fn radio_btn<'a, Msg: Clone, V, F>(value: V, label: impl Into<String>, selected: Option<V>, f: F, btn_t: ButtonType) -> Radio<Msg>
+pub fn radio_btn<Msg: Clone, V, F>(value: V, label: impl Into<String>, selected: Option<V>, f: F, btn_t: ButtonType) -> Radio<Msg>
     where
     V: Eq + Copy,
     F: 'static + Fn(V) -> Msg
