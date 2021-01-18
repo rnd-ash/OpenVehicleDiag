@@ -21,7 +21,7 @@ impl UDSRequest {
     }
 
     pub fn run_cmd_can(&self, server: &mut Box<dyn ComServer>, tp_config: &ISO15765Config) -> Result<UDSResponse> {
-        server.open_iso15765_interface(500_000, false).map_err(|e| UDSProcessError::CommError(e))?;
+        server.open_iso15765_interface(500_000, false).map_err(UDSProcessError::CommError)?;
         let mut packet = vec![self.cmd as u8];
         packet.extend_from_slice(&self.args);
         let payload = ISO15765Data {
@@ -35,7 +35,7 @@ impl UDSRequest {
         }
         match res {
             Ok(data) => {
-                if data.len() == 0 {
+                if data.is_empty() {
                     Err(UDSProcessError::NoResponse)
                 } else {
                     let mut resp = Err(UDSProcessError::NoResponse);
@@ -64,7 +64,7 @@ impl UDSRequest {
     pub fn to_byte_array(&self) -> Vec<u8> {
         let mut packet = vec![self.cmd as u8];
         packet.extend_from_slice(&self.args);
-        return packet;
+        packet
     }
 }
 
@@ -591,7 +591,7 @@ impl std::convert::From<ComServerError> for UDSProcessError {
 
 impl UDSResponse {
     fn from_data(args: &[u8]) -> Result<Self> {
-        if args.len() == 0x00 {
+        if args.is_empty() {
             return Err(UDSProcessError::InvalidDataLen)
         }
         if args[0] == 0x7F {

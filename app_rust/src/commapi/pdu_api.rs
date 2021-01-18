@@ -7,6 +7,7 @@ pub struct DpduAPI {
     // TODO DPDU
 }
 
+#[allow(unused_variables)]
 impl ComServer for DpduAPI {
     fn open_device(&mut self) -> Result<(), ComServerError> {
         unimplemented!()

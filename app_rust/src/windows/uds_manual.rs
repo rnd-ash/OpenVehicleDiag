@@ -1,5 +1,4 @@
 use std::{collections::vec_deque, default};
-
 use crate::{commapi::{comm_api::{Capability, ComServer, ISO15765Config}, protocols::{ProtocolServer, kwp2000::{self, KWP2000ECU}, uds::{UDSCommand, UDSRequest}}}, themes::button_coloured};
 use iced::{Align, Column, Element, Length, Row, Rule, Space, Text, TextInput, button};
 use crate::windows::window::WindowMessage;
@@ -171,37 +170,25 @@ impl UDSManual {
         
             
             UDSManualMessage::SendTextInput(s) => {
-                if s.len() == 0 {
+                if s.is_empty() || (s.len() <= 4 && i32::from_str_radix(s, 16).is_ok()) {
                     self.textinput_strings[0] = s.to_string();
-                } else if s.len() <= 4 {
-                    if let Ok(_) = i32::from_str_radix(s, 16) {
-                        self.textinput_strings[0] = s.to_string();
-                    }
                 }
             },
 
             UDSManualMessage::FCTextInput(s) => {
-                if s.len() == 0 {
+                if s.is_empty() || (s.len() <= 4 && i32::from_str_radix(s, 16).is_ok()) {
                     self.textinput_strings[1] = s.to_string();
-                } else if s.len() <= 4 {
-                    if let Ok(_) = i32::from_str_radix(s, 16) {
-                        self.textinput_strings[1] = s.to_string();
-                    }
                 }
             },
 
             UDSManualMessage::SepTextInput(s) => {
-                if s.len() == 0 {
-                    self.textinput_strings[2] = s.to_string();
-                } else if let Ok(_) = i32::from_str_radix(s, 10) {
+                if s.is_empty() || (s.len() <= 4 && i32::from_str_radix(s, 16).is_ok()) {
                     self.textinput_strings[2] = s.to_string();
                 }
             },
 
             UDSManualMessage::BSTextInput(s) => {
-                if s.len() == 0 {
-                    self.textinput_strings[3] = s.to_string();
-                } else if let Ok(_) = i32::from_str_radix(s, 10) {
+                if s.is_empty() || (s.len() <= 4 && i32::from_str_radix(s, 16).is_ok()) {
                     self.textinput_strings[3] = s.to_string();
                 }
             },
@@ -215,7 +202,7 @@ impl UDSManual {
                             for e in &v {
                                 s.push_str(format!("{}\n", e).as_str());
                             }
-                            if v.len() > 0 {
+                            if !v.is_empty() {
                                 self.show_clear_btn = true;
                             } else {
                                 self.show_clear_btn = false;
@@ -223,7 +210,7 @@ impl UDSManual {
 
                             self.logs.push(CommDetais {
                                 req: "Send: READ_ECU_ERRORS".into(),
-                                res: if v.len() == 0 { "Resp: No Errors".into() } else { format!("Resp: Errors:\n{}", s) }
+                                res: if v.is_empty() { "Resp: No Errors".into() } else { format!("Resp: Errors:\n{}", s) }
                             });
                         },
                         Err(e) => {
@@ -261,7 +248,7 @@ impl UDSManual {
                         Ok(_) => {
                             self.logs.push(CommDetais {
                                 req: "Send: CLEAR_ECU_ERRORS".into(),
-                                res: format!("Resp: OK")
+                                res: "Resp: OK".to_string()
                             });
                             self.show_clear_btn = false;
                         },
@@ -334,8 +321,8 @@ impl UDSManual {
             let mut log_scroll = iced::scrollable::Scrollable::new(&mut self.scroll_state);
             let mut log_view = Column::new(); // Log view
             for log in self.logs.iter() {
-                log_view = log_view.push(text(format!("{}", log.req).as_str(), TextType::Normal));
-                log_view = log_view.push(text(format!("{}", log.res).as_str(), TextType::Normal));
+                log_view = log_view.push(text(log.req.as_str(), TextType::Normal));
+                log_view = log_view.push(text(log.res.as_str(), TextType::Normal));
                 log_view = log_view.push(Space::with_height(Length::Units(5)));
             }
             log_scroll = log_scroll.push(log_view).height(Length::Shrink);
@@ -361,12 +348,12 @@ impl UDSManual {
                     .push(TextInput::new(&mut self.sep_text_input, "Sep time (ms)", &self.textinput_strings[2], UDSManualMessage::SepTextInput).width(Length::Units(150)))
                     .push(TextInput::new(&mut self.bs_text_input, "Block size", &self.textinput_strings[3], UDSManualMessage::BSTextInput).width(Length::Units(150)))
                 );
-                if self.textinput_strings[0] != "" && self.textinput_strings[1] != "" && self.textinput_strings[2] != "" && self.textinput_strings[3] != "" {
+                if !self.textinput_strings[0].is_empty() && !self.textinput_strings[1].is_empty() && !self.textinput_strings[2].is_empty() && !self.textinput_strings[3].is_empty() {
                     c = c.push(button_coloured(&mut self.state, "Connect to custom ECU", ButtonType::Primary).on_press(UDSManualMessage::ConnectCustomECU))
                 }
             }
         }
-        return c.into();
+        c.into()
     }
 }
 

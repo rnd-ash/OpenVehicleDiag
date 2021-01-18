@@ -1,8 +1,6 @@
-use crate::commapi;
-use crate::passthru;
 use crate::passthru::{PassthruDevice, PassthruDrv, DrvVersion};
 use crate::commapi::comm_api::{ComServer, ISO15765Data, FilterType, CanFrame, ComServerError, DeviceCapabilities, Capability};
-use J2534Common::{PassthruError, PASSTHRU_MSG, Protocol, IoctlID, SConfig, IoctlParam, SConfigList, ConnectFlags, RxFlag, TxFlag, Loggable};
+use J2534Common::{PassthruError, PASSTHRU_MSG, Protocol, IoctlID, SConfig, IoctlParam, SConfigList, ConnectFlags, TxFlag, Loggable};
 use J2534Common::IoctlID::READ_VBATT;
 use std::os::raw::c_void;
 use J2534Common::PassthruError::{ERR_INVALID_CHANNEL_ID, ERR_FAILED};
@@ -76,7 +74,7 @@ impl ComServer for PassthruApi {
             .map(|read| {
                 read.iter().map(|msg| { PassthruApi::pt_msg_to_iso15765(msg) }).filter_map(Option::Some).map(|x| {x.unwrap()}).collect()
             });
-        return if let Err(e) = res {
+        if let Err(e) = res {
             if e == PassthruError::ERR_BUFFER_EMPTY {
                 Ok(Vec::new())
             } else {
@@ -149,14 +147,18 @@ impl ComServer for PassthruApi {
                     FilterType::Block => BLOCK_FILTER
                 };
 
-                let mut mask_msg = PASSTHRU_MSG::default();
-                mask_msg.protocol_id = Protocol::CAN as u32;
-                mask_msg.data_size = 4;
+                let mut mask_msg = PASSTHRU_MSG {
+                    protocol_id: Protocol::CAN as u32,
+                    data_size: 4,
+                    ..Default::default()
+                };
                 PassthruApi::u32_to_msg_id(mask, &mut mask_msg);
 
-                let mut ptn_msg = PASSTHRU_MSG::default();
-                ptn_msg.protocol_id = Protocol::CAN as u32;
-                ptn_msg.data_size = 4;
+                let mut ptn_msg =  PASSTHRU_MSG {
+                    protocol_id: Protocol::CAN as u32,
+                    data_size: 4,
+                    ..Default::default()
+                };
                 PassthruApi::u32_to_msg_id(id, &mut ptn_msg);
                 self.driver.lock().unwrap().start_msg_filter(idx, f_type, &mask_msg, &ptn_msg, None).map_err(|e| self.convert_error(e))
             }
@@ -174,19 +176,25 @@ impl ComServer for PassthruApi {
         match *self.iso15765_channel_idx.read().unwrap() {
             None => Err(self.convert_error(ERR_INVALID_CHANNEL_ID)),
             Some(idx) => {
-                let mut mask_msg = PASSTHRU_MSG::default();
-                mask_msg.protocol_id = Protocol::ISO15765 as u32;
-                mask_msg.data_size = 4;
+                let mut mask_msg = PASSTHRU_MSG {
+                    protocol_id: Protocol::ISO15765 as u32,
+                    data_size: 4,
+                    ..Default::default()
+                };
                 PassthruApi::u32_to_msg_id(mask, &mut mask_msg);
 
-                let mut ptn_msg = PASSTHRU_MSG::default();
-                ptn_msg.protocol_id = Protocol::ISO15765 as u32;
-                ptn_msg.data_size = 4;
+                let mut ptn_msg = PASSTHRU_MSG {
+                    protocol_id: Protocol::ISO15765 as u32,
+                    data_size: 4,
+                    ..Default::default()
+                };
                 PassthruApi::u32_to_msg_id(id, &mut ptn_msg);
 
-                let mut fc_msg = PASSTHRU_MSG::default();
-                fc_msg.protocol_id = Protocol::ISO15765 as u32;
-                fc_msg.data_size = 4;
+                let mut fc_msg = PASSTHRU_MSG {
+                    protocol_id: Protocol::ISO15765 as u32,
+                    data_size: 4,
+                    ..Default::default()
+                };
                 PassthruApi::u32_to_msg_id(flow_control_id, &mut fc_msg);
                 self.driver.lock().unwrap().start_msg_filter(idx, FLOW_CONTROL_FILTER, &mask_msg, &ptn_msg, Some(fc_msg)).map_err(|e| self.convert_error(e))
             }
@@ -296,7 +304,7 @@ impl ComServer for PassthruApi {
         let caps = DeviceCapabilities {
             name: self.device.name.clone(),
             library_version: version.dll_version.clone(),
-            device_fw_version: version.fw_version.clone(),
+            device_fw_version: version.fw_version,
             vendor: self.device.vendor.clone(),
             library_path: self.device.drv_path.clone(),
             j1850vpw: Capability::from_bool(self.device.j1850vpw),
@@ -336,12 +344,14 @@ impl PassthruApi {
     }
 
     fn can_frame_to_pt_msg(cf: &CanFrame) -> PASSTHRU_MSG {
-        let mut msg = PASSTHRU_MSG::default();
-        msg.protocol_id = Protocol::CAN as u32;
-        msg.data_size = cf.dlc as u32 + 4; // +4 for CAN ID
+        let mut msg = PASSTHRU_MSG {
+            protocol_id: Protocol::CAN as u32,
+            data_size: cf.dlc as u32 + 4, // +4 for CAN ID
+            ..Default::default()
+        };
         PassthruApi::u32_to_msg_id(cf.id, &mut msg);
         msg.data[4..msg.data_size as usize].copy_from_slice(cf.get_data());
-        return msg;
+        msg
     }
 
     /// Converts a PASSTHRU_MSG to a Can Frame
@@ -368,15 +378,17 @@ impl PassthruApi {
     }
 
     fn iso15765_to_pt_msg(d: &ISO15765Data) -> PASSTHRU_MSG {
-        let mut msg = PASSTHRU_MSG::default();
-        msg.protocol_id = Protocol::ISO15765 as u32;
-        msg.data_size = d.data.len() as u32 + 4;
+        let mut msg = PASSTHRU_MSG {
+            protocol_id: Protocol::ISO15765 as u32,
+            data_size: d.data.len() as u32 + 4, // +4 for CAN ID
+            ..Default::default()
+        };
         PassthruApi::u32_to_msg_id(d.id, &mut msg);
         msg.data[4..msg.data_size as usize].copy_from_slice(d.data.as_slice());
         if d.pad_frame {
             msg.tx_flags = TxFlag::ISO15765_FRAME_PAD.bits();
         }
-        return msg;
+        msg
     }
 
     #[inline(always)]
@@ -389,7 +401,7 @@ impl PassthruApi {
         msg.data[0] = (i >> 24) as u8;
         msg.data[1] = (i >> 16) as u8;
         msg.data[2] = (i >>  8) as u8;
-        msg.data[3] = (i >>  0) as u8;
+        msg.data[3] = i as u8;
     }
 
     fn convert_error(&self, e: PassthruError) -> ComServerError {
@@ -401,7 +413,7 @@ impl PassthruApi {
                 "Generic unknown failure".into()
             }
         } else {
-            format!("{}", e.to_string())
+            e.to_string().into()
         };
         ComServerError { err_code: code, err_desc: desc }
     }

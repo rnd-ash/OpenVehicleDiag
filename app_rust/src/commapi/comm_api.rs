@@ -14,7 +14,7 @@ pub struct CanFrame {
 
 impl CanFrame {
     pub fn get_data(&self) -> &[u8] {
-        return &self.data[0..self.dlc as usize];
+        &self.data[0..self.dlc as usize]
     }
     pub fn new(id: u32, data: &[u8]) -> Self {
         let dlc = min(data.len(), 8) as usize;
@@ -279,9 +279,9 @@ pub trait ComServer : Send + Sync + Debug {
         let start = Instant::now();
         while start.elapsed().as_millis() < timeout {
             if let Ok(d) = self.read_iso15765_packets(0, 10) {
-                if d.len() > 0 {
+                if !d.is_empty() {
                     for msg in d {
-                        if msg.data.len() == 0 { // First frame
+                        if !msg.data.is_empty() { // First frame
                             timeout += 10;
                         } else {
                             payloads.push(msg);
@@ -297,7 +297,7 @@ pub trait ComServer : Send + Sync + Debug {
         if let Err(e) = self.rem_iso15765_filter(f_idx) {
             eprintln!("FATAL: Cannot close ISO-TP filter {} {}", f_idx, e)
         }
-        return Ok(payloads)
+        Ok(payloads)
     }
 
     /// Tells the adapter to clear any data in its Rx buffer

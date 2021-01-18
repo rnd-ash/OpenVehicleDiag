@@ -111,7 +111,7 @@ impl<'a> UDSHome {
             Ok(e) => println!("OK: {:?}", e),
             Err(e) => println!("ERR: {:?}", e)
         };
-        return x;
+        x
     }
 
     pub fn update(&mut self, msg: &UDSHomeMessage) -> Option<UDSHomeMessage> {
@@ -122,9 +122,9 @@ impl<'a> UDSHome {
                 self.scan_stage = 0;
             }
             UDSHomeMessage::LaunchAutomatic => {
-                if let Ok(_) = self.server.open_can_interface(500_000, false) {
+                if self.server.open_can_interface(500_000, false).is_ok() {
                     let test_frame = CanFrame::new(0x07DF, &[0x02, 0x09, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00]);
-                    if let Ok(_) = self.server.send_can_packets(&[test_frame], 100) {
+                    if self.server.send_can_packets(&[test_frame], 100).is_ok() {
                         self.auto_mode = true;
                         self.scan_stage = 0;
                         self.in_home = false;
@@ -143,12 +143,12 @@ impl<'a> UDSHome {
             },
             UDSHomeMessage::ManualMessage(msg) => {
                 if let Some(ref mut x) = self.manual_ui {
-                    return x.update(msg).map(|m| UDSHomeMessage::ManualMessage(m))
+                    return x.update(msg).map(UDSHomeMessage::ManualMessage)
                 }
             }
 
             UDSHomeMessage::SaveScanResults => {
-                if self.auto_found_ids.len() > 0 {
+                if !self.auto_found_ids.is_empty() {
                     let time = chrono::Utc::now();
                     let path = std::env::current_dir().unwrap().join(format!("scan-{}.ovdjson", time.format("%F-%H_%M_%S")));
                     match File::create(&path) {
@@ -159,14 +159,16 @@ impl<'a> UDSHome {
                                     ecus.push(res.clone())
                                 }
                             }
-                            let mut car = CarECUs{
+                            let car = CarECUs{
                                 vehicle_name: "Unknown".into(),
                                 vehicle_year: 2000,
                                 vehicle_oem: "Unknown".into(),
                                 ecus
                             };
-                            f.write_all(serde_json::to_string_pretty(&car).unwrap().as_bytes());
-                            self.save_text = format!("Scan results saved to {}", &path.as_os_str().to_str().unwrap());
+                            self.save_text = match f.write_all(serde_json::to_string_pretty(&car).unwrap().as_bytes()) {
+                                Ok(_) => format!("Scan results saved to {}", &path.as_os_str().to_str().unwrap()),
+                                Err(e) => format!("Error writing results to {} - {}", &path.as_os_str().to_str().unwrap(), e)
+                            };
                         },
                         Err(e) => {
                             self.save_text = format!("Error saving file - {}", e)
@@ -175,25 +177,22 @@ impl<'a> UDSHome {
                 }
             }
             UDSHomeMessage::OpenFile => {
-                match nfd::open_file_dialog(Some("ovdjson"), None).unwrap_or(nfd::Response::Cancel) {
-                    nfd::Response::Okay(f_path) => {
-                        if let Ok(mut file) = File::open(f_path) {
-                            let mut str = "".into();
-                            file.read_to_string(&mut str);
+                if let nfd::Response::Okay(f_path) = nfd::open_file_dialog(Some("ovdjson"), None).unwrap_or(nfd::Response::Cancel) {
+                    if let Ok(mut file) = File::open(f_path) {
+                        let mut str = "".into();
+                        file.read_to_string(&mut str);
 
-                            let parse : serde_json::Result<CarECUs>  = serde_json::from_str(&str);
-                            match parse {
-                                Ok(car) => {
-                                    println!("Creating manual mode");
-                                    self.manual_ui = Some(UDSManual::new(car.ecus, self.server.clone()))
-                                },
-                                Err(e) => {
-                                    eprintln!("Parsing of JSON failed {}", e);
-                                }
+                        let parse : serde_json::Result<CarECUs>  = serde_json::from_str(&str);
+                        match parse {
+                            Ok(car) => {
+                                println!("Creating manual mode");
+                                self.manual_ui = Some(UDSManual::new(car.ecus, self.server.clone()))
+                            },
+                            Err(e) => {
+                                eprintln!("Parsing of JSON failed {}", e);
                             }
                         }
-                    },
-                    _ => {}
+                    }
                 }
             }
 
@@ -208,7 +207,7 @@ impl<'a> UDSHome {
                 // Filter should be already open
                 let mut found = false;
                 let clock = Instant::now();
-                while clock.elapsed().as_millis() < 50 && found == false {
+                while clock.elapsed().as_millis() < 50 && !found {
                     if let Ok(msgs) = self.server.read_can_packets(0, 1000) {
                         for candidate in msgs {
                             if candidate.dlc == 8 {
@@ -349,13 +348,11 @@ impl<'a> UDSHome {
 
     pub fn view(&mut self) -> Element<UDSHomeMessage> {
         if let Some(ref mut x) = self.manual_ui {
-            x.view().map(|ui| UDSHomeMessage::ManualMessage(ui))
+            x.view().map(UDSHomeMessage::ManualMessage)
+        } else if self.in_home {
+            self.draw_home()
         } else {
-            if self.in_home {
-                self.draw_home()
-            } else {
-                self.draw_scan_stage()
-            }
+            self.draw_scan_stage()
         }
     }
 
@@ -364,7 +361,7 @@ impl<'a> UDSHome {
             0 => {
                 Column::new()
                     .push(title_text("Waiting for network to settle", TitleSize::P2))
-                    .push(progress_bar((0.0 as f32)..=(WAIT_MS as f32), self.listen_duration_ms as f32, ButtonType::Info))
+                    .push(progress_bar(0.0_f32..=(WAIT_MS as f32), self.listen_duration_ms as f32, ButtonType::Info))
                     .spacing(10)
                     .padding(10)
                     .into()
@@ -372,7 +369,7 @@ impl<'a> UDSHome {
             1 => {
                 Column::new()
                     .push(title_text("Listening to existing CAN Traffic", TitleSize::P2))
-                    .push(progress_bar((0.0 as f32)..=(LISTEN_MS as f32), self.listen_duration_ms as f32, ButtonType::Info))
+                    .push(progress_bar(0.0_f32..=(LISTEN_MS as f32), self.listen_duration_ms as f32, ButtonType::Info))
                     .push(text(format!("Found {} CAN ID's", self.ignore_ids.len()).as_str(), TextType::Normal))
                     .spacing(10)
                     .padding(10)
@@ -382,7 +379,7 @@ impl<'a> UDSHome {
                 let mut c = Column::new()
                     .push(title_text("Probing for ISO-TP capable ECUs", TitleSize::P2))
                     .push(Text::new(format!("Testing CID 0x{:04X}", self.curr_cid)))
-                    .push(progress_bar((0.0 as f32)..=(0x07FF as f32), self.curr_cid as f32, ButtonType::Info))
+                    .push(progress_bar(0.0_f32..=(0x07FF as f32), self.curr_cid as f32, ButtonType::Info))
                     .push(Text::new("CIDs found"));
                 for (x, y) in &self.auto_found_ids {
                     c = c.push(Text::new(format!("Found request ID 0x{:04X}, Control found with ID 0x{:04X}. ECU asked for a block size of {} and a separation time of {}ms", x, y.flow_control_id, y.block_size, y.sep_time_ms)))
@@ -406,7 +403,7 @@ impl<'a> UDSHome {
                 let curr_ecu_id = if self.curr_ecu_idx as usize >= self.auto_found_ids.len() { self.auto_found_ids.len() - 1 } else { self.curr_ecu_idx as usize };
                 Column::new()
                     .push(Text::new(format!("Scanning ECU  {} possible ECUs...Currently scanning 0x{:04X}", self.auto_found_ids.len(), self.auto_found_ids[curr_ecu_id].0)))
-                    .push(ProgressBar::new((0.0 as f32)..=(self.auto_found_ids.len() as f32), self.curr_ecu_idx as f32))
+                    .push(ProgressBar::new(0.0_f32..=(self.auto_found_ids.len() as f32), self.curr_ecu_idx as f32))
                     .push(Space::with_height(Length::Units(10)))
                     .into()
             },
@@ -414,7 +411,7 @@ impl<'a> UDSHome {
                 let mut c = Column::new()
                     .spacing(10)
                     .padding(10)
-                    .push(title_text(format!("Scan results").as_str(), TitleSize::P2))
+                    .push(title_text("Scan results", TitleSize::P2))
                     .push(Space::with_height(Length::Units(10)));
                 for (x, y) in &self.auto_found_ids {
                     c = c.push(match y.supports_uds {

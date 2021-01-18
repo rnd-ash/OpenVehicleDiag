@@ -35,11 +35,11 @@ pub enum WindowStateName {
 impl<'a> WindowState {
     fn view(&mut self) -> Element<WindowMessage> {
         match self {
-            Self::Launcher(launcher) => launcher.view().map(|x| WindowMessage::Launcher(x)).into(),
-            Self::Home (home) => home.view().into(),
-            Self::CanTracer (tracer) => tracer.view().map(|x| WindowMessage::CanTracer(x)).into(),
-            Self::UDSHome (h) => h.view().map(|x| WindowMessage::UDSScanner(x)).into(),
-            Self::OBDTools (h) => h.view().map(|x| WindowMessage::OBDTools(x)).into(),
+            Self::Launcher(launcher) => launcher.view().map(WindowMessage::Launcher),
+            Self::Home (home) => home.view(),
+            Self::CanTracer (tracer) => tracer.view().map(WindowMessage::CanTracer),
+            Self::UDSHome (h) => h.view().map(WindowMessage::UDSScanner),
+            Self::OBDTools (h) => h.view().map(WindowMessage::OBDTools),
         }
     }
 
@@ -62,12 +62,12 @@ impl<'a> WindowState {
             },
             Self::UDSHome (uds) => {
                 if let WindowMessage::UDSScanner(x) = msg {
-                    return uds.update(x).map(|t| WindowMessage::UDSScanner(t))
+                    return uds.update(x).map(WindowMessage::UDSScanner)
                 }
             },
             Self::OBDTools(o) => {
                 if let WindowMessage::OBDTools(x) = msg {
-                    return o.update(x).map(|t| WindowMessage::OBDTools(t))
+                    return o.update(x).map(WindowMessage::OBDTools)
                 }
             }
         }
@@ -168,7 +168,7 @@ impl Application for MainWindow {
 
     fn subscription(&self) -> Subscription<Self::Message> {
         if let WindowState::Launcher { .. } = self.state {
-            return Subscription::none();
+            Subscription::none()
         } else {
             // Ask for battery every 2 seconds
             let mut batch: Vec<Subscription<WindowMessage>> = vec![];
@@ -176,18 +176,18 @@ impl Application for MainWindow {
             batch.push(time::every(std::time::Duration::from_secs(2)).map(WindowMessage::StatusUpdate));
             // See if either other pages request update
             if let WindowState::CanTracer(tracer) = &self.state {
-                batch.push(tracer.subscription().map(|x| WindowMessage::CanTracer(x)))
+                batch.push(tracer.subscription().map(WindowMessage::CanTracer))
             } else if let WindowState::UDSHome(uds) = &self.state {
-                batch.push(uds.subscription().map(|x| WindowMessage::UDSScanner(x)))
+                batch.push(uds.subscription().map(WindowMessage::UDSScanner))
             }
-            return Subscription::batch(batch)
+            Subscription::batch(batch)
         }
     }
 
     fn view(&mut self) -> Element<'_, Self::Message> {
         // If not in launcher mode we should draw the bottom status bar as well
         return if let WindowState::Launcher { .. } = self.state {
-            self.state.view().into()
+            self.state.view()
         } else {
             // Draw the status bar!
             let t = match self.server.as_ref().unwrap().is_connected() {
