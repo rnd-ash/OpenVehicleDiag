@@ -255,7 +255,7 @@ impl UDSManual {
                         Err(e) => {
                             self.logs.push(CommDetais {
                                 req: "Send: CLEAR_ECU_ERRORS".into(),
-                                res: format!("Err: {:?}", e)
+                                res: format!("Err: {}", e.get_text())
                             });
                         }
                     }
