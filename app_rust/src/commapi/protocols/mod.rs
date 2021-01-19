@@ -9,10 +9,10 @@ pub mod obd2;
 pub mod vin;
 pub mod kwp2000;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ProtocolError {
     CommError(comm_api::ComServerError),
-    ProtocolError(String),
+    ProtocolError(Box<dyn CommandError>),
     Timeout,
 }
 
@@ -38,10 +38,15 @@ pub trait CommandLevel {
 }
 
 pub trait CommandError {
-    fn get_desc(&self) -> String;
-    fn get_name(&self) -> String;
-    fn get_byte(&self) -> u8;
-    fn from_byte(b: u8) -> Self;
+    fn get_text(&self) -> String;
+    fn get_help(&self) -> Option<String>;
+    fn from_byte(b: u8) -> Self where Self: Sized;
+}
+
+impl std::fmt::Debug for dyn CommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CMDError {}", self.get_text())
+    }
 }
 
 pub struct DTC {
@@ -60,9 +65,9 @@ impl Display for DTC {
 pub trait ProtocolServer : Clone {
     type Command: Selectable + CommandLevel;
     
-    fn start_diag_session(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> std::result::Result<Self, ProtocolError>;
+    fn start_diag_session(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self>;
     fn exit_diag_session(&mut self);
     fn run_command(&self, cmd: Self::Command, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>>;
 
-    fn read_errors(&self) -> std::result::Result<Vec<DTC>, ProtocolError>;
+    fn read_errors(&self) -> ProtocolResult<Vec<DTC>>;
 }

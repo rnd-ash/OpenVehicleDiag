@@ -1,4 +1,4 @@
-use std::{sync::{Arc, atomic::AtomicBool}, todo};
+use std::{sync::{Arc, atomic::AtomicBool}};
 use std::sync::atomic::Ordering::Relaxed;
 use commapi::comm_api::{ComServer, ISO15765Config, ISO15765Data};
 
@@ -159,24 +159,87 @@ pub enum NegativeResponse {
     SubFunctionNotSupported,
     Busy,
     RequestSequenceError,
+    RoutineNotComplete,
+    RequestOutOfRange, //0x31
+    InvalidKey, // 0x35,
+    ExceededAttempts, // 0x36,
+    TimeDelayNotExpired, // 0x37,
+    DownloadNotAccepted, // 0x40,
+    UploadNotAccepted, // 0x50,
+    TransferSuspended, // 0x71,
+    DataDecompressionFailed, // 0x9A
+    DataDecryptionFailed, // 0x9B,
+    ECUNotResponding, // 0xA0,
+    ECUAddressUnknown, //0xA1,
     SecurityAccessDenied,
     ResponsePending,
     ServiceNotSupportedActiveSession,
-    Custom(u8)
+    CustomDaimler(u8), // DCX
+    Reserved(u8),
+    Unknown(u8)
 }
 
 impl CommandError for NegativeResponse {
-    fn get_desc(&self) -> String {
-        todo!()
+    fn get_text(&self) -> String {
+        match self {
+            NegativeResponse::GeneralReject => "General reject",
+            NegativeResponse::ServiceNotSupported => "Service is not supported",
+            NegativeResponse::SubFunctionNotSupported => "Sub function not supported / invalid format",
+            NegativeResponse::Busy => "ECU is currently busy performing another operation",
+            NegativeResponse::RequestSequenceError => "Conditions are not correct or Request sequence error",
+            NegativeResponse::RoutineNotComplete => "Routine is not yet completed",
+            NegativeResponse::RequestOutOfRange => "The request is out of range",
+            NegativeResponse::InvalidKey => "Invalid security key",
+            NegativeResponse::ExceededAttempts => "Exceeded number of security access attempts",
+            NegativeResponse::TimeDelayNotExpired => "The required time day has not yet expired",
+            NegativeResponse::DownloadNotAccepted => "Download not accepted",
+            NegativeResponse::UploadNotAccepted => "Upload not accepted",
+            NegativeResponse::TransferSuspended => "Data transfer suspended",
+            NegativeResponse::DataDecompressionFailed => "Data decompression failed",
+            NegativeResponse::DataDecryptionFailed => "Data decryption failed",
+            NegativeResponse::ECUNotResponding => "According to the gateway, the ECU is not responding",
+            NegativeResponse::ECUAddressUnknown => "The gateway does not know what ECU address this is",
+            NegativeResponse::SecurityAccessDenied => "Security access for this function was denied",
+            NegativeResponse::ResponsePending => "Response pending...",
+            NegativeResponse::ServiceNotSupportedActiveSession => "This services is not supported in the current diagnostic session",
+            NegativeResponse::CustomDaimler(x) => return format!("Custom DaimlerChrysler DCX code 0x{:02X}", x),
+            NegativeResponse::Reserved(x) => return format!("ISO 14230 Reserved code 0x{:02X}", x),
+            NegativeResponse::Unknown(x) => return format!("Unknown error 0x{:02X}", x)
+        }.into()
     }
 
-    fn get_name(&self) -> String {
-        return format!("{:?}", &self);
+    /// This displays a nice 'help message' for the user
+    /// 
+    ///
+    /// 
+    fn get_help(&self) -> Option<String> {
+        match self {
+            NegativeResponse::GeneralReject => None,
+            NegativeResponse::ServiceNotSupported => Some("This service is not supported by the ECU".into()),
+            NegativeResponse::SubFunctionNotSupported => Some("The arguments provided in the command may not be correct".into()),
+            NegativeResponse::Busy => Some("The ECU is currently performing another operation, please wait".into()),
+            NegativeResponse::RequestSequenceError => Some("The ECU requires something to be ran prior to running this command".into()),
+            NegativeResponse::RoutineNotComplete => Some("The diagnostic routine was not completed".into()),
+            NegativeResponse::RequestOutOfRange => Some("The data entered exceeded the maximum value that the ECU can read or store".into()),
+            NegativeResponse::InvalidKey => Some("The wrong seed-key was entered to gain a higher security clearance".into()),
+            NegativeResponse::ExceededAttempts => Some("You have exceeded the number of attempts to gain a higher security clearance".into()),
+            NegativeResponse::TimeDelayNotExpired => Some("You have entered a seed-key response too quickly. Please wait.".into()),
+            NegativeResponse::DownloadNotAccepted => None,
+            NegativeResponse::UploadNotAccepted => None,
+            NegativeResponse::TransferSuspended => Some("The data transfer was suspended due to an unknown fault".into()),
+            NegativeResponse::DataDecompressionFailed => None,
+            NegativeResponse::DataDecryptionFailed => None,
+            NegativeResponse::ECUNotResponding => Some("In your car, the gateway talks to the ECU directly and has detected that the ECU has stopped responding".into()),
+            NegativeResponse::ECUAddressUnknown => Some("In your car, the gateway is trying to talk to the ECU you requested, but you entered an unknown address".into()),
+            NegativeResponse::SecurityAccessDenied => Some("In order to execute this function, you need to obtain a higher security clearance.".into()),
+            NegativeResponse::ResponsePending => Some("The ECU is currently trying to send a response".into()),
+            NegativeResponse::ServiceNotSupportedActiveSession => Some("This function is not supported in the current diagnostic session. Try to switch diagnostic sessions".into()),
+            NegativeResponse::CustomDaimler(x) => Some("This error code is reserved by DaimlerChrysler. Therefore its meaning is unknown".into()),
+            NegativeResponse::Reserved(x) => None,
+            NegativeResponse::Unknown(x) => None,
+        }
     }
 
-    fn get_byte(&self) -> u8 {
-        todo!()
-    }
 
     fn from_byte(b: u8) -> Self {
         match b {
@@ -185,10 +248,26 @@ impl CommandError for NegativeResponse {
             0x12 => Self::SubFunctionNotSupported,
             0x21 => Self::Busy,
             0x22 => Self::RequestSequenceError,
+            0x23 => Self::RoutineNotComplete, // As off 2002 this is deprecated
+            0x31 => Self::RequestOutOfRange,
             0x33 => Self::SecurityAccessDenied,
+            0x35 => Self::InvalidKey,
+            0x36 => Self::ExceededAttempts,
+            0x37 => Self::TimeDelayNotExpired,
+            0x40 => Self::DownloadNotAccepted,
+            0x50 => Self::UploadNotAccepted,
+            0x71 => Self::TransferSuspended,
             0x78 => Self::ResponsePending,
             0x80 => Self::ServiceNotSupportedActiveSession,
-            _ => Self::Custom(b)
+            0x9A => Self::DataDecompressionFailed,
+            0x9B => Self::DataDecryptionFailed,
+            0xA0 => Self::ECUNotResponding,
+            0xA1 => Self::ECUAddressUnknown,
+            (0x81..=0x8F) => Self::Reserved(b),
+            (0x90..=0x99) => Self::CustomDaimler(b),
+            (0xA2..=0xF9) => Self::CustomDaimler(b),
+            0xFF => Self::Reserved(0xFF),
+            _ => Self::Unknown(b)
         }
     }
 }
@@ -286,7 +365,8 @@ impl KWP2000ECU {
 
 impl ProtocolServer for KWP2000ECU {
     type Command = Service;
-    fn start_diag_session(mut comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> std::result::Result<Self, ProtocolError> {
+
+    fn start_diag_session(mut comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self> {
         comm_server.open_iso15765_interface(500_000, false).map_err(ProtocolError::CommError)?;
         comm_server.add_iso15765_filter(
             cfg.recv_id,
@@ -314,6 +394,11 @@ impl ProtocolServer for KWP2000ECU {
                     if !stop_tester_present_t.load(Relaxed) {
                         // Tell the ECU Tester is still here, no response required though :)
                         KWP2000ECU::send_kwp2000_cmd(server_t.as_ref(), ecu_id, Service::TesterPresent, &[0x01]);
+                        if let Ok(v) = server_t.read_iso15765_packets(0, 1) {
+                            if v.len() == 1 {
+                                println!("{}",v[0])
+                            }
+                        }
                     }
                 }
                 std::thread::sleep(std::time::Duration::from_millis(1));
@@ -369,7 +454,7 @@ impl ProtocolServer for KWP2000ECU {
                                 } else {
                                     // Other error
                                     self.stop_tester_present.store(false, Relaxed);
-                                    return Err(ProtocolError::ProtocolError(NegativeResponse::from_byte(m.data[1]).get_name()))
+                                    return Err(ProtocolError::ProtocolError(Box::new(NegativeResponse::from_byte(m.data[1]))))
                                 }
                             }
                         }
@@ -383,7 +468,7 @@ impl ProtocolServer for KWP2000ECU {
     }
 
 
-    fn read_errors(&self) -> std::result::Result<Vec<DTC>, ProtocolError> {
+    fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
         // 0x02 - Request Hex DTCs as 2 bytes
         // 0xFF00 - Request all DTCs (Mandatory per KWP2000)
         let mut bytes = self.run_command(Service::ReadDTCByStatus, &[0x02, 0xFF, 0x00], 500)?;
