@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use std::{ffi::*, fmt};
 use J2534Common::*;
+use J2534Common::FilterType::FLOW_CONTROL_FILTER;
+
 
 lazy_static! {
     pub static ref DRIVER: Arc<RwLock<Option<PassthruDrv>>> = Arc::new(RwLock::new(None));
@@ -14,7 +16,6 @@ use winreg::enums::*;
 
 #[cfg(windows)]
 use winreg::{RegKey, RegValue};
-use J2534Common::FilterType::FLOW_CONTROL_FILTER;
 
 /// Result which contains a PASSTHRU_ERROR in it's Err() variant
 pub type Result<T> = std::result::Result<T, J2534Common::PassthruError>;

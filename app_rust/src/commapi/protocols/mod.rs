@@ -16,6 +16,16 @@ pub enum ProtocolError {
     Timeout,
 }
 
+impl ProtocolError {
+    pub fn get_text(&self) -> String {
+        match self {
+            ProtocolError::CommError(e) => e.to_string(),
+            ProtocolError::ProtocolError(e) => e.get_text(),
+            ProtocolError::Timeout => "Communication timeout".into()
+        }
+    }
+}
+
 type ProtocolResult<T> = std::result::Result<T, ProtocolError>;
 
 pub trait Selectable {
