@@ -85,7 +85,7 @@ impl<'a> CanTracer {
 
     pub fn subscription(&self) -> Subscription<TracerMessage> {
         if self.is_connected {
-            return time::every(std::time::Duration::from_millis(100)).map(TracerMessage::NewData);
+            return time::every(std::time::Duration::from_millis(10)).map(TracerMessage::NewData);
         }
         Subscription::none()
     }
