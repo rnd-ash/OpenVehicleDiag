@@ -1,6 +1,5 @@
-use std::result::Result;
+use std::{fmt::Formatter, result::Result};
 use std::cmp::min;
-use serde::export::Formatter;
 use std::fmt::Debug;
 use std::fmt;
 use std::time::Instant;

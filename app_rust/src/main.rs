@@ -16,6 +16,5 @@ fn main() -> iced::Result {
     if let Ok(img) = image::open("./img/launcher.png") {
         launcher_settings.window.icon = Icon::from_rgba(img.clone().into_bytes(), img.width(), img.height()).ok()
     }
-
     MainWindow::run(launcher_settings)
 }
