@@ -31,6 +31,7 @@ type ProtocolResult<T> = std::result::Result<T, ProtocolError>;
 pub trait Selectable {
     fn get_byte(&self) -> u8;
     fn get_desc(&self) -> String;
+    fn get_name(&self) -> String;
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -43,7 +44,7 @@ pub enum CautionLevel {
     Alert = 2
 }
 
-pub trait CommandLevel {
+pub trait ECUCommand : Selectable {
     fn get_caution_level(&self) -> CautionLevel;
 }
 
@@ -73,11 +74,13 @@ impl Display for DTC {
 }
 
 pub trait ProtocolServer : Clone {
-    type Command: Selectable + CommandLevel;
+    type Command: Selectable + ECUCommand;
     
     fn start_diag_session(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self>;
     fn exit_diag_session(&mut self);
     fn run_command(&self, cmd: Self::Command, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>>;
 
     fn read_errors(&self) -> ProtocolResult<Vec<DTC>>;
+
+    fn is_in_diag_session(&self) -> bool;
 }

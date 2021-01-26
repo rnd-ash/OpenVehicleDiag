@@ -1,6 +1,6 @@
 use std::fmt::{Debug};
 use iced::{button, executor, Align, Application, Column, Command, Element, Length, Row, Text, Subscription, time, Rule, Space};
-use crate::commapi::comm_api::{ComServer, ComServerError};
+use crate::{commapi::comm_api::{ComServer, ComServerError}, themes};
 use crate::windows::launcher::{Launcher, LauncherMessage};
 use crate::windows::home::{Home, HomeMessage};
 use std::time::Instant;
@@ -228,14 +228,23 @@ impl Application for MainWindow {
                 )
             }
             s_bar = s_bar.push(btn_row);
-            let c = Column::new()
+
+
+
+
+            let mut c: Element<_> = Column::new()
                 .push(view_contents)
                 .push(Space::with_height(Length::Fill))
-                .push(Rule::horizontal(2))
+                .push(Rule::horizontal(1))
                 .push(s_bar)
+                .into();
+            if themes::is_debug() {
+                c = c.explain(iced::Color::BLACK);
+            }
+            container(c)
                 .height(Length::Fill)
-                .width(Length::Fill);
-            container(c).into()
+                .width(Length::Fill)
+                .into()
         }
     }
 }

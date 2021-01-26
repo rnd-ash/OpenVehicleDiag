@@ -117,7 +117,7 @@ impl CContainer {
 
         let cff_header = Self::read_cff(reader);
         let mut ctf_header = Self::read_ctf(&cff_header, reader);
-        ctf_header.translate();
+        //ctf_header.translate();
 
         let mut res = Self {
             cff_header,
