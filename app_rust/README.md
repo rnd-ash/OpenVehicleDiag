@@ -24,6 +24,10 @@
 ## Youtube video playlist
 App progress updates and demos are [posted here](https://youtube.com/playlist?list=PLxrw-4Vt7xtty50LmMoLXN2iKiUknbMng)
 
+## Launch args
+* `-debug_ui` - Enables debugging of the user interface showing all layout constraints and boundaries
+
+
 ## Questions and answers
 
 ### Question
