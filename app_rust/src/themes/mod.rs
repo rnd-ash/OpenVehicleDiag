@@ -2,8 +2,10 @@ pub mod elements;
 
 use iced::{button, Color, Button, Text, PickList, pick_list, Container, Element, Radio, ProgressBar};
 use crate::themes::elements::{ButtonStyle, DropDown, PBar};
-use std::borrow::Cow;
+use std::{borrow::Cow, todo};
 use std::ops::RangeInclusive;
+
+use self::elements::TextInput;
 
 const BUTTON_RADIUS : f32 = 5.0;
 const BUTTON_BORDER_WIDTH: f32 = 1.5;
@@ -31,6 +33,18 @@ const WHITE: Color = Color {
 
 static mut CURR_THEME: Style = Style::Light;
 
+
+static mut DEBUG: bool = false;
+
+pub fn setDebug(state: bool) {
+    unsafe { DEBUG = state }
+}
+
+pub fn is_debug() -> bool {
+    unsafe{ DEBUG }
+}
+
+
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum Style {
     Light,
@@ -50,6 +64,8 @@ pub fn toggle_theme() {
 }
 
 pub (crate) fn get_theme<'a>() -> &'a Style { unsafe { &CURR_THEME } }
+
+
 
 pub enum ButtonType {
     Primary,
@@ -150,4 +166,9 @@ pub fn text(text: &str, txt_type: TextType) -> iced::Text {
 
 pub fn progress_bar(range: RangeInclusive<f32>, curr_value: f32, c_type: ButtonType) -> iced::ProgressBar {
     ProgressBar::new(range, curr_value).style(PBar::new(c_type))
+}
+
+pub fn text_input<'a, Msg: Clone, F>(state: &'a mut iced::text_input::State, placeholder: &str, value: &str, on_change: F) -> iced::text_input::TextInput<'a, Msg>
+where F: 'static + Fn(String) -> Msg {
+    iced::text_input::TextInput::new(state, placeholder, value, on_change).style(TextInput).padding(8)
 }

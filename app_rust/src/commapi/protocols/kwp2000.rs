@@ -4,12 +4,12 @@ use commapi::comm_api::{ComServer, ISO15765Config, ISO15765Data};
 
 use crate::commapi::{self, comm_api::ComServerError};
 
-use super::{CautionLevel, CommandError, CommandLevel, DTC, ProtocolError, ProtocolResult, ProtocolServer, Selectable};
+use super::{CautionLevel, CommandError, ECUCommand, DTC, ProtocolError, ProtocolResult, ProtocolServer, Selectable};
 
 // Developed using Daimler's KWP2000 documentation
 // http://read.pudn.com/downloads554/ebook/2284613/KWP2000_release2_2.pdf
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, )]
 pub enum Service {
     StartDiagSession,
     ECUReset,
@@ -39,6 +39,40 @@ pub enum Service {
     ControlDTCSettings,
     ResponseOnEvent,
     SupplierCustom(u8),
+}
+
+impl Service {
+    pub fn to_vec() -> Vec<Service> {
+        vec![
+            //Self::StartDiagSession,
+            Self::ECUReset,
+            Self::ClearDiagnosticInformation,
+            Self::ReadDTCStatus,
+            Self::ReadDTCByStatus,
+            Self::ReadECUID,
+            Self::ReadDataByLocalID,
+            Self::ReadDataByID,
+            Self::ReadMemoryByAddress,
+            Self::SecurityAccess,
+            Self::DisableNormalMsgTransmission,
+            Self::EnableNormalMsgTransmission,
+            Self::DynamicallyDefineLocalID,
+            Self::WriteDataByID,
+            Self::IOCTLByLocalID,
+            Self::StartRoutineByLocalID,
+            Self::StopRoutineByLocalID,
+            Self::RequestRoutineResultsByLocalID,
+            Self::RequestDownload,
+            Self::RequestUpload,
+            Self::TransferData,
+            Self::RequestTransferExit,
+            Self::WriteDataByLocalID,
+            Self::WriteMemoryByAddress,
+            //Self::TesterPresent,
+            Self::ControlDTCSettings,
+            Self::ResponseOnEvent,
+        ]
+    }
 }
 
 impl Selectable for Service {
@@ -75,6 +109,10 @@ impl Selectable for Service {
         }
     }
 
+    fn get_name(&self) -> String {
+        format!("{:?}", &self)
+    }
+
     fn get_desc(&self) -> String {
         match self {
             Service::StartDiagSession => "Start diagnostic session",
@@ -109,7 +147,13 @@ impl Selectable for Service {
     }
 }
 
-impl CommandLevel for Service {
+impl ToString for Service {
+    fn to_string(&self) -> String {
+        format!("{}(0x{:02X})", self.get_name(), self.get_byte())
+    }
+}
+
+impl ECUCommand for Service {
     fn get_caution_level(&self) -> CautionLevel {
         match &self {
             Service::StartDiagSession => CautionLevel::None,
@@ -395,8 +439,11 @@ impl ProtocolServer for KWP2000ECU {
                         // Tell the ECU Tester is still here, no response required though :)
                         KWP2000ECU::send_kwp2000_cmd(server_t.as_ref(), ecu_id, Service::TesterPresent, &[0x01]);
                         if let Ok(v) = server_t.read_iso15765_packets(0, 1) {
-                            if v.len() == 1 {
-                                println!("{}",v[0])
+                            if let Some(response) = v.get(0) {
+                                if response.data[0] == 0x7F && response.data[1] == Service::TesterPresent.get_byte() {
+                                    should_run_t.store(false, Relaxed);
+                                    eprintln!("Terminating diag session!");
+                                }
                             }
                         }
                     }
@@ -405,7 +452,6 @@ impl ProtocolServer for KWP2000ECU {
             }
             println!("DIAG SERVER STOP");
         });
-
 
 
         let mut ecu = KWP2000ECU {
@@ -424,6 +470,10 @@ impl ProtocolServer for KWP2000ECU {
             Ok(ecu)
         }
     
+    }
+
+    fn is_in_diag_session(&self) -> bool {
+        self.should_run.load(Relaxed) // Diag server self-terminates upon ECU Session error
     }
 
     fn exit_diag_session(&mut self) {
@@ -454,7 +504,7 @@ impl ProtocolServer for KWP2000ECU {
                                 } else {
                                     // Other error
                                     self.stop_tester_present.store(false, Relaxed);
-                                    return Err(ProtocolError::ProtocolError(Box::new(NegativeResponse::from_byte(m.data[1]))))
+                                    return Err(ProtocolError::ProtocolError(Box::new(NegativeResponse::from_byte(m.data[2]))))
                                 }
                             }
                         }
@@ -491,6 +541,7 @@ impl ProtocolServer for KWP2000ECU {
             let flag = (status >> 4 & 0b00000001) > 0;
             let storage_state = (status >> 6) & 0b0000011;
             let mil = (status >> 7 & 0b00000001) > 0;
+
             res.push(DTC {
                 error: name,
                 present: flag,

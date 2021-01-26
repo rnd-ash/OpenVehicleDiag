@@ -1,5 +1,5 @@
 use std::{collections::vec_deque, default};
-use crate::{commapi::{comm_api::{Capability, ComServer, ISO15765Config}, protocols::{ProtocolServer, kwp2000::{self, KWP2000ECU}, uds::{UDSCommand, UDSRequest}}}, themes::button_coloured};
+use crate::{commapi::{comm_api::{Capability, ComServer, ISO15765Config}, protocols::{ECUCommand, ProtocolServer, kwp2000::{self, KWP2000ECU}, uds::{UDSCommand, UDSRequest}}}, themes::{self, button_coloured, text_input}};
 use iced::{Align, Column, Element, Length, Row, Rule, Space, Text, TextInput, button};
 use crate::windows::window::WindowMessage;
 use crate::themes::{title_text, text, TextType, button_outlined, ButtonType, TitleSize, picklist};
@@ -16,6 +16,9 @@ pub enum UDSManualMessage {
     FCTextInput(String),
     BSTextInput(String),
     SepTextInput(String),
+    DiagArgsTextInput(String),
+    SelectCustomCommand(Service),
+    WriteCustomCommand,
     ReadErrors,
     ClearErrors,
     ReadECUID
@@ -39,6 +42,7 @@ pub struct UDSManual {
     state: iced::button::State,
     state2: iced::button::State,
     state3: iced::button::State,
+    exec_custom_cmd: iced::button::State,
     show_custom_ecu_ui: bool,
     logs: Vec<CommDetais>,
     diag_server: Option<KWP2000ECU>,
@@ -49,7 +53,12 @@ pub struct UDSManual {
     scroll_state: iced:: scrollable::State,
     show_clear_btn: bool,
     state4: iced::button::State,
-    textinput_strings: Vec<String>
+    textinput_strings: Vec<String>,
+    custom_cmd_dropdown: iced::pick_list::State<Service>,
+    custom_curr_service: Option<Service>,
+    custom_diag_args_string: String,
+    custom_diag_args: iced::text_input::State,
+    show_custom_cmd_input: bool,
 }
 
 impl UDSManual {
@@ -68,6 +77,7 @@ impl UDSManual {
             state2: iced::button::State::default(),
             state3: iced::button::State::default(),
             state4: iced::button::State::default(),
+            exec_custom_cmd: iced::button::State::default(),
             show_custom_ecu_ui: false,
             textinput_strings: vec![
                 "".into(),
@@ -83,7 +93,12 @@ impl UDSManual {
             logs: Vec::new(),
             diag_server: None,
             scroll_state: iced:: scrollable::State::default(),
-            show_clear_btn: false
+            show_clear_btn: false,
+            custom_cmd_dropdown: iced::pick_list::State::default(),
+            custom_curr_service: None,
+            show_custom_cmd_input: false,
+            custom_diag_args: iced::text_input::State::default(),
+            custom_diag_args_string: "".into()
         };
         println!("Manual mode launching");
         // To guarantee everything works as it should, home screen should have NO interfaces open
@@ -194,7 +209,7 @@ impl UDSManual {
             },
 
             UDSManualMessage::ReadErrors => {
-                self.logs.clear();
+                //self.logs.clear();
                 if let Some(ref mut s) = self.diag_server {
                     match s.read_errors() {
                         Ok(v) => {
@@ -223,7 +238,7 @@ impl UDSManual {
                 }
             },
             UDSManualMessage::ReadECUID => {
-                self.logs.clear();
+                //self.logs.clear();
                 if let Some(ref mut s) = self.diag_server {
                     match s.get_ecu_info_data() {
                         Ok(v) => {
@@ -242,7 +257,7 @@ impl UDSManual {
                 }
             },
             UDSManualMessage::ClearErrors => {
-                self.logs.clear();
+                //self.logs.clear();
                 if let Some(ref mut s) = self.diag_server {
                     match s.clear_errors() {
                         Ok(_) => {
@@ -260,36 +275,55 @@ impl UDSManual {
                         }
                     }
                 }
+            },
+
+            UDSManualMessage::SelectCustomCommand(cmd) => {
+                self.custom_curr_service = Some(*cmd);
+                self.show_custom_cmd_input = true;
+                self.custom_diag_args_string.clear();
+            },
+
+            UDSManualMessage::DiagArgsTextInput(input) => {
+                let trimmed = input.clone().replace(' ', "");
+                if trimmed.len() as f32 % 2.0 == 0.0 {
+                    match hex::decode(input.clone().replace(' ', "")) {
+                        Ok(_) => self.custom_diag_args_string = input.clone(),
+                        Err(e) => eprintln!("{}", e)
+                    }
+                } else {
+                    self.custom_diag_args_string = input.clone()
+                }
+            }
+
+            UDSManualMessage::WriteCustomCommand => {
+                //self.logs.clear();
+                if let Some(ref mut s) = self.diag_server {
+                    let cmd = self.custom_curr_service.unwrap();
+
+                    if let Ok(args) = hex::decode(&self.custom_diag_args_string.replace(' ', "")) {
+                        let send_text = format!("Send {}  - {:02X?}", cmd.to_string(), &args);
+                        match s.run_command(self.custom_curr_service.unwrap(), &args, 2500) {
+                            Ok(res) => {
+                                self.logs.push(CommDetais {
+                                    req: send_text,
+                                    res: format!("Resp: {:02X?}", res)
+                                });
+                                self.show_clear_btn = false;
+                            },
+                            Err(e) => {
+                                self.logs.push(CommDetais {
+                                    req: send_text,
+                                    res: format!("Err: {}", e.get_text())
+                                });
+                            }
+                        }
+                    }
+                }
             }
 
             _ => {},
         }
         None
-    }
-
-    fn log_run_uds_cmd(&mut self, cmd: UDSRequest) {
-        let cfg = ISO15765Config {
-            send_id: self.curr_ecu_settings.send_id,
-            recv_id: self.curr_ecu_settings.flow_control_id,
-            block_size: self.curr_ecu_settings.block_size,
-            sep_time: self.curr_ecu_settings.sep_time_ms,
-        };
-        match cmd.run_cmd_can(&mut self.server, &cfg) {
-            Ok(res) => {
-                self.logs.push(CommDetais {
-                    req: format!("Send: {:02X?}", cmd.to_byte_array()),
-                    res: format!("Recv: {:?}", res),
-
-                })
-            },
-            Err(e) => {
-                self.logs.push(CommDetais {
-                    req: format!("Send: {:02X?}", cmd.to_byte_array()),
-                    res: format!("COMM ERROR: {:?}", e),
-
-                })
-            }
-        }
     }
 
     pub fn view(&mut self) -> Element<UDSManualMessage> {
@@ -307,10 +341,32 @@ impl UDSManual {
                                     self.curr_ecu_settings.send_id,
                                     support
                                 ).as_str(), TitleSize::P3))
-                .push(button_coloured(&mut self.state, "Disconnect from ECU", ButtonType::Danger).on_press(UDSManualMessage::DisconnectECU)
+                .push(button_coloured(&mut self.state, "Disconnect from ECU", ButtonType::Info).on_press(UDSManualMessage::DisconnectECU)
             );
 
-            let mut comm_view = Column::new(); // Communications overview
+            let mut comm_view = Column::new().spacing(10); // Communications overview
+            
+            comm_view = comm_view.push(text("Run custom KWP2000 command", TextType::Normal));
+            let mut row = Row::new().push(picklist(&mut self.custom_cmd_dropdown, Service::to_vec(), self.custom_curr_service,UDSManualMessage::SelectCustomCommand));
+            if self.show_custom_cmd_input {
+                if let Some(cmd) = self.custom_curr_service {
+                    let btn_type = match cmd.get_caution_level() {
+                        crate::commapi::protocols::CautionLevel::None => ButtonType::Primary,
+                        crate::commapi::protocols::CautionLevel::Warn => ButtonType::Warning,
+                        crate::commapi::protocols::CautionLevel::Alert => ButtonType::Danger,
+                    };
+                    if hex::decode(&self.custom_diag_args_string.replace(' ', "")).is_ok() {
+                        row = row.push(button_coloured(&mut self.exec_custom_cmd, "Run command", btn_type).on_press(UDSManualMessage::WriteCustomCommand));
+                    }
+                }
+            }
+
+            comm_view = comm_view.push(row);
+            if self.show_custom_cmd_input {
+                comm_view = comm_view.push(text_input(&mut self.custom_diag_args, "Args (HEX)", &self.custom_diag_args_string, UDSManualMessage::DiagArgsTextInput).width(Length::Units(150)));
+            }
+
+
             comm_view = comm_view.push(button_outlined(&mut self.state2, "Read ECU errors", ButtonType::Secondary).on_press(UDSManualMessage::ReadErrors))
                 .push(button_outlined(&mut self.state3, "Read ECU ID", ButtonType::Secondary).on_press(UDSManualMessage::ReadECUID));
             if self.show_clear_btn {
@@ -318,17 +374,18 @@ impl UDSManual {
             }
 
 
+            let mut log_view = Column::new().spacing(10) // Log view
+                .push(Row::new().push(title_text("Log view", TitleSize::P4)).align_items(Align::Center));
             let mut log_scroll = iced::scrollable::Scrollable::new(&mut self.scroll_state);
-            let mut log_view = Column::new(); // Log view
             for log in self.logs.iter() {
-                log_view = log_view.push(text(log.req.as_str(), TextType::Normal));
-                log_view = log_view.push(text(log.res.as_str(), TextType::Normal));
-                log_view = log_view.push(Space::with_height(Length::Units(5)));
+                log_scroll = log_scroll.push(text(log.req.as_str(), TextType::Normal));
+                log_scroll = log_scroll.push(text(log.res.as_str(), TextType::Normal));
+                log_scroll = log_scroll.push(Space::with_height(Length::Units(5)));
             }
-            log_scroll = log_scroll.push(log_view).height(Length::Shrink);
+            log_view = log_view.push(log_scroll);
             c = c.push(Row::new()
             .push(comm_view.width(Length::FillPortion(1)))
-            .push(log_scroll.width(Length::FillPortion(1))));
+            .push(log_view.width(Length::FillPortion(1))));
         } else {
             c = c
             .push(title_text("UDS Manual", TitleSize::P2))

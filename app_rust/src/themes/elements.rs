@@ -208,3 +208,62 @@ impl iced::progress_bar::StyleSheet for PBar {
         }
     }
 }
+
+pub struct TextInput;
+
+impl iced::text_input::StyleSheet for TextInput {
+    fn active(&self) -> iced::text_input::Style {
+        match super::get_theme() {
+            super::Style::Light => iced::text_input::Style {
+                background: WHITE.into(),
+                border_radius: BUTTON_RADIUS,
+                border_width: BUTTON_BORDER_WIDTH,
+                border_color: GREY,
+            },
+            super::Style::Dark => iced::text_input::Style {
+                background: DARK_BG.into(),
+                border_radius: BUTTON_RADIUS,
+                border_width: BUTTON_BORDER_WIDTH,
+                border_color: WHITE,
+            }
+        }
+    }
+
+    fn focused(&self) -> iced::text_input::Style {
+        match super::get_theme() {
+            super::Style::Light => iced::text_input::Style {
+                background: WHITE.into(),
+                border_radius: BUTTON_RADIUS,
+                border_width: BUTTON_BORDER_WIDTH,
+                border_color: GREY,
+            },
+            super::Style::Dark => iced::text_input::Style {
+                background: DARK_BG.into(),
+                border_radius: BUTTON_RADIUS,
+                border_width: BUTTON_BORDER_WIDTH,
+                border_color: WHITE,
+            }
+        }
+    }
+
+    fn placeholder_color(&self) -> Color {
+        match super::get_theme() {
+            super::Style::Light => super::GREY,
+            super::Style::Dark => super::WHITE,
+        }
+    }
+
+    fn value_color(&self) -> Color {
+        match super::get_theme() {
+            super::Style::Light => Color::BLACK,
+            super::Style::Dark => super::WHITE,
+        }
+    }
+
+    fn selection_color(&self) -> Color {
+        match super::get_theme() {
+            super::Style::Light => super::GREY,
+            super::Style::Dark => super::WHITE,
+        }
+    }
+}
