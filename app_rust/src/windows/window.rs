@@ -5,9 +5,11 @@ use crate::windows::launcher::{Launcher, LauncherMessage};
 use crate::windows::home::{Home, HomeMessage};
 use std::time::Instant;
 use crate::windows::cantracer::{CanTracer, TracerMessage};
-use crate::windows::uds_scanner::{UDSHomeMessage, UDSHome};
+use crate::windows::diag_home::{DiagHomeMessage};
 use crate::windows::obd::{OBDMessage, OBDHome};
 use crate::themes::{toggle_theme, button_coloured, ButtonType, container, text, TextType};
+
+use super::diag_home::{self, DiagHome};
 
 #[derive(Debug, Clone)]
 pub (crate) enum ApplicationError {
@@ -19,7 +21,7 @@ pub enum WindowState {
     Launcher(Launcher),
     Home(Home),
     CanTracer(CanTracer),
-    UDSHome(UDSHome),
+    DiagHome(DiagHome),
     OBDTools(OBDHome),
 }
 
@@ -28,7 +30,7 @@ pub enum WindowStateName {
     Launcher,
     Home,
     CanTracer,
-    UDSHome,
+    DiagHome,
     OBDTools,
 }
 
@@ -38,7 +40,7 @@ impl<'a> WindowState {
             Self::Launcher(launcher) => launcher.view().map(WindowMessage::Launcher),
             Self::Home (home) => home.view(),
             Self::CanTracer (tracer) => tracer.view().map(WindowMessage::CanTracer),
-            Self::UDSHome (h) => h.view().map(WindowMessage::UDSScanner),
+            Self::DiagHome (h) => h.view(),
             Self::OBDTools (h) => h.view().map(WindowMessage::OBDTools),
         }
     }
@@ -60,9 +62,9 @@ impl<'a> WindowState {
                     return tracer.update(x);
                 }
             },
-            Self::UDSHome (uds) => {
-                if let WindowMessage::UDSScanner(x) = msg {
-                    return uds.update(x).map(WindowMessage::UDSScanner)
+            Self::DiagHome (d) => {
+                if let WindowMessage::DiagHome(x) = msg {
+                    return d.update(x)
                 }
             },
             Self::OBDTools(o) => {
@@ -81,7 +83,7 @@ impl WindowState {
             WindowState::Launcher { .. } => WindowStateName::Launcher,
             WindowState::Home { .. } => WindowStateName::Home,
             WindowState::CanTracer { .. } => WindowStateName::CanTracer,
-            WindowState::UDSHome { .. } => WindowStateName::UDSHome,
+            WindowState::DiagHome { .. } => WindowStateName::DiagHome,
             WindowState::OBDTools { .. } => WindowStateName::OBDTools,
         }
     }
@@ -94,7 +96,7 @@ pub enum WindowMessage {
     Launcher(LauncherMessage),
     Home(HomeMessage),
     CanTracer(TracerMessage),
-    UDSScanner(UDSHomeMessage),
+    DiagHome(DiagHomeMessage),
     OBDTools(OBDMessage),
     StartApp(Box<dyn ComServer>),
     StatusUpdate(Instant),
@@ -134,7 +136,7 @@ impl Application for MainWindow {
             WindowState::Launcher { .. } => "OpenVehicleDiag launcher".into(),
             WindowState::Home { .. } => format!("OpenVehicleDiag ({} mode)", self.server.as_ref().map(|s| s.get_api()).unwrap_or("Unknown")),
             WindowState::CanTracer { .. } => "OpenVehicleDiag CanTracer".into(),
-            WindowState::UDSHome { .. } => "OpenVehicleDiag UDS Scanner".into(),
+            WindowState::DiagHome { .. } => "OpenVehicleDiag Diagnostics Scanner".into(),
             WindowState::OBDTools { .. } => "OpenVehicleDiag OBD Toolbox".into()
         }
     }
@@ -153,7 +155,7 @@ impl Application for MainWindow {
                 self.state = WindowState::CanTracer(CanTracer::new(self.server.clone().unwrap()))
             },
             WindowMessage::GoUDS => {
-                self.state = WindowState::UDSHome(UDSHome::new(self.server.clone().unwrap()))
+                self.state = WindowState::DiagHome(DiagHome::new(self.server.clone().unwrap()))
             },
             WindowMessage::GoOBD => {
                 self.state = WindowState::OBDTools(OBDHome::new(self.server.clone().unwrap()))
@@ -177,8 +179,8 @@ impl Application for MainWindow {
             // See if either other pages request update
             if let WindowState::CanTracer(tracer) = &self.state {
                 batch.push(tracer.subscription().map(WindowMessage::CanTracer))
-            } else if let WindowState::UDSHome(uds) = &self.state {
-                batch.push(uds.subscription().map(WindowMessage::UDSScanner))
+            } else if let WindowState::DiagHome(d) = &self.state {
+                //batch.push(d.subscription().map(WindowMessage::UDSScanner))
             }
             Subscription::batch(batch)
         }
