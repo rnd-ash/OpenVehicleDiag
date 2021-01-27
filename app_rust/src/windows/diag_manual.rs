@@ -1,13 +1,17 @@
+/*
+
 use std::{collections::vec_deque, default};
 use crate::{commapi::{comm_api::{Capability, ComServer, ISO15765Config}, protocols::{ECUCommand, ProtocolServer, kwp2000::{self, KWP2000ECU}, uds::{UDSCommand, UDSRequest}}}, themes::{self, button_coloured, text_input}};
 use iced::{Align, Column, Element, Length, Row, Rule, Space, Text, TextInput, button};
 use crate::windows::window::WindowMessage;
 use crate::themes::{title_text, text, TextType, button_outlined, ButtonType, TitleSize, picklist};
 use crate::commapi::protocols::kwp2000::*;
-use super::uds_scanner::ECUISOTPSettings;
+use super::diag_scanner::ECUISOTPSettings;
+
+
 
 #[derive(Debug, Clone)]
-pub enum UDSManualMessage {
+pub enum ManualDiagMessage {
     SelectECU(String),
     ConnectECU,
     ConnectCustomECU,
@@ -30,9 +34,9 @@ struct CommDetais {
     pub res: String
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct UDSManual {
-    server: Box<dyn ComServer>,
+    server: Option<Box<dyn ComServer>>,
     data: Vec<ECUISOTPSettings>,
     curr_ecu_settings: ECUISOTPSettings,
     ecu_names: Vec<String>,
@@ -61,51 +65,31 @@ pub struct UDSManual {
     show_custom_cmd_input: bool,
 }
 
+impl Drop for UDSManual {
+    fn drop(&mut self) {
+        if let Some(mut server) = self.diag_server.take() {
+            server.exit_diag_session()
+        }
+    }
+}
+
 impl UDSManual {
     pub(crate) fn new(car_data: Vec<ECUISOTPSettings>, server: Box<dyn ComServer>) -> Self {
         let mut names: Vec<String> = car_data.iter().map(|ecu| format!("{} (ID: 0x{:04X})", ecu.name, ecu.send_id)).collect();
         names.push("Custom".into());
-        let mut ret = Self {
-            server,
+        let ret = Self {
+            server: Some(server),
             curr_ecu: "Select ECU".into(),
             data: car_data,
             ecu_names: names,
-            pick_state: iced::pick_list::State::default(),
-            in_session: false,
-            curr_ecu_settings: ECUISOTPSettings { name: "".into(), send_id: 0, flow_control_id: 0, block_size: 0, sep_time_ms: 0, supports_uds: None },
-            state: iced::button::State::default(),
-            state2: iced::button::State::default(),
-            state3: iced::button::State::default(),
-            state4: iced::button::State::default(),
-            exec_custom_cmd: iced::button::State::default(),
-            show_custom_ecu_ui: false,
-            textinput_strings: vec![
-                "".into(),
-                "".into(),
-                "".into(),
-                "".into(),
-                "".into()
-            ],
-            send_text_input: iced::text_input::State::default(),
-            fc_text_input: iced::text_input::State::default(),
-            sep_text_input: iced::text_input::State::default(),
-            bs_text_input: iced::text_input::State::default(),
-            logs: Vec::new(),
-            diag_server: None,
-            scroll_state: iced:: scrollable::State::default(),
-            show_clear_btn: false,
-            custom_cmd_dropdown: iced::pick_list::State::default(),
-            custom_curr_service: None,
-            show_custom_cmd_input: false,
-            custom_diag_args: iced::text_input::State::default(),
-            custom_diag_args_string: "".into()
+            ..Default::default()
         };
-        println!("Manual mode launching");
+
         // To guarantee everything works as it should, home screen should have NO interfaces open
-        if let Err(e) = ret.server.close_can_interface() {
+        if let Err(e) = ret.server.unwrap().close_can_interface() {
             eprintln!("ERROR closing CAN Interface {}", e)
         }
-        if let Err(e) = ret.server.close_iso15765_interface() {
+        if let Err(e) = ret.server.unwrap().close_iso15765_interface() {
             eprintln!("ERROR closing ISO-TP Interface {}", e)
         }
         ret
@@ -138,7 +122,7 @@ impl UDSManual {
 
                     };
 
-                    if let Ok(server) = KWP2000ECU::start_diag_session(self.server.clone(), &cfg) {
+                    if let Ok(server) = KWP2000ECU::start_diag_session(self.server.clone().unwrap(), &cfg) {
                         self.in_session = true;
                         self.diag_server = Some(server);
                     }
@@ -414,10 +398,4 @@ impl UDSManual {
     }
 }
 
-impl Drop for UDSManual {
-    fn drop(&mut self) {
-        if let Some(mut s) = self.diag_server.take() {
-            s.exit_diag_session()
-        }
-    }
-}
+*/

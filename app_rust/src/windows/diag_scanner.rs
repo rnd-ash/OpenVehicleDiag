@@ -1,3 +1,5 @@
+/*
+
 use crate::commapi::comm_api::{ComServer, CanFrame, FilterType, ISO15765Config};
 use iced::{Element, Column, Text, Align, Length, Subscription, Row, Space, button, ProgressBar};
 use std::time::Instant;
@@ -8,10 +10,10 @@ use crate::commapi::protocols::uds::{UDSCommand, UDSRequest, UDSResponse, UDSPro
 use std::io::{Write, Read};
 use crate::themes::{text, TextType, progress_bar, ButtonType, title_text, button_outlined, TitleSize};
 
-use super::uds_manual::{UDSManual, UDSManualMessage};
+use super::diag_manual::{UDSManual, UDSManualMessage};
 
 #[derive(Debug, Clone)]
-pub enum UDSHomeMessage {
+pub enum DiagScanMessage {
     LaunchManual,
     LaunchAutomatic,
     NextMode,
@@ -40,7 +42,7 @@ struct CarECUs {
     ecus: Vec<ECUISOTPSettings>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub (crate) struct ECUISOTPSettings {
     pub name: String,
     pub send_id: u32,
@@ -48,6 +50,7 @@ pub (crate) struct ECUISOTPSettings {
     pub block_size: u32,
     pub sep_time_ms: u32,
     pub supports_uds: Option<bool>,
+    pub supports_kwp2000: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -222,7 +225,7 @@ impl<'a> UDSHome {
                                             flow_control_id: candidate.id,
                                             block_size: data[1] as u32,
                                             sep_time_ms: data[2] as u32,
-                                            supports_uds: None
+                                            ..Default::default()
                                         }));
                                         // Also, add the new ID to the ignore list so we don't scan on the Flow control ID
                                         self.ignore_ids.insert(candidate.id, candidate);
@@ -312,10 +315,10 @@ impl<'a> UDSHome {
                     .spacing(10)
                     .padding(10)
                     .align_items(Align::Center)
-                    .push(title_text("Welcome to the UDS Diagnostics page", TitleSize::P2))
+                    .push(title_text("Welcome to the Diagnostics page", TitleSize::P2))
                     .push(Space::with_height(Length::Units(10)))
                     .push(Text::new("This will attempt to detect all UDS/KWP2000 compatible ECUs in your car \
-                        and then let you send custom UDS commands to the ECUs based on the result of the scan"))
+                        and then let you send custom UDS or KWP2000 commands to the ECUs based on the result of the scan"))
                     .push(Space::with_height(Length::Units(10)))
                     .push(Text::new("Scan mode").size(20))
                     .push(Text::new(
@@ -436,3 +439,5 @@ impl<'a> UDSHome {
         unimplemented!()
     }
 }
+
+*/

@@ -84,7 +84,7 @@ impl Home {
             .spacing(5)
             .push(Text::new("Tools"))
             .push(button_outlined(&mut self.can_state, "CAN Analyzer", ButtonType::Primary).on_press(WindowMessage::GoCanTracer))
-            .push(button_outlined(&mut self.uds_state, "UDS Scanner", ButtonType::Primary).on_press(WindowMessage::GoUDS))
+            .push(button_outlined(&mut self.uds_state, "Diagnostic Scanner", ButtonType::Primary).on_press(WindowMessage::GoUDS))
             .push(button_outlined(&mut self.obd_state, "OBD Tools", ButtonType::Primary).on_press(WindowMessage::GoOBD))
             );
         contents.into()
