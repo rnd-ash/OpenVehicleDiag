@@ -11,6 +11,19 @@ use crate::themes::{toggle_theme, button_coloured, ButtonType, container, text, 
 
 use super::diag_home::{self, DiagHome};
 
+
+// This can be modified by diagnostic sessions in order to disable going
+// home option in case a sensitive operation is in progress!
+// True by default unless a diagnostic session requests it to be disabled
+static mut show_home : bool = true; 
+
+
+pub fn enable_home() { unsafe{ show_home = true } }
+pub fn disable_home() { unsafe{ show_home = false } }
+
+fn get_home() -> bool { unsafe{ show_home } }
+
+
 #[derive(Debug, Clone)]
 pub (crate) enum ApplicationError {
     DriverError(ComServerError)
@@ -40,7 +53,7 @@ impl<'a> WindowState {
             Self::Launcher(launcher) => launcher.view().map(WindowMessage::Launcher),
             Self::Home (home) => home.view(),
             Self::CanTracer (tracer) => tracer.view().map(WindowMessage::CanTracer),
-            Self::DiagHome (h) => h.view(),
+            Self::DiagHome (h) => h.view().map(WindowMessage::DiagHome),
             Self::OBDTools (h) => h.view().map(WindowMessage::OBDTools),
         }
     }
@@ -64,7 +77,7 @@ impl<'a> WindowState {
             },
             Self::DiagHome (d) => {
                 if let WindowMessage::DiagHome(x) = msg {
-                    return d.update(x)
+                    return d.update(x).map(WindowMessage::DiagHome)
                 }
             },
             Self::OBDTools(o) => {
@@ -225,9 +238,11 @@ impl Application for MainWindow {
                     .on_press(WindowMessage::ToggleTheme));
 
             if page_name != &WindowStateName::Home {
-                btn_row = btn_row.push(button_coloured(&mut self.back_btn_state,"Go home", ButtonType::Warning)
-                    .on_press(WindowMessage::GoHome)
-                )
+                let mut home_btn = button_coloured(&mut self.back_btn_state,"Go home", ButtonType::Warning);
+                if get_home() {
+                    home_btn = home_btn.on_press(WindowMessage::GoHome);
+                }
+                btn_row = btn_row.push(home_btn)
             }
             s_bar = s_bar.push(btn_row);
 

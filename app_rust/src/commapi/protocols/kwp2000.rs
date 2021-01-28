@@ -517,7 +517,6 @@ impl ProtocolServer for KWP2000ECU {
         }
     }
 
-
     fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
         // 0x02 - Request Hex DTCs as 2 bytes
         // 0xFF00 - Request all DTCs (Mandatory per KWP2000)
