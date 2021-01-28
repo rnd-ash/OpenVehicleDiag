@@ -77,6 +77,7 @@ pub trait ProtocolServer : Clone {
     type Command: Selectable + ECUCommand;
     
     fn start_diag_session(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self>;
+
     fn exit_diag_session(&mut self);
     fn run_command(&self, cmd: Self::Command, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>>;
 
