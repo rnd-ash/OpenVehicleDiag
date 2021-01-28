@@ -31,7 +31,7 @@ impl SessionTrait for UDSDiagSession {
     type msg = UDSDiagSessionMsg;
 
 
-    fn view(&mut self) -> iced::Element<SessionMsg> {
+    fn view(&mut self) -> iced::Element<Self::msg> {
         todo!()
     }
 
