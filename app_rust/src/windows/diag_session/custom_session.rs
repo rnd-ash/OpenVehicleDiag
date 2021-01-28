@@ -29,7 +29,7 @@ impl CustomDiagSession {
 impl SessionTrait for CustomDiagSession {
     type msg = CustomDiagSessionMsg;
 
-    fn view(&mut self) -> iced::Element<SessionMsg> {
+    fn view(&mut self) -> iced::Element<Self::msg> {
         todo!()
     }
 
