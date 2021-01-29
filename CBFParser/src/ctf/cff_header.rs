@@ -1,11 +1,6 @@
 use std::vec;
-
 use common::raf::Raf;
-use creader::read_bitflag_string;
-
-use crate::caesar::{self, CaesarError, creader};
-
-
+use crate::caesar::{CaesarError, creader};
 
 #[derive(Debug, Clone, Default)]
 pub struct CFFHeader {
@@ -13,7 +8,7 @@ pub struct CFFHeader {
     gpd_version: i32,
     ecu_count: i32,
     ecu_offset: i32,
-    ctf_offset: i32,
+    pub ctf_offset: i32,
     string_pool_size: i32,
     dsc_offset: i32,
     dsc_count: i32,
@@ -22,8 +17,8 @@ pub struct CFFHeader {
     gpd_version_string: String,
     xml_string: String,
 
-    cff_header_size: i32,
-    base_addr: usize,
+    pub cff_header_size: i32,
+    pub base_addr: usize,
 
     dsc_block_offset: usize,
     dsc_block_size: i32,
@@ -52,12 +47,13 @@ impl CFFHeader {
             dsc_count: creader::read_primitive(&mut bitflags, reader, 0)?,
             dsc_entry_size: creader::read_primitive(&mut bitflags, reader, 0)?,
 
-            cbf_version_string: creader::read_bitflag_string(&mut bitflags, reader, 0)?,
-            gpd_version_string: creader::read_bitflag_string(&mut bitflags, reader, 0)?,
-            xml_string: creader::read_bitflag_string(&mut bitflags, reader, 0)?,
-
+            cbf_version_string: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
+            gpd_version_string: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
+            xml_string: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
             ..Default::default()
         };
+
+        // TODO DSC Pool
 
         Ok(header)
     }
