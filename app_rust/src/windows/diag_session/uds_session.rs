@@ -1,14 +1,18 @@
+use iced::Subscription;
+
 use crate::{commapi::comm_api::{ComServer, ISO15765Config}, windows::diag_manual::DiagManualMessage};
 
 use super::{DiagMessageTrait, SessionMsg, SessionTrait};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UDSDiagSessionMsg {
-
+    Back,
 }
 
 impl DiagMessageTrait for UDSDiagSessionMsg {
-
+    fn is_back(&self) -> bool {
+        self == &UDSDiagSessionMsg::Back
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -35,7 +39,11 @@ impl SessionTrait for UDSDiagSession {
         todo!()
     }
 
-    fn update(&mut self, msg: &Self::msg) -> Option<SessionMsg> {
+    fn update(&mut self, msg: &Self::msg) -> Option<Self::msg> {
         todo!()
+    }
+
+    fn subscription(&self) -> iced::Subscription<Self::msg> {
+        Subscription::none()
     }
 }

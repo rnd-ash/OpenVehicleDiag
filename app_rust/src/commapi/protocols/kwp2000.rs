@@ -1,8 +1,8 @@
-use std::{sync::{Arc, atomic::AtomicBool}};
+use std::{cell::RefCell, rc::Rc, sync::{Arc, RwLock, atomic::AtomicBool}};
 use std::sync::atomic::Ordering::Relaxed;
 use commapi::comm_api::{ComServer, ISO15765Config, ISO15765Data};
 
-use crate::commapi::{self, comm_api::ComServerError};
+use crate::{commapi::{self, comm_api::ComServerError}, windows::diag_session::kwp2000_session::{self, KWP2000DiagSession}};
 
 use super::{CautionLevel, CommandError, ECUCommand, DTC, ProtocolError, ProtocolResult, ProtocolServer, Selectable};
 
@@ -326,14 +326,13 @@ enum ClearDTCType {
     AllDTCs = 0xFF00
 }
 
-
-
 #[derive(Debug, Clone)]
 pub struct KWP2000ECU {
     comm_server: Box<dyn ComServer>,
     iso_tp_settings: ISO15765Config,
     should_run: Arc<AtomicBool>,
     stop_tester_present: Arc<AtomicBool>,
+    last_error: Arc<RwLock<Option<ProtocolError>>>
 }
 
 #[derive(Debug, Clone)]
@@ -428,8 +427,14 @@ impl ProtocolServer for KWP2000ECU {
 
         let server_t = comm_server.clone();
         let ecu_id = cfg.send_id;
+
+        let error = Arc::new(RwLock::new(None));
+        let mut error_t = error.clone();
+
         // Enter extended diagnostic session (Full features)
+        comm_server.clear_iso15765_rx_buffer();
         std::thread::spawn(move || {
+            let mut timeout_count = 0;
             let mut last_send = std::time::Instant::now();
             println!("DIAG SERVER START");
             while should_run_t.load(Relaxed) {
@@ -438,17 +443,26 @@ impl ProtocolServer for KWP2000ECU {
                     if !stop_tester_present_t.load(Relaxed) {
                         // Tell the ECU Tester is still here, no response required though :)
                         KWP2000ECU::send_kwp2000_cmd(server_t.as_ref(), ecu_id, Service::TesterPresent, &[0x01]);
-                        if let Ok(v) = server_t.read_iso15765_packets(0, 1) {
+                        if let Ok(v) = server_t.read_iso15765_packets(1000, 1) {
                             if let Some(response) = v.get(0) {
+                                timeout_count = 0;
                                 if response.data[0] == 0x7F && response.data[1] == Service::TesterPresent.get_byte() {
                                     should_run_t.store(false, Relaxed);
+                                    let error_type = NegativeResponse::from_byte(response.data[2]);
+                                    *error_t.write().unwrap() = Some(ProtocolError::ProtocolError(Box::new(error_type)));
                                     eprintln!("Terminating diag session!");
                                 }
+                            } else {
+                                timeout_count += 1;
                             }
+                        }
+                        if timeout_count > 2 {
+                            should_run_t.store(false, Relaxed);
+                            *error_t.write().unwrap() = Some(ProtocolError::CustomError("ECU Tester present response timeout".into()));
                         }
                     }
                 }
-                std::thread::sleep(std::time::Duration::from_millis(1));
+                std::thread::sleep(std::time::Duration::from_millis(10));
             }
             println!("DIAG SERVER STOP");
         });
@@ -459,10 +473,12 @@ impl ProtocolServer for KWP2000ECU {
             iso_tp_settings: *cfg,
             stop_tester_present: stop_send_tester_present,
             should_run,
+            last_error: error
 
         };
         if let Err(e) = ecu.run_command(Service::StartDiagSession, &[0x92], 250) {
             eprintln!("Error sending tester present {:?}", e);
+            ecu.should_run.store(false, Relaxed);
             ecu.comm_server.close_iso15765_interface();
             Err(e)
         } else {
@@ -470,10 +486,6 @@ impl ProtocolServer for KWP2000ECU {
             Ok(ecu)
         }
     
-    }
-
-    fn is_in_diag_session(&self) -> bool {
-        self.should_run.load(Relaxed) // Diag server self-terminates upon ECU Session error
     }
 
     fn exit_diag_session(&mut self) {
@@ -551,5 +563,16 @@ impl ProtocolServer for KWP2000ECU {
             bytes.drain(0..3);
         }
         Ok(res)
+    }
+
+    fn is_in_diag_session(&self) -> bool {
+        self.should_run.load(Relaxed) // Diag server self-terminates upon ECU Session error
+    }
+
+    fn get_last_error(&self) -> Option<String> {
+       match self.last_error.read().unwrap().as_ref() {
+           Some(x) => Some(x.get_text()),
+           None => None
+       }
     }
 }

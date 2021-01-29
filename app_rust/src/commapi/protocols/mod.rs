@@ -13,15 +13,20 @@ pub mod kwp2000;
 pub enum ProtocolError {
     CommError(comm_api::ComServerError),
     ProtocolError(Box<dyn CommandError>),
+    CustomError(String),
     Timeout,
 }
+
+unsafe impl Send for ProtocolError{}
+unsafe impl Sync for ProtocolError{}
 
 impl ProtocolError {
     pub fn get_text(&self) -> String {
         match self {
             ProtocolError::CommError(e) => e.to_string(),
             ProtocolError::ProtocolError(e) => e.get_text(),
-            ProtocolError::Timeout => "Communication timeout".into()
+            ProtocolError::Timeout => "Communication timeout".into(),
+            ProtocolError::CustomError(s) => s.clone()
         }
     }
 }
@@ -54,7 +59,7 @@ pub trait CommandError {
     fn from_byte(b: u8) -> Self where Self: Sized;
 }
 
-impl std::fmt::Debug for dyn CommandError {
+impl std::fmt::Debug for Box<dyn CommandError> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "CMDError {}", self.get_text())
     }
@@ -84,4 +89,6 @@ pub trait ProtocolServer : Clone {
     fn read_errors(&self) -> ProtocolResult<Vec<DTC>>;
 
     fn is_in_diag_session(&self) -> bool;
+
+    fn get_last_error(&self) -> Option<String>;
 }

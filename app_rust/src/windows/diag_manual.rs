@@ -1,10 +1,10 @@
 use std::{fs::File, io::Read, path::Path, todo};
 
-use iced::{Align, Column, Element, Length, Row};
+use iced::{Align, Column, Element, Length, Row, Subscription};
 
 use crate::{commapi::comm_api::{ComServer, ISO15765Config}, themes::{ButtonType, TextType, TitleSize, button_outlined, picklist, text, title_text}};
 
-use super::{diag_home::{ECUDiagSettings, VehicleECUList}, diag_session::{DiagSession, SessionMsg, SessionType}};
+use super::{diag_home::{ECUDiagSettings, VehicleECUList}, diag_session::{DiagMessageTrait, DiagSession, SessionMsg, SessionType}};
 
 #[derive(Debug, Clone)]
 pub enum DiagManualMessage {
@@ -49,16 +49,29 @@ impl DiagManual {
         }
     }
 
+    pub fn subscription(&self) -> Subscription<DiagManualMessage> {
+        if let Some(ref session) = self.session {
+            session.subscription().map(DiagManualMessage::Session)
+        } else {
+            Subscription::none()
+        }
+    }
+
     pub fn update(&mut self, msg: &DiagManualMessage) -> Option<DiagManualMessage> {
         // If session is active, all calls get re-directed to the active diag session
         if let Some(ref mut session) = self.session {
             if let DiagManualMessage::Session(m) = msg {
-                return session.update(m).map(DiagManualMessage::Session)
+                if m.is_back() {
+                    self.session.take();
+                    return None
+                } else {
+                    return session.update(m).map(DiagManualMessage::Session)
+                }
             }
         }
         match msg {
             DiagManualMessage::Back => {
-                //if 
+                 
             }
             DiagManualMessage::LaunchFileBrowser => {
                 if let nfd::Response::Okay(f_path) = nfd::open_file_dialog(Some("ovdjson"), None).unwrap_or(nfd::Response::Cancel) {

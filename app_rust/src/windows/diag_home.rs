@@ -1,5 +1,5 @@
 use crate::commapi::comm_api::{ComServer, Capability};
-use iced::{Element, Column, Text, Align, Length, Row, Rule, Space, button};
+use iced::{Align, Column, Element, Length, Row, Rule, Space, Subscription, Text, button};
 use crate::windows::window::WindowMessage;
 use crate::themes::{title_text, text, TextType, button_outlined, ButtonType, TitleSize};
 use super::{diag_manual::{self, DiagManual, DiagManualMessage}, diag_scanner::{DiagScanner, DiagScannerMessage}};
@@ -86,6 +86,16 @@ impl DiagHome {
                     None => None
                 }
             }
+        }
+    }
+
+    pub fn subscription(&self) -> Subscription<DiagHomeMessage> {
+        if let Some(ref manual) = self.manual_mode {
+            manual.subscription().map(DiagHomeMessage::ManualSession)
+        } else if let Some(ref scan) = self.scan_mode {
+            todo!()
+        } else {
+            Subscription::none()
         }
     }
 

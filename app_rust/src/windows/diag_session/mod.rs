@@ -1,5 +1,5 @@
 use custom_session::{CustomDiagSession, CustomDiagSessionMsg};
-use iced::Element;
+use iced::{Element, Subscription};
 use kwp2000_session::KWP2000DiagSession;
 use uds_session::{UDSDiagSession, UDSDiagSessionMsg};
 
@@ -13,6 +13,7 @@ pub mod custom_session;
 pub mod json_session;
 pub mod kwp2000_session;
 pub mod uds_session;
+pub mod log_view;
 
 
 pub enum SessionType {
@@ -27,6 +28,17 @@ pub enum SessionMsg {
     UDS(UDSDiagSessionMsg),
     Custom(CustomDiagSessionMsg),
     ExitSession,
+}
+
+impl DiagMessageTrait for SessionMsg {
+    fn is_back(&self) -> bool {
+        match &self {
+            SessionMsg::KWP(k) => k.is_back(),
+            SessionMsg::UDS(u) => u.is_back(),
+            SessionMsg::Custom(c) => c.is_back(),
+            SessionMsg::ExitSession => true
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -56,15 +68,23 @@ impl DiagSession {
 
     pub fn update(&mut self, msg: &SessionMsg) -> Option<SessionMsg> {
         match self {
-            DiagSession::UDS(s) => if let SessionMsg::UDS(m) = msg { s.update(m) } else { None },
-            DiagSession::KWP(s) => if let SessionMsg::KWP(m) = msg { s.update(m) } else { None },
-            DiagSession::Custom(s) => if let SessionMsg::Custom(m) = msg { s.update(m) } else { None },
+            DiagSession::UDS(s) => if let SessionMsg::UDS(m) = msg { s.update(m).map(SessionMsg::UDS) } else { None },
+            DiagSession::KWP(s) => if let SessionMsg::KWP(m) = msg { s.update(m).map(SessionMsg::KWP) } else { None },
+            DiagSession::Custom(s) => if let SessionMsg::Custom(m) = msg { s.update(m).map(SessionMsg::Custom) } else { None },
+        }
+    }
+
+    pub fn subscription(&self) -> Subscription<SessionMsg> {
+        match self {
+            DiagSession::UDS(s) => s.subscription().map(SessionMsg::UDS),
+            DiagSession::KWP(s) => s.subscription().map(SessionMsg::KWP),
+            DiagSession::Custom(s) => s.subscription().map(SessionMsg::Custom)
         }
     }
 }
 
 pub trait DiagMessageTrait : std::fmt::Debug {
-
+    fn is_back(&self) -> bool;
 }
 
 
@@ -73,5 +93,7 @@ pub trait SessionTrait : std::fmt::Debug {
 
     fn view(&mut self) -> Element<Self::msg>;
 
-    fn update(&mut self, msg: &Self::msg) -> Option<SessionMsg>;
+    fn update(&mut self, msg: &Self::msg) -> Option<Self::msg>;
+
+    fn subscription(&self) -> Subscription<Self::msg>;
 }
