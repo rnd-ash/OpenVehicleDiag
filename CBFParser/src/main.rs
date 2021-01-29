@@ -1,19 +1,6 @@
 use std::env;
 use std::fs::File;
 use common::raf::Raf;
-mod cxf;
-mod ecu;
-mod diag;
-mod structure;
-mod converter;
-extern crate xml;
-mod log;
-mod caesar;
-use cxf::*;
-use ecu::*;
-use diag::*;
-use converter::*;
-use xml::reader::{EventReader, XmlEvent};
 use std::io::Read;
 
 fn help(err: String) -> ! {
@@ -37,12 +24,9 @@ fn read_file(path: &String) {
         eprintln!("Cannot be used with CFF. Only CBF!");
         return;
     }
-
     let mut f = File::open(path).expect("Cannot open input file");
     let mut buffer = vec![0; f.metadata().unwrap().len() as usize];
     f.read(&mut buffer).expect("Error reading file");
     let mut br = Raf::from_bytes(&buffer, common::raf::RafByteOrder::LE);
-    let container = caesar::CContainer::new(&mut br);
-    converter::convert(&container);
 
 }
