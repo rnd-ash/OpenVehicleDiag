@@ -1,5 +1,6 @@
 use std::env;
 use std::fs::File;
+use caesar::container;
 use common::raf::Raf;
 use ctf::cff_header;
 use std::io::Read;
@@ -33,14 +34,8 @@ fn read_file(path: &String) {
     println!("Have {} bytes", buffer.len());
     let mut br = Raf::from_bytes(&buffer, common::raf::RafByteOrder::LE);
 
-    let header = br.read_bytes(ctf::STUB_HEADER_SIZE).expect("Could not read header bytes");
-    ctf::StubHeader::read_header(&header);
-
-    let header_size = br.read_u32().expect("Oops");
-    br.read_bytes(header_size as usize);
-
-    let res = cff_header::CFFHeader::new(&mut br);
-    match res {
+    let container = container::Container::new(&mut br);
+    match container {
         Ok(header) => println!("{:#?}", header),
         Err(e) => eprintln!("{:?}", e)
     }
