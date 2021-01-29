@@ -192,8 +192,8 @@ impl Application for MainWindow {
             // See if either other pages request update
             if let WindowState::CanTracer(tracer) = &self.state {
                 batch.push(tracer.subscription().map(WindowMessage::CanTracer))
-            } else if let WindowState::DiagHome(d) = &self.state {
-                //batch.push(d.subscription().map(WindowMessage::UDSScanner))
+            } else if let WindowState::DiagHome( d) = &self.state {
+                batch.push(d.subscription().map(WindowMessage::DiagHome))
             }
             Subscription::batch(batch)
         }
