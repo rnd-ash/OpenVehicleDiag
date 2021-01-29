@@ -1,7 +1,11 @@
 use std::env;
 use std::fs::File;
 use common::raf::Raf;
+use ctf::cff_header;
 use std::io::Read;
+
+mod caesar;
+mod ctf;
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);
@@ -16,7 +20,6 @@ fn main() {
         2 => read_file(&args[1]),
         _ => help(format!("Invalid number of args: {}", args.len() - 1)),
     }
-    println!("Hello, world!");
 }
 
 fn read_file(path: &String) {
@@ -26,7 +29,19 @@ fn read_file(path: &String) {
     }
     let mut f = File::open(path).expect("Cannot open input file");
     let mut buffer = vec![0; f.metadata().unwrap().len() as usize];
-    f.read(&mut buffer).expect("Error reading file");
+    f.read_exact(&mut buffer).expect("Error reading file");
+    println!("Have {} bytes", buffer.len());
     let mut br = Raf::from_bytes(&buffer, common::raf::RafByteOrder::LE);
 
+    let header = br.read_bytes(ctf::STUB_HEADER_SIZE).expect("Could not read header bytes");
+    ctf::StubHeader::read_header(&header);
+
+    let header_size = br.read_u32().expect("Oops");
+    br.read_bytes(header_size as usize);
+
+    let res = cff_header::CFFHeader::new(&mut br);
+    match res {
+        Ok(header) => println!("{:#?}", header),
+        Err(e) => eprintln!("{:?}", e)
+    }
 }
