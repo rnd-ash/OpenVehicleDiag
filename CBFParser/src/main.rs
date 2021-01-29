@@ -7,6 +7,7 @@ use std::io::Read;
 
 mod caesar;
 mod ctf;
+mod ecu;
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);
@@ -36,7 +37,7 @@ fn read_file(path: &String) {
 
     let container = container::Container::new(&mut br);
     match container {
-        Ok(header) => println!("{:#?}", header),
+        Ok(header) => println!("{:#?}", header.ecus[0]),
         Err(e) => eprintln!("{:?}", e)
     }
 }

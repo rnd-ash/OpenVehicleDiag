@@ -1,3 +1,5 @@
+use std::string;
+
 use common::raf;
 
 use crate::Raf;
@@ -14,7 +16,7 @@ pub fn read_bitflag_string(bit_flag: &mut u32, reader: &mut Raf, base_addr: usiz
         reader.seek(reader_pos);
         Ok(res)
     } else {
-        Ok("[DISABLED FLAG]".into())
+        Ok("".into())
     }
 }
 

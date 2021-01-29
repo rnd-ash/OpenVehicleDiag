@@ -17,7 +17,7 @@ pub struct CTFHeader {
     language_table_offset: i32,
     unk7: String,
     base_addr: usize,
-    languages: Vec<CTFLanguage>
+    pub languages: Vec<CTFLanguage>
 }
 
 impl CTFHeader {
@@ -43,6 +43,10 @@ impl CTFHeader {
             res.languages.push(CTFLanguage::new(reader, real_lang_entry_addr, header_size)?)
         }
         Ok(res)
+    }
+
+    pub fn get_languages(&self, idx: usize) -> CTFLanguage {
+        self.languages[idx].clone()
     }
 }
 
@@ -89,8 +93,11 @@ impl CTFLanguage {
         Ok(())
     }
 
-    pub fn get_string(&self, idx: usize) -> Option<String> {
-        self.strings.get(idx).cloned()
+    pub fn get_string(&self, idx: i32) -> Option<String> {
+        if idx < 0 {
+            return None
+        }
+        self.strings.get(idx as usize).cloned()
     }
 }
 

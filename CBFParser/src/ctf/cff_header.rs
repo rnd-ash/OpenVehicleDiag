@@ -6,24 +6,24 @@ use crate::caesar::{CaesarError, creader};
 pub struct CFFHeader {
     caesar_version: i32,
     gpd_version: i32,
-    ecu_count: i32,
-    ecu_offset: i32,
+    pub ecu_count: i32,
+    pub ecu_offset: i32,
     pub ctf_offset: i32,
-    string_pool_size: i32,
-    dsc_offset: i32,
-    dsc_count: i32,
-    dsc_entry_size: i32,
-    cbf_version_string: String,
-    gpd_version_string: String,
-    xml_string: String,
+    pub string_pool_size: i32,
+    pub dsc_offset: i32,
+    pub dsc_count: i32,
+    pub dsc_entry_size: i32,
+    pub cbf_version_string: String,
+    pub gpd_version_string: String,
+    pub xml_string: String,
 
     pub cff_header_size: i32,
     pub base_addr: usize,
 
-    dsc_block_offset: usize,
-    dsc_block_size: i32,
+    pub dsc_block_offset: usize,
+    pub dsc_block_size: i32,
 
-    dsc_pool: Vec<u8>
+    pub dsc_pool: Vec<u8>
 }
 
 impl CFFHeader {
