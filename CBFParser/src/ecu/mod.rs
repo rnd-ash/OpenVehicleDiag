@@ -17,7 +17,7 @@ pub mod com_param;
 
 
 #[derive(Debug, Clone, Copy, Default)]
-struct Block {
+pub (crate) struct Block {
     block_offset: usize,
     entry_count: usize,
     entry_size: usize,
@@ -68,7 +68,7 @@ pub struct ECU {
 
     vc_domain: Block,
 
-    presentations: Block,
+    pub (crate) presentations: Block,
 
     internal_presentations: Block,
 
@@ -80,21 +80,22 @@ pub struct ECU {
     interfaces: Vec<ECUInterface>,
     interface_sub_types: Vec<InterfaceSubType>,
 
-    global_dtcs: Vec<DTC>,
-    global_presentations: Vec<Presentation>,
-    global_internal_presentations: Vec<Presentation>,
-    global_services: Vec<Service>,
+    pub global_dtcs: Vec<DTC>,
+    pub global_presentations: Vec<Presentation>,
+    pub global_internal_presentations: Vec<Presentation>,
+    pub global_services: Vec<Service>,
+    pub global_diag_jobs: Vec<Service>,
 }
 
 impl ECU {
     pub (crate) fn new(reader: &mut Raf, lang: &CTFLanguage, header: &CFFHeader, base_addr: usize, parent_container: Arc<Container>) -> std::result::Result<Self, CaesarError> {
         
         let mut bitflags = reader.read_u32()?;
-        let mut bitflags_ext = reader.read_u16()? as u32;
+        let bitflags_ext = reader.read_u16()? as u32;
 
         let unk_0 = reader.read_i32()?;
 
-        println!("Processing ECU - Base address: {}", base_addr);
+        println!("Processing ECU - Base address: 0x{:08X}", base_addr);
         let mut res = ECU {
             base_addr,
             qualifier: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
@@ -160,16 +161,16 @@ impl ECU {
 
         res.global_presentations = Self::create_presentations(reader, lang, &res.presentations)?;
         res.global_internal_presentations = Self::create_presentations(reader, lang, &res.internal_presentations)?;
-        res.global_internal_presentations = Self::create_presentations(reader, lang, &res.internal_presentations)?;
 
         res.global_services = res.create_services(reader, lang, &res.env)?;
+        res.global_diag_jobs = res.create_diag_jobs(reader, lang, &res.diag_job)?;
 
         // Create DTCs
         res.global_dtcs = Self::create_dtcs(reader, lang, &res.dtc)?;
         Ok(res)
     }
 
-    fn read_pool(reader: &mut Raf, pool: &Block) -> std::result::Result<Vec<u8>, CaesarError> {
+    pub (crate) fn read_pool(reader: &mut Raf, pool: &Block) -> std::result::Result<Vec<u8>, CaesarError> {
         reader.seek(pool.block_offset);
         reader.read_bytes(pool.entry_count * pool.entry_size).map_err(CaesarError::FileError)
     }
@@ -209,18 +210,36 @@ impl ECU {
         Ok(res)
     }
 
-    fn create_services(&self, reader: &mut Raf, lang: &CTFLanguage, service_blk: &Block) -> std::result::Result<Vec<Service>, CaesarError> {
-        let pool = Self::read_pool(reader, service_blk)?;
-        let mut res = vec![Service::default(); service_blk.entry_count];
+    fn create_services(&self, reader: &mut Raf, lang: &CTFLanguage, env_blk: &Block) -> std::result::Result<Vec<Service>, CaesarError> {
+        let pool = Self::read_pool(reader, env_blk)?;
+        let mut res = vec![Service::default(); env_blk.entry_count];
         let mut tmp_reader = Raf::from_bytes(&pool, common::raf::RafByteOrder::LE);
 
-        for i in 0..service_blk.entry_count {
+        for i in 0..env_blk.entry_count {
             let offset = tmp_reader.read_i32()? as usize;
             let _size = tmp_reader.read_i32()?;
 
-            let pres_base_address = offset + service_blk.block_offset;
+            let env_base_address = offset + env_blk.block_offset;
         
-            res[i] = Service::new(reader, pres_base_address, i, lang, self)?
+            res[i] = Service::new(reader, env_base_address, i, lang, self)?
+        }
+        Ok(res)
+    }
+
+    fn create_diag_jobs(&self, reader: &mut Raf, lang: &CTFLanguage, diag_blk: &Block) -> std::result::Result<Vec<Service>, CaesarError> {
+        let pool = Self::read_pool(reader, diag_blk)?;
+        let mut res = vec![Service::default(); diag_blk.entry_count];
+        let mut tmp_reader = Raf::from_bytes(&pool, common::raf::RafByteOrder::LE);
+
+        for i in 0..diag_blk.entry_count {
+            let offset = tmp_reader.read_i32()? as usize;
+            let _size = tmp_reader.read_i32()?;
+            let _crc = tmp_reader.read_i32()?;
+            let _config = tmp_reader.read_u16()?;
+
+            let diag_job_base_address = offset + diag_blk.block_offset;
+        
+            res[i] = Service::new(reader, diag_job_base_address, i, lang, self)?
         }
         Ok(res)
     }

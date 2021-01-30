@@ -24,7 +24,7 @@ pub struct ComParameter {
 
 impl ComParameter {
     pub fn new(reader: &mut Raf, base_addr: usize, parents: &[ECUInterface]) -> std::result::Result<Self, CaesarError> {
-        println!("Processing COM Parameter - Base address: {}", base_addr);
+        println!("Processing COM Parameter - Base address: 0x{:08X}", base_addr);
         reader.seek(base_addr);
         let mut bitflags = reader.read_u16()? as u32;
 

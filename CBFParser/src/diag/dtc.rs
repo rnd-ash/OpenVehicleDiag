@@ -17,7 +17,7 @@ pub struct DTC {
 
 impl DTC {
     pub fn new(reader: &mut Raf, base_addr: usize, pool_idx: usize, lang: &CTFLanguage) -> std::result::Result<Self, CaesarError> {
-        println!("Processing DTC - Base address: {}", base_addr);
+        println!("Processing DTC - Base address: 0x{:08X}", base_addr);
         
         reader.seek(base_addr);
         let mut bitflags = reader.read_u16()? as u32;

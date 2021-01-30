@@ -42,7 +42,7 @@ struct ECUVariant {
 
 impl ECUVariant {
     pub fn new(reader: &mut Raf, parent_ecu: &ECU, lang: &CTFLanguage, base_addr: usize, block_size: usize) -> std::result::Result<Self, CaesarError> {
-        println!("Processing ECU Variant - Base address: {}", base_addr);
+        println!("Processing ECU Variant - Base address: 0x{:08X}", base_addr);
         reader.seek(base_addr);
 
         let mut tmp_reader = Raf::from_bytes(&reader.read_bytes(block_size)?, common::raf::RafByteOrder::LE);

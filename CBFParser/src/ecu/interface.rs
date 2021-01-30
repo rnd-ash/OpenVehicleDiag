@@ -22,7 +22,7 @@ pub struct ECUInterface {
 impl ECUInterface {
     pub fn new(reader: &mut Raf, base_addr: usize, lang: &CTFLanguage) -> std::result::Result<Self, CaesarError> {
         reader.seek(base_addr);
-        println!("Processing ECU Interface - Base address: {}", base_addr);
+        println!("Processing ECU Interface - Base address: 0x{:08X}", base_addr);
         let mut bitflags = reader.read_u32()?;
         
         let mut res = ECUInterface {

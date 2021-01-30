@@ -71,7 +71,7 @@ impl VariantPattern {
         let mut bitflags = reader.read_u32()?;
 
         let unk_buffer_size = creader::read_primitive(&mut bitflags, reader, 0i32)?;
-        println!("Processing Variant Pattern - Base address: {}", base_addr);
+        println!("Processing Variant Pattern - Base address: 0x{:08X}", base_addr);
         let mut res = VariantPattern {
             unk_buffer_size,
             unk_buffer: creader::read_bitflag_dump(&mut bitflags, reader, unk_buffer_size as usize, base_addr)?,
