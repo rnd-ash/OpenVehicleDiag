@@ -1,32 +1,36 @@
 use std::{default, sync::Arc, vec};
 
-use common::raf::Raf;
-use creader::read_primitive;
+use common::{raf::Raf};
+use creader::{CaesarPrimitive, read_primitive};
 use hyper::header::Basic;
+use interface_subtype::InterfaceSubType;
 
-use crate::{caesar::{CaesarError, container::Container, creader}, ctf::{STUB_HEADER_SIZE, cff_header::CFFHeader, ctf_header::CTFLanguage}};
+use crate::{caesar::{CaesarError, container::Container, creader}, ctf::{STUB_HEADER_SIZE, cff_header::CFFHeader, ctf_header::CTFLanguage}, diag::{dtc::DTC, presentation::Presentation}};
+
+use self::interface::ECUInterface;
 
 pub mod variant_pattern;
 pub mod variant;
 pub mod interface;
 pub mod interface_subtype;
+pub mod com_param;
 
 
 #[derive(Debug, Clone, Copy, Default)]
 struct Block {
-    block_offset: i32,
-    entry_count: i32,
-    entry_size: i32,
-    block_size: i32
+    block_offset: usize,
+    entry_count: usize,
+    entry_size: usize,
+    block_size: usize
 }
 
 impl Block {
     pub (crate) fn new(reader: &mut Raf, bitflags: &mut u32, relative_offset: usize) -> std::result::Result<Self, CaesarError> {
         Ok(Self {
-            block_offset: creader::read_primitive(bitflags, reader, 0i32)? + relative_offset as i32,
-            entry_count: creader::read_primitive(bitflags, reader, 0i32)?,
-            entry_size: creader::read_primitive(bitflags, reader, 0i32)?,
-            block_size: creader::read_primitive(bitflags, reader, 0i32)?
+            block_offset: creader::read_primitive(bitflags, reader,0i32)?.to_usize() + relative_offset,
+            entry_count: creader::read_primitive(bitflags, reader, 0i32)?.to_usize(),
+            entry_size: creader::read_primitive(bitflags, reader, 0i32)?.to_usize(),
+            block_size: creader::read_primitive(bitflags, reader, 0i32)?.to_usize()
         })
     }
 }
@@ -39,7 +43,7 @@ pub struct ECU {
     description: Option<String>,
     xml_version: String,
     iface_block_count: i32,
-    iface_table_count: i32,
+    iface_table_offset: i32,
     sub_iface_count: i32,
     sub_iface_offset: i32,
     class_name: String,
@@ -72,6 +76,12 @@ pub struct ECU {
 
     unk39: i32,
     base_addr: usize,
+
+    interfaces: Vec<ECUInterface>,
+    interface_sub_types: Vec<InterfaceSubType>,
+
+    global_dtcs: Vec<DTC>,
+    global_presentations: Vec<Presentation>
 }
 
 impl ECU {
@@ -90,7 +100,7 @@ impl ECU {
             description: lang.get_string(creader::read_primitive(&mut bitflags, reader, -1i32)?),
             xml_version: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
             iface_block_count: creader::read_primitive(&mut bitflags, reader, 0i32)?,
-            iface_table_count: creader::read_primitive(&mut bitflags, reader, 0i32)?,
+            iface_table_offset: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             sub_iface_count: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             sub_iface_offset: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             class_name: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
@@ -104,21 +114,96 @@ impl ECU {
         res.ignition_required = creader::read_primitive(&mut bitflags, reader, 0i16)? > 0;
         res.unk2 = creader::read_primitive(&mut bitflags, reader, 0i16)? as i32;
         res.unk_block_count = creader::read_primitive(&mut bitflags, reader, 0i16)? as i32;
+        res.unk_block_offset = creader::read_primitive(&mut bitflags, reader, 0i32)?;
         res.sgml_source = creader::read_primitive(&mut bitflags, reader, 0i16)? as i32;
-        res.unk6_relative_offset = creader::read_primitive(&mut bitflags, reader, 0i16)? as i32;
+        res.unk6_relative_offset = creader::read_primitive(&mut bitflags, reader, 0i32)? as i32;
 
         res.ecu_variant = Block::new(reader, &mut bitflags, data_buffer_offset_relative)?;
         res.diag_job = Block::new(reader, &mut bitflags, data_buffer_offset_relative)?;
         res.dtc = Block::new(reader, &mut bitflags, data_buffer_offset_relative)?;
-        res.env = Block::new(reader, &mut bitflags, data_buffer_offset_relative)?;
+
+        res.env = Block {
+            block_offset: creader::read_primitive(&mut bitflags, reader, 0i32)? as usize + data_buffer_offset_relative,
+            entry_count: creader::read_primitive(&mut bitflags, reader, 0i32)? as usize,
+            entry_size: creader::read_primitive(&mut bitflags, reader, 0i32)? as usize,
+            block_size: 0,
+        };
 
         bitflags = bitflags_ext;
+        res.env.block_size = creader::read_primitive(&mut bitflags, reader, 0i32)? as usize;
 
         res.vc_domain = Block::new(reader, &mut bitflags, data_buffer_offset_relative)?;
         res.presentations = Block::new(reader, &mut bitflags, data_buffer_offset_relative)?;
         res.internal_presentations = Block::new(reader, &mut bitflags, data_buffer_offset_relative)?;
         res.unk = Block::new(reader, &mut bitflags, data_buffer_offset_relative)?;
         res.unk39 = creader::read_primitive(&mut bitflags, reader, 0i32)?;
+
+
+        let iface_table_address = base_addr + res.iface_table_offset as usize;
+
+        for i in 0..res.iface_block_count as usize {
+            reader.seek(iface_table_address + (i*4));
+            let iface_block_count = reader.read_i32()? as usize;
+            let ecu_iface_base_addr = iface_table_address + iface_block_count;
+            res.interfaces.push(ECUInterface::new(reader, ecu_iface_base_addr, lang)?)
+        }
+
+        let sub_type_table_address = base_addr + res.sub_iface_offset as usize;
+        for i in 0..res.sub_iface_count as usize {
+            reader.seek(sub_type_table_address + (i*4));
+            let block_offset = reader.read_i32()? as usize;
+            let sub_type_base_addr = sub_type_table_address + block_offset;
+            res.interface_sub_types.push(InterfaceSubType::new(reader, sub_type_base_addr, i, lang)?)
+        }
+
+        res.global_presentations = Self::create_presentations(reader, lang, &res.presentations)?;
+
+        // Create DTCs
+        //res.global_dtcs = Self::create_dtcs(reader, lang, &res.dtc)?;
+        Ok(res)
+    }
+
+    fn read_pool(reader: &mut Raf, pool: &Block) -> std::result::Result<Vec<u8>, CaesarError> {
+        println!("{:?}", pool);
+        reader.seek(pool.block_offset);
+        println!("{} {}", pool.entry_count, pool.entry_size);
+        reader.read_bytes(pool.entry_count * pool.entry_size).map_err(CaesarError::FileError)
+    }
+
+    fn create_dtcs(reader: &mut Raf, lang: &CTFLanguage, dtc_blk: &Block) -> std::result::Result<Vec<DTC>, CaesarError> {
+        let pool = Self::read_pool(reader, dtc_blk)?;
+        let mut res = vec![DTC::default(); dtc_blk.entry_count];
+
+        let mut tmp_reader = Raf::from_bytes(&pool, common::raf::RafByteOrder::LE);
+
+        for i in 0..dtc_blk.entry_count {
+            let offset = tmp_reader.read_i32()? as usize;
+            let size = tmp_reader.read_i32()?;
+            let crc = tmp_reader.read_i32()?;
+            let dtc_base_address = offset + dtc_blk.block_offset;
+
+            res[i] = DTC::new(reader, dtc_base_address, i, lang)?;
+        }
+
+        Ok(res)
+    } 
+
+    fn create_presentations(reader: &mut Raf, lang: &CTFLanguage, pres_blk: &Block) -> std::result::Result<Vec<Presentation>, CaesarError> {
+        let pool = Self::read_pool(reader, pres_blk)?;
+        let mut res = vec![Presentation::default(); pres_blk.entry_count];
+        let mut tmp_reader = Raf::from_bytes(&pool, common::raf::RafByteOrder::LE);
+
+        for i in 0..pres_blk.entry_count {
+            let offset = tmp_reader.read_i32()? as usize;
+            let _size = tmp_reader.read_i32()?;
+
+            let pres_base_address = offset + pres_blk.block_offset;
+        
+            res[i] = Presentation::new(reader, pres_base_address, i, lang)?
+        
+        }
+
+
 
         Ok(res)
     }
