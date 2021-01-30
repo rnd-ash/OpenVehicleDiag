@@ -5,7 +5,7 @@ use creader::{CaesarPrimitive, read_primitive};
 use hyper::header::Basic;
 use interface_subtype::InterfaceSubType;
 
-use crate::{caesar::{CaesarError, container::Container, creader}, ctf::{STUB_HEADER_SIZE, cff_header::CFFHeader, ctf_header::CTFLanguage}, diag::{dtc::DTC, presentation::Presentation}};
+use crate::{caesar::{CaesarError, container::Container, creader}, ctf::{STUB_HEADER_SIZE, cff_header::CFFHeader, ctf_header::CTFLanguage}, diag::{dtc::DTC, presentation::Presentation, service::Service}};
 
 use self::interface::ECUInterface;
 
@@ -81,7 +81,9 @@ pub struct ECU {
     interface_sub_types: Vec<InterfaceSubType>,
 
     global_dtcs: Vec<DTC>,
-    global_presentations: Vec<Presentation>
+    global_presentations: Vec<Presentation>,
+    global_internal_presentations: Vec<Presentation>,
+    global_services: Vec<Service>,
 }
 
 impl ECU {
@@ -157,16 +159,18 @@ impl ECU {
         }
 
         res.global_presentations = Self::create_presentations(reader, lang, &res.presentations)?;
+        res.global_internal_presentations = Self::create_presentations(reader, lang, &res.internal_presentations)?;
+        res.global_internal_presentations = Self::create_presentations(reader, lang, &res.internal_presentations)?;
+
+        res.global_services = res.create_services(reader, lang, &res.env)?;
 
         // Create DTCs
-        //res.global_dtcs = Self::create_dtcs(reader, lang, &res.dtc)?;
+        res.global_dtcs = Self::create_dtcs(reader, lang, &res.dtc)?;
         Ok(res)
     }
 
     fn read_pool(reader: &mut Raf, pool: &Block) -> std::result::Result<Vec<u8>, CaesarError> {
-        println!("{:?}", pool);
         reader.seek(pool.block_offset);
-        println!("{} {}", pool.entry_count, pool.entry_size);
         reader.read_bytes(pool.entry_count * pool.entry_size).map_err(CaesarError::FileError)
     }
 
@@ -178,8 +182,8 @@ impl ECU {
 
         for i in 0..dtc_blk.entry_count {
             let offset = tmp_reader.read_i32()? as usize;
-            let size = tmp_reader.read_i32()?;
-            let crc = tmp_reader.read_i32()?;
+            let _size = tmp_reader.read_i32()?;
+            let _crc = tmp_reader.read_i32()?;
             let dtc_base_address = offset + dtc_blk.block_offset;
 
             res[i] = DTC::new(reader, dtc_base_address, i, lang)?;
@@ -202,9 +206,22 @@ impl ECU {
             res[i] = Presentation::new(reader, pres_base_address, i, lang)?
         
         }
+        Ok(res)
+    }
 
+    fn create_services(&self, reader: &mut Raf, lang: &CTFLanguage, service_blk: &Block) -> std::result::Result<Vec<Service>, CaesarError> {
+        let pool = Self::read_pool(reader, service_blk)?;
+        let mut res = vec![Service::default(); service_blk.entry_count];
+        let mut tmp_reader = Raf::from_bytes(&pool, common::raf::RafByteOrder::LE);
 
+        for i in 0..service_blk.entry_count {
+            let offset = tmp_reader.read_i32()? as usize;
+            let _size = tmp_reader.read_i32()?;
 
+            let pres_base_address = offset + service_blk.block_offset;
+        
+            res[i] = Service::new(reader, pres_base_address, i, lang, self)?
+        }
         Ok(res)
     }
 }
