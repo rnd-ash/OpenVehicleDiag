@@ -1,4 +1,4 @@
-use std::string;
+use std::{primitive, string};
 
 use common::raf;
 
@@ -58,8 +58,10 @@ pub fn read_primitive<T: CaesarPrimitive>(bit_flag: &mut u32, reader: &mut Raf, 
     T::read_bitflag(bit_flag, reader, default)
 }
 
+
 pub trait CaesarPrimitive: Sized {
     fn read_bitflag(bit_flag: &mut u32, reader: &mut Raf, default: Self) -> super::Result<Self>;
+    fn to_usize(&self) -> usize;
 }
 
 impl CaesarPrimitive for f32 {
@@ -69,6 +71,10 @@ impl CaesarPrimitive for f32 {
         } else {
             Ok(default)
         }
+    }
+
+    fn to_usize(&self) -> usize {
+        *self as usize
     }
 }
 
@@ -80,6 +86,10 @@ impl CaesarPrimitive for i32 {
             Ok(default)
         }
     }
+
+    fn to_usize(&self) -> usize {
+        *self as usize
+    }
 }
 
 impl CaesarPrimitive for u32 {
@@ -89,6 +99,10 @@ impl CaesarPrimitive for u32 {
         } else {
             Ok(default)
         }
+    }
+
+    fn to_usize(&self) -> usize {
+        *self as usize
     }
 }
 
@@ -100,6 +114,10 @@ impl CaesarPrimitive for i16 {
             Ok(default)
         }
     }
+
+    fn to_usize(&self) -> usize {
+        *self as usize
+    }
 }
 
 impl CaesarPrimitive for u16 {
@@ -109,6 +127,10 @@ impl CaesarPrimitive for u16 {
         } else {
             Ok(default)
         }
+    }
+
+    fn to_usize(&self) -> usize {
+        *self as usize
     }
 }
 
@@ -120,6 +142,10 @@ impl CaesarPrimitive for i8 {
             Ok(default)
         }
     }
+
+    fn to_usize(&self) -> usize {
+        *self as usize
+    }
 }
 
 impl CaesarPrimitive for u8 {
@@ -129,5 +155,9 @@ impl CaesarPrimitive for u8 {
         } else {
             Ok(default)
         }
+    }
+
+    fn to_usize(&self) -> usize {
+        *self as usize
     }
 }

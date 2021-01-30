@@ -5,8 +5,8 @@ use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 
 
 #[derive(Debug, Clone, Default)]
-struct ECUInterface {
-    qualifier: String,
+pub struct ECUInterface {
+    pub qualifier: String,
     name: Option<String>,
     desc: Option<String>,
 
@@ -15,7 +15,7 @@ struct ECUInterface {
     com_param_count: i32,
     com_param_list_offset: i32,
     unk6: i32,
-    com_params: Vec<String>,
+    pub com_params: Vec<String>,
     base_addr: usize
 }
 

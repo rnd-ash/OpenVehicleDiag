@@ -8,6 +8,7 @@ use std::io::Read;
 mod caesar;
 mod ctf;
 mod ecu;
+mod diag;
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);
