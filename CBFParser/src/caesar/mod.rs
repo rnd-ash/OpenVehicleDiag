@@ -7,7 +7,8 @@ pub mod container;
 
 #[derive(Debug)]
 pub enum CaesarError {
-    FileError(raf::RafError)
+    FileError(raf::RafError),
+    ProcessException(String)
 }
 
 impl From<raf::RafError> for CaesarError {
