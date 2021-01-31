@@ -146,7 +146,10 @@ impl DiagManual {
                 block_size: ecu.block_size,
                 sep_time: ecu.sep_time_ms,
             };
-            self.session = Some(DiagSession::new(&session_type, self.server.clone(), cfg));
+            match DiagSession::new(&session_type, self.server.clone(), cfg) {
+                Ok(session) => self.session = Some(session),
+                Err(e) => self.status = format!("Error init diag session: {}", e.get_description())
+            }
         } else {
             self.status = "Error. No ECU selected?".into(); // How did this happen??
         }

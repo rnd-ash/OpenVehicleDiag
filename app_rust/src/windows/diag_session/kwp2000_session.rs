@@ -5,7 +5,7 @@ use log_view::{LogType, LogView};
 
 use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, protocols::{ProtocolServer, kwp2000::KWP2000ECU}}, themes::{ButtonType, TextType, TitleSize, button_outlined, text, title_text}, windows::{diag_manual::DiagManualMessage, window}};
 
-use super::{DiagMessageTrait, SessionMsg, SessionTrait, log_view};
+use super::{DiagMessageTrait, SessionMsg, SessionResult, SessionTrait, log_view};
 
 
 
@@ -37,8 +37,8 @@ pub struct KWP2000DiagSession {
 }
 
 impl KWP2000DiagSession {
-    pub fn new(comm_server: Box<dyn ComServer>, ecu: ISO15765Config) -> Self {
-        Self {
+    pub fn new(comm_server: Box<dyn ComServer>, ecu: ISO15765Config) -> SessionResult<Self> {
+        Ok(Self {
             ecu,
             server: comm_server,
             connect_btn: Default::default(),
@@ -46,7 +46,7 @@ impl KWP2000DiagSession {
             back_btn: Default::default(),
             diag_server: None,
             logview: LogView::new(),
-        }
+        })
     }
 }
 

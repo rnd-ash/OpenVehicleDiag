@@ -364,19 +364,19 @@ fn bcd_decode(input: u8) -> String {
 }
 
 impl KWP2000ECU {
-    pub (crate) fn send_kwp2000_cmd(server: &dyn ComServer, send_id: u32, cmd: Service, args: &[u8]) -> std::result::Result<usize, ComServerError> {
+    pub (crate) fn send_kwp2000_cmd(server: &dyn ComServer, send_id: u32, cmd: u8, args: &[u8]) -> std::result::Result<usize, ComServerError> {
         let mut data = ISO15765Data {
             id: send_id,
             data: vec![],
             pad_frame: false,
         };
-        data.data.push(cmd.get_byte());
+        data.data.push(cmd);
         data.data.extend_from_slice(args);
         server.send_iso15765_data(&[data], 0)
     }
 
     pub fn get_ecu_info_data(&self) -> std::result::Result<ECUIdentification, ProtocolError> {
-        let res = self.run_command(Service::ReadECUID, &[0x87], 500)?;
+        let res = self.run_command(Service::ReadECUID.get_byte(), &[0x87], 500)?;
         let mut diag = ECUIdentification::default();
         let origin = res[2];
         let supplier_id = res[3];
@@ -397,7 +397,7 @@ impl KWP2000ECU {
     }
 
     pub fn clear_errors(&self) -> std::result::Result<(), ProtocolError> {
-        self.run_command(Service::ClearDiagnosticInformation, &[0xFF, 0x00], 1000)?;
+        self.run_command(Service::ClearDiagnosticInformation.get_byte(), &[0xFF, 0x00], 1000)?;
         Ok(())
     }
 }
@@ -438,7 +438,7 @@ impl ProtocolServer for KWP2000ECU {
                     last_send = std::time::Instant::now();
                     if !stop_tester_present_t.load(Relaxed) {
                         // Tell the ECU Tester is still here, no response required though :)
-                        KWP2000ECU::send_kwp2000_cmd(server_t.as_ref(), ecu_id, Service::TesterPresent, &[0x01]);
+                        KWP2000ECU::send_kwp2000_cmd(server_t.as_ref(), ecu_id, Service::TesterPresent.get_byte(), &[0x01]);
                         if let Ok(v) = server_t.read_iso15765_packets(1000, 1) {
                             if let Some(response) = v.get(0) {
                                 timeout_count = 0;
@@ -472,7 +472,7 @@ impl ProtocolServer for KWP2000ECU {
             last_error: error
 
         };
-        if let Err(e) = ecu.run_command(Service::StartDiagSession, &[0x92], 250) {
+        if let Err(e) = ecu.run_command(Service::StartDiagSession.get_byte(), &[0x92], 250) {
             eprintln!("Error sending tester present {:?}", e);
             ecu.should_run.store(false, Relaxed);
             ecu.comm_server.close_iso15765_interface();
@@ -489,7 +489,7 @@ impl ProtocolServer for KWP2000ECU {
         self.comm_server.close_iso15765_interface();
     }
 
-    fn run_command(&self, cmd: Self::Command, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
+    fn run_command(&self, cmd: u8, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
         if let Err(e) =  KWP2000ECU::send_kwp2000_cmd(self.comm_server.as_ref(), self.iso_tp_settings.send_id, cmd, args) {
             self.stop_tester_present.store(false, Relaxed); // Wait for response
             return Err(ProtocolError::CommError(e));
@@ -502,7 +502,7 @@ impl ProtocolServer for KWP2000ECU {
                 if let Ok(msgs) = self.comm_server.read_iso15765_packets(0, 1) {
                     for m in msgs {
                         if !m.data.is_empty() { // Avoid FF indications
-                            if m.data[0] == cmd.get_byte() + 0x40 {
+                            if m.data[0] == cmd + 0x40 {
                                 self.stop_tester_present.store(false, Relaxed);
                                 return Ok(Vec::from(&m.data[1..]))
                             } else if m.data[0] == 0x7F { // Negative response
@@ -528,7 +528,7 @@ impl ProtocolServer for KWP2000ECU {
     fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
         // 0x02 - Request Hex DTCs as 2 bytes
         // 0xFF00 - Request all DTCs (Mandatory per KWP2000)
-        let mut bytes = self.run_command(Service::ReadDTCByStatus, &[0x02, 0xFF, 0x00], 500)?;
+        let mut bytes = self.run_command(Service::ReadDTCByStatus.get_byte(), &[0x02, 0xFF, 0x00], 500)?;
         println!("{:02X?}", bytes);
         let count = bytes[0] as usize;
         bytes.drain(0..1);
