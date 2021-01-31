@@ -38,17 +38,17 @@ impl Block {
 
 #[derive(Debug, Clone, Default)]
 pub struct ECU {
-    qualifier: String,
-    name: Option<String>,
-    description: Option<String>,
-    xml_version: String,
-    iface_block_count: i32,
-    iface_table_offset: i32,
-    sub_iface_count: i32,
-    sub_iface_offset: i32,
-    class_name: String,
-    unk7: String,
-    unk8: String,
+    pub qualifier: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub xml_version: String,
+    pub iface_block_count: i32,
+    pub iface_table_offset: i32,
+    pub sub_iface_count: i32,
+    pub sub_iface_offset: i32,
+    pub class_name: String,
+    pub unk7: String,
+    pub unk8: String,
 
     ignition_required: bool,
     unk2: i32,

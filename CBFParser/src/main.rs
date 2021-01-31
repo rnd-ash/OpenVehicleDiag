@@ -2,7 +2,9 @@ use std::env;
 use std::fs::File;
 use caesar::container;
 use common::raf::Raf;
+use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}};
 use ctf::cff_header;
+use ecu::ECU;
 use std::io::Read;
 
 mod caesar;
@@ -38,7 +40,43 @@ fn read_file(path: &String) {
 
     let container = container::Container::new(&mut br);
     match container {
-        Ok(header) => println!("{:#?}", header.ecus[0]),
+        Ok(c) => decode_ecu(&c.ecus[0]),
         Err(e) => eprintln!("{:?}", e)
     }
+}
+
+fn decode_ecu(e: &ECU) {
+    println!("Converting ECU {}", e.qualifier);
+
+    let mut ecu = OvdECU {
+        name: e.qualifier.clone(),
+        description: e.name.clone().unwrap_or("".into()),
+        variants: Vec::new()
+    };
+
+    for variant in e.variants.iter() {
+        if variant.qualifier == e.qualifier {
+            continue
+        }
+
+        let mut ecu_variant = ECUVariantDefinition {
+            name: variant.qualifier.clone(),
+            description: variant.name.clone().unwrap_or("".into()),
+            patterns: Vec::new()
+        };
+        
+        variant.variant_patterns.iter().for_each(|p| {
+            ecu_variant.patterns.push(
+                ECUVariantPattern {
+                    vendor: p.vendor_name.clone(),
+                    vendor_id: p.get_vendor_id()as u32,
+                    hw_id: 0
+                }
+            );
+        });
+
+        ecu.variants.push(ecu_variant);
+    }
+
+    println!("{}", serde_json::to_string_pretty(&ecu).unwrap());
 }
