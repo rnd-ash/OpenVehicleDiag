@@ -1,5 +1,6 @@
 use std::{fs::File, io::Read, path::Path, todo};
 
+use common::schema::OvdECU;
 use iced::{Align, Column, Element, Length, Row, Subscription};
 
 use crate::{commapi::comm_api::{ComServer, ISO15765Config}, themes::{ButtonType, TextType, TitleSize, button_outlined, picklist, text, title_text}};
@@ -14,6 +15,7 @@ pub enum DiagManualMessage {
     LaunchKWP,
     LaunchUDS,
     LaunchCustom,
+    LaunchJSON,
     Back,
     Session(SessionMsg)
 }
@@ -30,6 +32,7 @@ pub struct DiagManual {
     uds_btn_state: iced::button::State,
     kwp_btn_state: iced::button::State,
     custom_btn_state: iced::button::State,
+    json_btn_state: iced::button::State,
     session: Option<DiagSession>
 }
 
@@ -45,6 +48,7 @@ impl DiagManual {
             uds_btn_state: Default::default(),
             kwp_btn_state: Default::default(),
             custom_btn_state: Default::default(),
+            json_btn_state: Default::default(),
             session: None,
         }
     }
@@ -107,6 +111,23 @@ impl DiagManual {
             DiagManualMessage::LaunchCustom => {
                 self.launch_diag_session(SessionType::Custom)
             }
+            DiagManualMessage::LaunchJSON => {
+                if let nfd::Response::Okay(f_path) = nfd::open_file_dialog(Some("json"), None).unwrap_or(nfd::Response::Cancel) {
+                    let path = f_path.clone();
+                    if let Ok(mut file) = File::open(f_path) {
+                        let mut str = "".into();
+                        file.read_to_string(&mut str);
+
+                        let parse : serde_json::Result<OvdECU>  = serde_json::from_str(&str);
+                        match parse {
+                            Ok(ecu) => self.launch_diag_session(SessionType::JSON(ecu)),
+                            Err(e) => self.status = format!("Error processing {}: {}", path, e),
+                        }
+                    } else {
+                        self.status = format!("Error loading session JSON file")
+                    }
+                }
+            }
             _ => {}
         }
         None
@@ -119,7 +140,6 @@ impl DiagManual {
         }
 
         if let Some(ecu) = &self.curr_ecu {
-
             let cfg = ISO15765Config {
                 send_id: ecu.send_id,
                 recv_id: ecu.flow_control_id,
@@ -166,8 +186,8 @@ impl DiagManual {
                     Row::new().spacing(8).push(kwp_btn)
                     .push(uds_btn)
                     .push(custom_btn)
-                )
-
+                );
+                view = view.push(button_outlined(&mut self.json_btn_state, "Load JSON session (EXPERIMENTAL)", ButtonType::Danger).on_press(DiagManualMessage::LaunchJSON));
             }
 
         }
