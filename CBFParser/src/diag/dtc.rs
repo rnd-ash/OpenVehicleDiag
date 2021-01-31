@@ -4,15 +4,15 @@ use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 
 #[derive(Debug, Clone, Default)]
 pub struct DTC {
-    qualifier: String,
-    description: Option<String>,
-    reference: Option<String>,
+    pub qualifier: String,
+    pub description: Option<String>,
+    pub reference: Option<String>,
 
-    xrefs_start: i32,
-    xrefs_count: i32,
-    base_addr: usize,
+    pub xrefs_start: i32,
+    pub xrefs_count: i32,
+    pub base_addr: usize,
 
-    pool_idx: usize,
+    pub pool_idx: usize,
 }
 
 impl DTC {

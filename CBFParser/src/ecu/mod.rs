@@ -7,7 +7,7 @@ use interface_subtype::InterfaceSubType;
 
 use crate::{caesar::{CaesarError, container::Container, creader}, ctf::{STUB_HEADER_SIZE, cff_header::CFFHeader, ctf_header::CTFLanguage}, diag::{dtc::DTC, presentation::Presentation, service::Service}};
 
-use self::interface::ECUInterface;
+use self::{interface::ECUInterface, variant::ECUVariant};
 
 pub mod variant_pattern;
 pub mod variant;
@@ -77,7 +77,7 @@ pub struct ECU {
     unk39: i32,
     base_addr: usize,
 
-    interfaces: Vec<ECUInterface>,
+    pub interfaces: Vec<ECUInterface>,
     interface_sub_types: Vec<InterfaceSubType>,
 
     pub global_dtcs: Vec<DTC>,
@@ -85,6 +85,7 @@ pub struct ECU {
     pub global_internal_presentations: Vec<Presentation>,
     pub global_services: Vec<Service>,
     pub global_diag_jobs: Vec<Service>,
+    pub variants: Vec<ECUVariant>,
 }
 
 impl ECU {
@@ -167,6 +168,20 @@ impl ECU {
 
         // Create DTCs
         res.global_dtcs = Self::create_dtcs(reader, lang, &res.dtc)?;
+
+        // Create variants
+        res.variants = res.create_ecu_variants(reader, lang, &res.ecu_variant)?;
+
+
+
+
+        // Done building our ECU varients, we can destroy our working arrays
+        res.global_services.clear();
+        res.global_dtcs.clear();
+
+
+
+
         Ok(res)
     }
 
@@ -240,6 +255,23 @@ impl ECU {
             let diag_job_base_address = offset + diag_blk.block_offset;
         
             res[i] = Service::new(reader, diag_job_base_address, i, lang, self)?
+        }
+        Ok(res)
+    }
+
+    fn create_ecu_variants(&self, reader: &mut Raf, lang: &CTFLanguage, var_blk: &Block) -> std::result::Result<Vec<ECUVariant>, CaesarError> {
+        let pool = Self::read_pool(reader, var_blk)?;
+        let mut res = vec![ECUVariant::default(); var_blk.entry_count];
+        let mut tmp_reader = Raf::from_bytes(&pool, common::raf::RafByteOrder::LE);
+
+        for i in 0..var_blk.entry_count {
+            let offset = tmp_reader.read_i32()? as usize;
+            let size = tmp_reader.read_i32()? as usize;
+            let _config = tmp_reader.read_u16()?;
+
+            let variant_base_address = offset + var_blk.block_offset;
+        
+            res[i] = ECUVariant::new(reader, self, lang, variant_base_address, size)?
         }
         Ok(res)
     }

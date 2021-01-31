@@ -88,12 +88,12 @@ pub struct Service {
 
     base_addr: usize,
 
-    pool_idx: usize,
+    pub (crate) pool_idx: usize,
 
     pub com_params: Vec<ComParameter>,
 
     pub input_preparations: Vec<Preparation>,
-    pub output_preparations: Vec<Preparation>
+    pub output_preparations: Vec<Vec<Preparation>>
 }
 
 impl Service {
@@ -171,14 +171,50 @@ impl Service {
 
             res.input_preparations.push(Preparation::new(reader, lang, prep_base_addr + prep_entry_offset, prep_entry_bit_pos, prep_entry_mode, parent, &res)?);
         }
+
+
+        let out_pres_base_addr = base_addr + res.w_out_pres.offset;
+        for i in 0..res.w_out_pres.count {
+
+            reader.seek(out_pres_base_addr + (i*8));
+            // TODO
+            let result_pres_count = reader.read_i32()? as usize;
+            let result_pres_offset = reader.read_i32()? as usize;
+
+            let mut res_pres_vec = Vec::new();
+
+            for i in 0..result_pres_count {
+                let prep_base_addr = out_pres_base_addr + result_pres_offset;
+                reader.seek(prep_base_addr + (i*10));
+
+                let prep_entry_offset = reader.read_i32()? as usize;
+                let prep_entry_bit_pos = reader.read_i32()? as usize;
+                let prep_entry_mode = reader.read_u16()?;
+
+                res_pres_vec.push(Preparation::new(reader, lang, prep_base_addr + prep_entry_offset, prep_entry_bit_pos, prep_entry_mode, parent, &res)?);
+            }
+            res.output_preparations.push(res_pres_vec);
+        }
+
+
+
+
+
+        let com_param_base_address = base_addr + res.t_com_param.offset;
+        for i in 0..res.t_com_param.count {
+            reader.seek(com_param_base_address + (i*4));
+            let cp_offset = reader.read_i32()? as usize;
+            let cp_entry_base_address = com_param_base_address + cp_offset;
+            res.com_params.push(ComParameter::new(reader, cp_entry_base_address, &parent.interfaces)?)
+        }
         Ok(res)
     }
 
     pub (crate) fn get_byte_count(&self) -> usize {
-        return self.request_bytes.count;
+        self.request_bytes.count
     }
 
     pub (crate) fn get_p_count(&self) -> usize {
-        return self.p.count;
+        self.p.count
     }
 }
