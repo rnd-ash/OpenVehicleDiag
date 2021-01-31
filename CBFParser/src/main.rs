@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, io::Write};
 use std::fs::File;
 use caesar::container;
 use common::raf::Raf;
@@ -77,6 +77,7 @@ fn decode_ecu(e: &ECU) {
 
         ecu.variants.push(ecu_variant);
     }
-
-    println!("{}", serde_json::to_string_pretty(&ecu).unwrap());
+    let mut f = File::create(format!("{}.json", ecu.name)).expect("Cannot open output file");
+    f.write_all(serde_json::to_string_pretty(&ecu).unwrap().as_bytes()).expect("Error writing output");
+    println!("ECU decoding complete. Output file is {}.json. Have a nice day!", ecu.name)
 }
