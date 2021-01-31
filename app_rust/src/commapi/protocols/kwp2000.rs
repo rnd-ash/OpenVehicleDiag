@@ -342,8 +342,7 @@ pub struct ECUIdentification {
     hw_version: String,
     sw_version: String,
     is_boot_sw: bool,
-    diag_version: u8,
-    varient: u8,
+    variant: u32,
 
 }
 
@@ -354,8 +353,7 @@ impl std::default::Default for ECUIdentification {
             hw_version: "Unknown".into(),
             sw_version: "Unknown".into(),
             is_boot_sw: false,
-            diag_version: 0,
-            varient: 0,
+            variant: 0,
         }
     }
 }
@@ -383,8 +381,8 @@ impl KWP2000ECU {
         let mut diag = ECUIdentification::default();
         let origin = res[2];
         let supplier_id = res[3];
-        let varient = res[4] & (0b1111110);
-        let diag_version = res[5];
+        let variant = (res[4] as u32) << 8 | res[5] as u32;
+        //let diag_version = res[5];
         let hw_major = bcd_decode(res[7]);
         let hw_minor = bcd_decode(res[8]);
         let sw_xx = bcd_decode(res[9]);
@@ -395,9 +393,7 @@ impl KWP2000ECU {
         diag.part_num = part_number;
         diag.sw_version = format!("{} {} {}", sw_xx, sw_yy, sw_zz);
         diag.hw_version = format!("{}.{}", hw_major, hw_minor);
-        diag.is_boot_sw = diag_version > 0xDF;
-        diag.diag_version = diag_version;
-        diag.varient = varient;
+        diag.variant = variant;
         Ok(diag)
     }
 
