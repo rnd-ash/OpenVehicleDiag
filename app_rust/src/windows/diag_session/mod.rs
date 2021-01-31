@@ -1,11 +1,13 @@
+use common::schema::OvdECU;
 use custom_session::{CustomDiagSession, CustomDiagSessionMsg};
 use iced::{Element, Subscription};
+use json_session::JsonDiagSession;
 use kwp2000_session::KWP2000DiagSession;
 use uds_session::{UDSDiagSession, UDSDiagSessionMsg};
 
 use crate::commapi::comm_api::{ComServer, ISO15765Config};
 
-use self::kwp2000_session::KWP2000DiagSessionMsg;
+use self::{json_session::JsonDiagSessionMsg, kwp2000_session::KWP2000DiagSessionMsg};
 
 use super::diag_manual::DiagManualMessage;
 
@@ -19,13 +21,15 @@ pub mod log_view;
 pub enum SessionType {
     UDS,
     KWP,
-    Custom
+    Custom,
+    JSON(OvdECU)
 }
 
 #[derive(Debug, Clone)]
 pub enum SessionMsg {
     KWP(KWP2000DiagSessionMsg),
     UDS(UDSDiagSessionMsg),
+    JSON(JsonDiagSessionMsg),
     Custom(CustomDiagSessionMsg),
     ExitSession,
 }
@@ -35,6 +39,7 @@ impl DiagMessageTrait for SessionMsg {
         match &self {
             SessionMsg::KWP(k) => k.is_back(),
             SessionMsg::UDS(u) => u.is_back(),
+            SessionMsg::JSON(j) => j.is_back(),
             SessionMsg::Custom(c) => c.is_back(),
             SessionMsg::ExitSession => true
         }
@@ -45,6 +50,7 @@ impl DiagMessageTrait for SessionMsg {
 pub enum DiagSession {
     UDS(UDSDiagSession),
     KWP(KWP2000DiagSession),
+    JSON(JsonDiagSession),
     Custom(CustomDiagSession)
 }
 
@@ -54,6 +60,7 @@ impl DiagSession {
         match session_type {
             SessionType::UDS => Self::UDS(UDSDiagSession::new(comm_server, ecu)),
             SessionType::KWP => Self::KWP(KWP2000DiagSession::new(comm_server, ecu)),
+            SessionType::JSON(ecu_data) => Self::JSON(JsonDiagSession::new(comm_server, ecu, ecu_data.clone())),
             SessionType::Custom => Self::Custom(CustomDiagSession::new(comm_server, ecu)),
         }
     }
@@ -62,6 +69,7 @@ impl DiagSession {
         match self {
             DiagSession::UDS(s) => s.view().map(SessionMsg::UDS),
             DiagSession::KWP(s) => s.view().map(SessionMsg::KWP),
+            DiagSession::JSON(s) => s.view().map(SessionMsg::JSON),
             DiagSession::Custom(s) => s.view().map(SessionMsg::Custom)
         }
     }
@@ -70,6 +78,7 @@ impl DiagSession {
         match self {
             DiagSession::UDS(s) => if let SessionMsg::UDS(m) = msg { s.update(m).map(SessionMsg::UDS) } else { None },
             DiagSession::KWP(s) => if let SessionMsg::KWP(m) = msg { s.update(m).map(SessionMsg::KWP) } else { None },
+            DiagSession::JSON(s) => if let SessionMsg::JSON(m) = msg { s.update(m).map(SessionMsg::JSON) } else { None },
             DiagSession::Custom(s) => if let SessionMsg::Custom(m) = msg { s.update(m).map(SessionMsg::Custom) } else { None },
         }
     }
@@ -78,6 +87,7 @@ impl DiagSession {
         match self {
             DiagSession::UDS(s) => s.subscription().map(SessionMsg::UDS),
             DiagSession::KWP(s) => s.subscription().map(SessionMsg::KWP),
+            DiagSession::JSON(s) => s.subscription().map(SessionMsg::JSON),
             DiagSession::Custom(s) => s.subscription().map(SessionMsg::Custom)
         }
     }
