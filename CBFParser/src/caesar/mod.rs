@@ -1,7 +1,30 @@
-use std::num::Wrapping;
-use common::raf::{Raf, RafByteOrder};
+use std::vec;
+use common::raf::{self};
+
+pub mod creader;
+pub mod container;
+
+
+#[derive(Debug)]
+pub enum CaesarError {
+    FileError(raf::RafError),
+    ProcessException(String)
+}
+
+impl From<raf::RafError> for CaesarError {
+    fn from(x: raf::RafError) -> Self {
+        Self::FileError(x)
+    }
+}
+
+pub type Result<T> = std::result::Result<T, CaesarError>;
+
+/// Based on reverse engineering of c32s.dll
+
+
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum StructureName {
-    CBFHEADER = 0,
+    CBF_HEADER = 0,
     UNK1 = 1,
     UNK2 = 2,
     UNK3 = 3,
@@ -12,7 +35,7 @@ pub enum StructureName {
     UNK8 = 8,
     UNK9 = 9,
     UNK10 = 0xA,
-    SCALEINTERVAL_STRUCTURE = 0xB,
+    SCALE_INTERVAL_STRUCTURE = 0xB,
     UNK12 = 0xC,
     UNK13 = 0xD,
     UNK14 = 0xE,
@@ -30,20 +53,21 @@ pub enum StructureName {
     UNK26 = 0x1A,
     SEGMENT_TABLE_STRUCTURE = 0x1B,
     UNK28 = 0x1C,
-    CTFHEADER = 0x1D,
+    CTF_HEADER = 0x1D,
     LANGUAGE_TABLE = 0x1E,
-    CCFHEADER = 0x1F,
+    CCF_HEADER = 0x1F,
     UNK32 = 0x20,
-    CCFFRAGMENT = 0x21,
+    CCF_FRAGMENT = 0x21,
     UNK34 = 0x22,
     UNK35 = 0x23,
     UNK36 = 0x24,
 }
 
+
 impl StructureName {
-    pub fn get_layout(&self) -> Vec<u8> {
+    pub (crate) fn get_layout(&self) -> Vec<u8> {
         match &self {
-            StructureName::CBFHEADER => vec![2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+            StructureName::CBF_HEADER => vec![2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
             StructureName::UNK1 => vec![4, 4, 4, 2, 2, 4, 4, 4, 4, 4, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1, 2, 1],
             StructureName::UNK2 => vec![6, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2],
             StructureName::UNK3 => vec![6, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 2, 2, 4, 4, 2, 1, 4, 4, 4, 4, 4, 4],
@@ -54,7 +78,7 @@ impl StructureName {
             StructureName::UNK8 => vec![2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2],
             StructureName::UNK9 => vec![2, 4, 4, 4, 4, 4, 4, 4, 4],
             StructureName::UNK10 => vec![2, 4, 4, 4],
-            StructureName::SCALEINTERVAL_STRUCTURE => vec![2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+            StructureName::SCALE_INTERVAL_STRUCTURE => vec![2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
             StructureName::UNK12 => vec![2, 4, 4, 4, 1, 1],
             StructureName::UNK13 => vec![2, 4, 2, 2, 2, 4, 2, 2, 4, 4, 4],
             StructureName::UNK14 => vec![2, 4, 4, 4, 4, 4, 4, 4, 4, 1, 1],
@@ -72,11 +96,11 @@ impl StructureName {
             StructureName::UNK26 => vec![2, 2, 4, 4, 2, 4, 4, 2, 4, 4, 2, 4, 4],
             StructureName::SEGMENT_TABLE_STRUCTURE => vec![2, 4, 4, 4, 4, 4, 4, 4],
             StructureName::UNK28 => vec![2, 4, 4],
-            StructureName::CTFHEADER => vec![2, 4, 4, 2, 4, 4, 4, 4, 4],
+            StructureName::CTF_HEADER => vec![2, 4, 4, 2, 4, 4, 4, 4, 4],
             StructureName::LANGUAGE_TABLE => vec![2, 4, 2, 4, 4, 4],
-            StructureName::CCFHEADER => vec![6, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2],
+            StructureName::CCF_HEADER => vec![6, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2],
             StructureName::UNK32 => vec![6, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
-            StructureName::CCFFRAGMENT => vec![2, 4, 4, 4, 4, 4, 2, 4],
+            StructureName::CCF_FRAGMENT => vec![2, 4, 4, 4, 4, 4, 2, 4],
             StructureName::UNK34 => vec![2, 4, 4, 4, 4, 4, 2, 4],
             StructureName::UNK35 => vec![2, 4, 4, 4, 4, 4, 4, 2, 4],
             StructureName::UNK36 => vec![2, 2, 2, 2, 2, 2, 2, 2, 4, 4, 0, 0, 0],
@@ -84,48 +108,28 @@ impl StructureName {
     }
 }
 
-
-pub fn read_cbf_with_offset(memeber_index: i32, name: &StructureName, input: &[u8]) -> i32 {
-    let byte_offset = get_cbf_offset(memeber_index, &name, input) as usize;
-
-    let layout = name.get_layout();
-    let mut reader  =Raf::from_bytes(&Vec::from(input), RafByteOrder::LE);
-    reader.seek(byte_offset);
-    match layout[memeber_index as usize] {
-        1 => reader.read_i8().unwrap() as i32,
-        2 => reader.read_i16().unwrap() as i32,
-        4 => reader.read_i32().unwrap() as i32,
-        _ => panic!("Cannot read {} bytes as i32!", layout[memeber_index as usize])
-    }
-}
-
-pub fn read_cbf_with_offset_unsigned(memeber_index: i32, name: &StructureName, input: &[u8]) -> u32 {
-    read_cbf_with_offset(memeber_index, name, input) as u32
-}
-
-
-fn get_cbf_offset(memeber_index: i32, name: &StructureName, cbf_input: &[u8]) -> usize {
-
-    let layout = name.get_layout();
-    let mut bitmask: Wrapping<u8> = Wrapping(1);
-    let mut array_offset = layout[0];
+/// Checks if a bitflag is active and returns the offset in the structure
+pub fn get_cbf_offset(member_idx: usize, structure: StructureName, cbf_input: &[u8]) -> usize {
+    let structure_layout = structure.get_layout();
+    let mut bit_mask = 1;
+    let mut array_offset = structure_layout[0];
     let mut cbf_offset = 0;
 
-    for i in 0..memeber_index as usize {
-        let bitflag_enabled = (bitmask.0 & cbf_input[cbf_offset as usize]) > 0;
+    for i in 0..member_idx {
+        let bitflag_enabled = (bit_mask & cbf_input[cbf_offset]) > 0;
         if bitflag_enabled {
-            if memeber_index != 1 {
-                array_offset = layout[i];
+            if member_idx != i {
+                array_offset += structure_layout[i];
             }
-        } else if (memeber_index == 1) && !bitflag_enabled {
+        } else if (member_idx == i) && !bitflag_enabled {
             array_offset = 0;
         }
 
-        if bitmask.0 == 0 {
+        if bit_mask == 0x80 {
             cbf_offset += 1;
-            bitmask.0 = 1;
+            bit_mask = 1;
         } else {
-            bitmask *= Wrapping(2);
+            bit_mask <<= 1;
         }
     }
     array_offset as usize

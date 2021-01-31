@@ -1,20 +1,16 @@
 use std::env;
 use std::fs::File;
+use caesar::container;
 use common::raf::Raf;
-mod cxf;
+use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}};
+use ctf::cff_header;
+use ecu::ECU;
+use std::io::Read;
+
+mod caesar;
+mod ctf;
 mod ecu;
 mod diag;
-mod structure;
-mod converter;
-extern crate xml;
-mod log;
-mod caesar;
-use cxf::*;
-use ecu::*;
-use diag::*;
-use converter::*;
-use xml::reader::{EventReader, XmlEvent};
-use std::io::Read;
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);
@@ -29,7 +25,6 @@ fn main() {
         2 => read_file(&args[1]),
         _ => help(format!("Invalid number of args: {}", args.len() - 1)),
     }
-    println!("Hello, world!");
 }
 
 fn read_file(path: &String) {
@@ -37,12 +32,51 @@ fn read_file(path: &String) {
         eprintln!("Cannot be used with CFF. Only CBF!");
         return;
     }
-
     let mut f = File::open(path).expect("Cannot open input file");
     let mut buffer = vec![0; f.metadata().unwrap().len() as usize];
-    f.read(&mut buffer).expect("Error reading file");
+    f.read_exact(&mut buffer).expect("Error reading file");
+    println!("Have {} bytes", buffer.len());
     let mut br = Raf::from_bytes(&buffer, common::raf::RafByteOrder::LE);
-    let container = caesar::CContainer::new(&mut br);
-    converter::convert(&container);
 
+    let container = container::Container::new(&mut br);
+    match container {
+        Ok(c) => decode_ecu(&c.ecus[0]),
+        Err(e) => eprintln!("{:?}", e)
+    }
+}
+
+fn decode_ecu(e: &ECU) {
+    println!("Converting ECU {}", e.qualifier);
+
+    let mut ecu = OvdECU {
+        name: e.qualifier.clone(),
+        description: e.name.clone().unwrap_or("".into()),
+        variants: Vec::new()
+    };
+
+    for variant in e.variants.iter() {
+        if variant.qualifier == e.qualifier {
+            continue
+        }
+
+        let mut ecu_variant = ECUVariantDefinition {
+            name: variant.qualifier.clone(),
+            description: variant.name.clone().unwrap_or("".into()),
+            patterns: Vec::new()
+        };
+        
+        variant.variant_patterns.iter().for_each(|p| {
+            ecu_variant.patterns.push(
+                ECUVariantPattern {
+                    vendor: p.vendor_name.clone(),
+                    vendor_id: p.get_vendor_id()as u32,
+                    hw_id: 0
+                }
+            );
+        });
+
+        ecu.variants.push(ecu_variant);
+    }
+
+    println!("{}", serde_json::to_string_pretty(&ecu).unwrap());
 }
