@@ -5,7 +5,7 @@ use json_session::JsonDiagSession;
 use kwp2000_session::KWP2000DiagSession;
 use uds_session::{UDSDiagSession, UDSDiagSessionMsg};
 
-use crate::commapi::comm_api::{ComServer, ISO15765Config};
+use crate::commapi::{comm_api::{ComServer, ISO15765Config}, protocols::ProtocolError};
 
 use self::{json_session::JsonDiagSessionMsg, kwp2000_session::KWP2000DiagSessionMsg};
 
@@ -46,6 +46,29 @@ impl DiagMessageTrait for SessionMsg {
     }
 }
 
+#[derive(Debug)]
+pub enum SessionError {
+    ServerError(ProtocolError),
+    Other(String)
+}
+
+impl From<ProtocolError> for SessionError {
+    fn from(x: ProtocolError) -> Self {
+        Self::ServerError(x)
+    }
+}
+
+impl SessionError {
+    pub fn get_description(&self) -> String {
+        match self {
+            Self::ServerError(e) => e.get_text(),
+            Self::Other(s) => s.clone()
+        }
+    }
+}
+
+pub type SessionResult<T> = std::result::Result<T, SessionError>;
+
 #[derive(Debug, Clone)]
 pub enum DiagSession {
     UDS(UDSDiagSession),
@@ -56,13 +79,13 @@ pub enum DiagSession {
 
 impl DiagSession {
 
-    pub fn new(session_type: &SessionType, comm_server: Box<dyn ComServer>, ecu: ISO15765Config) -> Self {
-        match session_type {
-            SessionType::UDS => Self::UDS(UDSDiagSession::new(comm_server, ecu)),
-            SessionType::KWP => Self::KWP(KWP2000DiagSession::new(comm_server, ecu)),
-            SessionType::JSON(ecu_data) => Self::JSON(JsonDiagSession::new(comm_server, ecu, ecu_data.clone())),
-            SessionType::Custom => Self::Custom(CustomDiagSession::new(comm_server, ecu)),
-        }
+    pub fn new(session_type: &SessionType, comm_server: Box<dyn ComServer>, ecu: ISO15765Config) -> SessionResult<Self> {
+        Ok(match session_type {
+            SessionType::UDS => Self::UDS(UDSDiagSession::new(comm_server, ecu)?),
+            SessionType::KWP => Self::KWP(KWP2000DiagSession::new(comm_server, ecu)?),
+            SessionType::JSON(ecu_data) => Self::JSON(JsonDiagSession::new(comm_server, ecu, ecu_data.clone())?),
+            SessionType::Custom => Self::Custom(CustomDiagSession::new(comm_server, ecu)?),
+        })
     }
 
     pub fn view(&mut self) -> Element<SessionMsg> {

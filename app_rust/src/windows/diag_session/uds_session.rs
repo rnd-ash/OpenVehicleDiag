@@ -2,7 +2,7 @@ use iced::Subscription;
 
 use crate::{commapi::comm_api::{ComServer, ISO15765Config}, windows::diag_manual::DiagManualMessage};
 
-use super::{DiagMessageTrait, SessionMsg, SessionTrait};
+use super::{DiagMessageTrait, SessionMsg, SessionResult, SessionTrait};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UDSDiagSessionMsg {
@@ -23,11 +23,11 @@ pub struct UDSDiagSession {
 
 
 impl UDSDiagSession {
-    pub fn new(comm_server: Box<dyn ComServer>, ecu: ISO15765Config) -> Self {
-        Self {
+    pub fn new(comm_server: Box<dyn ComServer>, ecu: ISO15765Config) -> SessionResult<Self> {
+        Ok(Self {
             ecu,
             server: comm_server
-        }
+        })
     }
 }
 
