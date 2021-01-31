@@ -1,3 +1,5 @@
+use std::vec;
+
 use common::raf::Raf;
 use creader::{CaesarPrimitive, read_bitflag_string};
 
@@ -22,7 +24,7 @@ impl cOffset {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 struct DTCPoolBounds {
     actual_index: i32,
     xref_start: i32,
@@ -73,7 +75,7 @@ impl ECUVariant {
         let mut tmp_reader = Raf::from_bytes(&reader.read_bytes(block_size)?, common::raf::RafByteOrder::LE);
 
         let mut bitflags = tmp_reader.read_u32()?;
-        let _skip = tmp_reader.read_u32();
+        let _skip = tmp_reader.read_u32()?;
 
         let mut res = Self {
             base_addr,
@@ -100,31 +102,30 @@ impl ECUVariant {
             ..Default::default()
         };
 
-        reader.seek(res.diag_services.offset);
+        tmp_reader.seek(res.diag_services.offset);
         let diag_services_pool_offsets: Vec<i32> = (0..res.diag_services.count)
             .into_iter()
-            .map(|_| reader.read_i32())
+            .map(|_| tmp_reader.read_i32())
             .filter_map(|x| x.ok())
             .collect();
 
-        reader.seek(res.dtc.offset);
-        let dtc_pool_bounds: Vec<DTCPoolBounds> = (0..res.diag_services.count)
-            .into_iter()
-            .map(|_| DTCPoolBounds::new(reader))
-            .filter_map(|x| x.ok())
-            .collect();
+            tmp_reader.seek(res.dtc.offset);
+        let mut dtc_pool_bounds: Vec<DTCPoolBounds> = vec![DTCPoolBounds::default(); res.dtc.count];
+        for i in 0..res.dtc.count {
+            dtc_pool_bounds[i] = DTCPoolBounds::new(&mut tmp_reader)?;
+        }
 
-        reader.seek(res.environment_ctx.offset);
+        tmp_reader.seek(res.environment_ctx.offset);
         let env_ctx_pool_offsets: Vec<i32> = (0..res.environment_ctx.count)
             .into_iter()
-            .map(|_| reader.read_i32())
+            .map(|_| tmp_reader.read_i32())
             .filter_map(|x| x.ok())
             .collect();
 
 
         res.services = res.create_diag_services(diag_services_pool_offsets, parent_ecu)?;
         res.variant_patterns = res.create_variant_patterns(reader)?;
-        res.dtcs = res.create_dtcs(reader, dtc_pool_bounds, parent_ecu)?;
+        res.dtcs = res.create_dtcs(res.dtc.count, dtc_pool_bounds, parent_ecu)?;
         Ok(res)
     }
 
@@ -154,15 +155,15 @@ impl ECUVariant {
         Ok(res)
     }
 
-    fn create_dtcs(&self, reader: &mut Raf, pool: Vec<DTCPoolBounds>, parent: &ECU) -> std::result::Result<Vec<DTC>, CaesarError> {
-        let mut res = vec![DTC::default(); pool.len()];
-
+    fn create_dtcs(&self, count: usize, pool: Vec<DTCPoolBounds>, parent: &ECU) -> std::result::Result<Vec<DTC>, CaesarError> {
+        let mut res = vec![DTC::default(); count];
+        println!("{:?}", pool);
         parent.global_dtcs.iter().for_each(|dtc| {
-            for (pos, pool_bounds) in pool.iter().enumerate() {
-                if dtc.pool_idx == pool_bounds.actual_index as usize {
-                    res[pos] = dtc.clone();
-                    res[pos].xrefs_start = pool_bounds.xref_start;
-                    res[pos].xrefs_count = pool_bounds.xref_count;
+            for i in 0..count {
+                if dtc.pool_idx == pool[i].actual_index as usize {
+                    res[i] = dtc.clone();
+                    res[i].xrefs_start = pool[i].xref_start;
+                    res[i].xrefs_count = pool[i].xref_count;
                 }
             }
         });
