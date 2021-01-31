@@ -113,7 +113,6 @@ impl ECUVariant {
             .map(|_| DTCPoolBounds::new(reader))
             .filter_map(|x| x.ok())
             .collect();
-        println!("{} {:?}", res.qualifier, dtc_pool_bounds);
 
         reader.seek(res.environment_ctx.offset);
         let env_ctx_pool_offsets: Vec<i32> = (0..res.environment_ctx.count)
@@ -149,7 +148,6 @@ impl ECUVariant {
         for i in 0..self.matching_parent.count {
             reader.seek(table_offset + (i*4));
             let ptn_offset = reader.read_i32()? as usize;
-            println!("Pushing variant pattern for {}", self.qualifier);
             res.push(VariantPattern::new(reader, ptn_offset + table_offset)?)
         }
 

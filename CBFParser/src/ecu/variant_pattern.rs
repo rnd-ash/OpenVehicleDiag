@@ -30,7 +30,7 @@ pub struct VariantPattern {
     unk5: i32,
 
     // ECU Vendor name
-    vendor_name: String,
+    pub vendor_name: String,
 
     // ECU Vendor ID (If using KWP2000)
     kwp_vendor_id: i32,
@@ -38,18 +38,18 @@ pub struct VariantPattern {
     unk9: i32,
     unk10: i32,
 
-    unk11: i32,
-    unk12: i32,
-    unk13: i32,
-    unk14: i32,
-    unk15: i32,
+    unk11: u32,
+    unk12: u32,
+    unk13: u32,
+    unk14: u32,
+    unk15: u32,
 
     unk16: Vec<u8>,
 
-    unk17: i32,
-    unk18: i32,
-    unk19: i32,
-    unk20: i32,
+    unk17: u32,
+    unk18: u32,
+    unk19: u32,
+    unk20: u32,
 
     unk21: String,
 
@@ -86,18 +86,18 @@ impl VariantPattern {
             unk9: creader::read_primitive(&mut bitflags, reader, 0i16)? as i32,
             unk10: creader::read_primitive(&mut bitflags, reader, 0i16)? as i32,
 
-            unk11: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
-            unk12: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
-            unk13: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
-            unk14: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
-            unk15: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
+            unk11: creader::read_primitive(&mut bitflags, reader, 0u8)? as u32,
+            unk12: creader::read_primitive(&mut bitflags, reader, 0u8)? as u32,
+            unk13: creader::read_primitive(&mut bitflags, reader, 0u8)? as u32,
+            unk14: creader::read_primitive(&mut bitflags, reader, 0u8)? as u32,
+            unk15: creader::read_primitive(&mut bitflags, reader, 0u8)? as u32,
 
             unk16: creader::read_bitflag_dump(&mut bitflags, reader, 5, base_addr)?,
 
-            unk17: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
-            unk18: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
-            unk19: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
-            unk20: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
+            unk17: creader::read_primitive(&mut bitflags, reader, 0u8)? as u32,
+            unk18: creader::read_primitive(&mut bitflags, reader, 0u8)? as u32,
+            unk19: creader::read_primitive(&mut bitflags, reader, 0u8)? as u32,
+            unk20: creader::read_primitive(&mut bitflags, reader, 0u8)? as u32,
 
             unk21: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
 
@@ -118,7 +118,7 @@ impl VariantPattern {
         match self.variant_id {
             ECUType::KWP => self.kwp_vendor_id,
             ECUType::UDS => self.uds_vendor_id,
-            ECUType::UNK => -1
+            ECUType::UNK => 0
         }
     }
 }
