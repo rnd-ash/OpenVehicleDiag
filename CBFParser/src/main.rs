@@ -2,7 +2,7 @@ use std::{env, io::Write};
 use std::fs::File;
 use caesar::container;
 use common::raf::Raf;
-use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}};
+use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::dtc::ECUDTC};
 use ctf::cff_header;
 use ecu::ECU;
 use std::io::Read;
@@ -62,7 +62,8 @@ fn decode_ecu(e: &ECU) {
         let mut ecu_variant = ECUVariantDefinition {
             name: variant.qualifier.clone(),
             description: variant.name.clone().unwrap_or("".into()),
-            patterns: Vec::new()
+            patterns: Vec::new(),
+            errors: Vec::new(),
         };
         
         variant.variant_patterns.iter().for_each(|p| {
@@ -73,6 +74,17 @@ fn decode_ecu(e: &ECU) {
                     hw_id: 0
                 }
             );
+        });
+
+        variant.dtcs.iter().for_each(|e| {
+            let error = ECUDTC {
+                description: e.description.clone().unwrap_or("".into()),
+                error_name: e.qualifier.clone(),
+                summary: e.reference.clone().unwrap_or("".into()),
+            };
+            //if !error.error_name.is_empty() {
+            ecu_variant.errors.push(error)
+            //}
         });
 
         ecu.variants.push(ecu_variant);
