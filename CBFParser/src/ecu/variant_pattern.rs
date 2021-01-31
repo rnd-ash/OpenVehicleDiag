@@ -21,7 +21,7 @@ impl Default for ECUType {
 }
 
 #[derive(Debug, Clone, Default)]
-struct VariantPattern {
+pub struct VariantPattern {
     unk_buffer_size: i32,
     unk_buffer: Vec<u8>,
 

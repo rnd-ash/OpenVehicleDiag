@@ -42,7 +42,7 @@ impl ComParameter {
         res.dump = creader::read_bitflag_dump(&mut bitflags, reader, res.dump_size as usize, base_addr)?;
         
         if res.dump_size == 4 {
-            res.param_value = (res.dump[0] as i32) << 24 | (res.dump[1] as i32) << 16 | (res.dump[2] as i32) << 8 | res.dump[3] as i32;
+            res.param_value = (res.dump[3] as i32) << 24 | (res.dump[2] as i32) << 16 | (res.dump[1] as i32) << 8 | res.dump[0] as i32;
         }
 
         let parent_iface = &parents[res.parent_iface_idx as usize];
