@@ -78,6 +78,7 @@ pub enum ButtonType {
     Dark
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum TextType {
     Success,
     Warning,

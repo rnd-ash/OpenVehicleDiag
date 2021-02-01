@@ -535,14 +535,7 @@ impl ProtocolServer for KWP2000ECU {
 
         let mut res: Vec<DTC> = Vec::new();
         for _ in 0..count {
-            let code = match bytes[0] {
-                x if x < 0x40 => 'P', // Powertrain DTC
-                x if x < 0x80 => 'B', // Body DTC
-                x if x < 0xC0 => 'C', // Chassis DTC
-                x if x < 0xFF => 'N', // Network DTC
-                _ => '?', // WTF is this error??
-            };
-            let name = format!("{}{:02X}{:02X}", code, bytes[0], bytes[1]);
+            let name = format!("{:02X}{:02X}", bytes[0], bytes[1]);
             let status = bytes[2];
             println!("{:08b}", status);
             let flag = (status >> 4 & 0b00000001) > 0;

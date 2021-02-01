@@ -31,11 +31,16 @@ impl LogOperation {
 
     fn render<'a, T>(&self) -> Element<'a, T> where T: 'a {
         let mut c = Column::new();
+        let text_type = match self.log_type {
+            LogType::Error => TextType::Danger,
+            LogType::Warn => TextType::Warning,
+            LogType::Info => TextType::Normal
+        };
         if let Some(r) = &self.request {
-            c = c.push(text(&r, TextType::Normal))
+            c = c.push(text(&r, text_type))
         }
         if let Some(r) = &self.response {
-            c = c.push(text(&r, TextType::Normal))
+            c = c.push(text(&r, text_type))
         }
         c.into()
     }
@@ -69,5 +74,9 @@ impl LogView {
 
     pub fn add_msg<X: ToString>(&mut self, msg: X, ltype: LogType) {
         self.logs.push_back(LogOperation::create(Some(msg), None, ltype))
+    }
+
+    pub fn clear_logs(&mut self) {
+        self.logs.clear()
     }
 }

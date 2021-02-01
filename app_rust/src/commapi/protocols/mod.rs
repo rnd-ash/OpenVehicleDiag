@@ -119,6 +119,20 @@ impl DiagServer {
             Self::UDS => todo!()
         }
     }
+
+    pub fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
+        match self {
+            Self::KWP2000(s) => s.read_errors(),
+            Self::UDS => todo!()
+        }
+    }
+
+    pub fn clear_errors(&self) -> ProtocolResult<()> {
+        match self {
+            Self::KWP2000(s) => s.clear_errors(),
+            Self::UDS => todo!()
+        }
+    }
 }
 
 pub trait ProtocolServer : Clone {
