@@ -133,7 +133,7 @@ impl Raf {
     pub fn read_cstr(&mut self) -> Result<String> {
         let mut bytes: Vec<u8> = Vec::new();
         loop {
-            let nextByte = self.read_u8().expect("Read string error");
+            let nextByte = self.read_u8()?;
             if nextByte == 0 {
                 return match String::from_utf8(bytes) {
                     Err(_) => Err(RafError::StrParseError),

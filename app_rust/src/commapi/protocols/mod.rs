@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use comm_api::ISO15765Config;
+use kwp2000::KWP2000ECU;
 
 use super::comm_api::{self, ComServer};
 
@@ -13,15 +14,20 @@ pub mod kwp2000;
 pub enum ProtocolError {
     CommError(comm_api::ComServerError),
     ProtocolError(Box<dyn CommandError>),
+    CustomError(String),
     Timeout,
 }
+
+unsafe impl Send for ProtocolError{}
+unsafe impl Sync for ProtocolError{}
 
 impl ProtocolError {
     pub fn get_text(&self) -> String {
         match self {
             ProtocolError::CommError(e) => e.to_string(),
             ProtocolError::ProtocolError(e) => e.get_text(),
-            ProtocolError::Timeout => "Communication timeout".into()
+            ProtocolError::Timeout => "Communication timeout".into(),
+            ProtocolError::CustomError(s) => s.clone()
         }
     }
 }
@@ -54,7 +60,7 @@ pub trait CommandError {
     fn from_byte(b: u8) -> Self where Self: Sized;
 }
 
-impl std::fmt::Debug for dyn CommandError {
+impl std::fmt::Debug for Box<dyn CommandError> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "CMDError {}", self.get_text())
     }
@@ -73,14 +79,68 @@ impl Display for DTC {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum DiagProtocol {
+    KWP2000,
+    UDS
+}
+
+#[derive(Debug, Clone)]
+pub enum DiagServer {
+    KWP2000(KWP2000ECU),
+    UDS
+}
+
+impl DiagServer {
+    pub fn new(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config, protocol: DiagProtocol) -> ProtocolResult<Self> {
+        Ok(match protocol {
+            KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(comm_server, cfg)?),
+            UDS => todo!("Diag protocol UDS not implemented")
+        })
+    }
+
+    pub fn get_name<'a>(&self) -> &'a str {
+        match self {
+            Self::KWP2000(_) => "KWP2000",
+            Self::UDS => "UDS"
+        }
+    }
+
+    pub fn kill_diag_server(&mut self) {
+        match self {
+            Self::KWP2000(s) => s.exit_diag_session(),
+            Self::UDS => todo!()
+        }
+    }
+
+    pub fn run_cmd<T: Selectable + ECUCommand>(&mut self, cmd: T, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
+        match self {
+            Self::KWP2000(s) => s.run_command(cmd.get_byte(), args, max_timeout_ms),
+            Self::UDS => todo!()
+        }
+    }
+
+    pub fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
+        match self {
+            Self::KWP2000(s) => s.read_errors(),
+            Self::UDS => todo!()
+        }
+    }
+
+    pub fn clear_errors(&self) -> ProtocolResult<()> {
+        match self {
+            Self::KWP2000(s) => s.clear_errors(),
+            Self::UDS => todo!()
+        }
+    }
+}
+
 pub trait ProtocolServer : Clone {
     type Command: Selectable + ECUCommand;
-    
     fn start_diag_session(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self>;
     fn exit_diag_session(&mut self);
-    fn run_command(&self, cmd: Self::Command, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>>;
-
+    fn run_command(&self, cmd: u8, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>>;
     fn read_errors(&self) -> ProtocolResult<Vec<DTC>>;
-
     fn is_in_diag_session(&self) -> bool;
+    fn get_last_error(&self) -> Option<String>;
 }
