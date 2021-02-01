@@ -23,7 +23,5 @@ fn main() -> iced::Result {
             themes::setDebug(true)
         }
     }
-
-
     MainWindow::run(launcher_settings)
 }

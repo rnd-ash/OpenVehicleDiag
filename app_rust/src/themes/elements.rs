@@ -51,15 +51,15 @@ impl button::StyleSheet for ButtonStyle {
     fn disabled(&self) -> Style {
         match super::get_theme() {
             super::Style::Light => button::Style {
-                background: if self.is_outlined { WHITE.into() } else { self.color.into() },
-                text_color: GREY,
-                border_color: GREY,
+                background: if self.is_outlined { WHITE.into() } else { GREY.into() },
+                text_color: if self.is_outlined { GREY } else { WHITE },
+                border_color: if self.is_outlined { GREY } else { WHITE },
                 ..self.active()
             },
             super::Style::Dark => button::Style {
-                background: if self.is_outlined { DARK_BG.into() } else { self.color.into() },
-                text_color: GREY,
-                border_color: GREY,
+                background: if self.is_outlined { DARK_BG.into() } else { GREY.into() },
+                text_color: if self.is_outlined { GREY } else { WHITE },
+                border_color: if self.is_outlined { GREY } else { WHITE },
                 ..self.active()
             }
         }
