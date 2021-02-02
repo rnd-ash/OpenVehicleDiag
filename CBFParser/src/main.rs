@@ -2,8 +2,9 @@ use std::{env, io::Write};
 use std::fs::File;
 use caesar::container;
 use common::raf::Raf;
-use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::dtc::ECUDTC};
+use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::{dtc::ECUDTC, service::{Service, DataType, Parameter}}};
 use ctf::cff_header;
+use diag::preparation::InferredDataType;
 use ecu::ECU;
 use std::io::Read;
 
@@ -64,6 +65,7 @@ fn decode_ecu(e: &ECU) {
             description: variant.name.clone().unwrap_or("".into()),
             patterns: Vec::new(),
             errors: Vec::new(),
+            services: Vec::new()
         };
         
         variant.variant_patterns.iter().for_each(|p| {
@@ -87,9 +89,65 @@ fn decode_ecu(e: &ECU) {
             //}
         });
 
+
+        variant.services.iter().for_each(|s| {
+            //println!("{:#?}",s);
+            let mut service = Service {
+                name: s.qualifier.clone(),
+                description: s.name.clone().unwrap_or("".into()),
+                input_type: DataType::None,
+                payload: s.req_bytes.clone(),
+                input_params: Vec::new(),
+                output_params: Vec::new()
+            };
+
+            s.input_preparations.iter().for_each(|p| {
+                service.input_params.push(
+                    Parameter {
+                        name: p.qualifier.clone(),
+                        start_bit: p.bit_pos as usize,
+                        length_bits: p.size_in_bits as usize,
+                        dump: p.dump.clone(),
+                        data_type: if_to_dt(&p.field_type)
+                    }
+                )
+            });
+
+            s.output_preparations.iter().for_each(|i| {
+                i.iter().for_each(|p| {
+                    service.output_params.push(
+                        Parameter {
+                            name: p.qualifier.clone(),
+                            start_bit: p.bit_pos as usize,
+                            length_bits: p.size_in_bits as usize,
+                            dump: p.dump.clone(),
+                            data_type: if_to_dt(&p.field_type)
+                        }
+                    )
+                })
+            });
+
+
+            ecu_variant.services.push(service);
+        });
+
         ecu.variants.push(ecu_variant);
     }
     let mut f = File::create(format!("{}.json", ecu.name)).expect("Cannot open output file");
     f.write_all(serde_json::to_string_pretty(&ecu).unwrap().as_bytes()).expect("Error writing output");
     println!("ECU decoding complete. Output file is {}.json. Have a nice day!", ecu.name)
+}
+
+fn if_to_dt(if_dt: &InferredDataType) -> DataType {
+    match if_dt {
+        InferredDataType::Unassigned => DataType::None,
+        InferredDataType::Integer => DataType::Int,
+        InferredDataType::NativeInfoPool => DataType::Enum,
+        InferredDataType::NativePresentation => DataType::Enum,
+        InferredDataType::UnhandledITT => DataType::None,
+        InferredDataType::UnhandledSP17 => DataType::None,
+        InferredDataType::Unhandled => DataType::None,
+        InferredDataType::BitDump => DataType::Hex,
+        InferredDataType::ExtendedBitDump => DataType::Hex
+    }
 }

@@ -11,3 +11,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 byteorder="1.3.4"
 J2534Common = { path = "../MacchinaM2-J2534-Rust/J2534Common/"}
+
+[dependencies.serde_with]
+version = "1.6.2"
+features = [ "hex" ]
