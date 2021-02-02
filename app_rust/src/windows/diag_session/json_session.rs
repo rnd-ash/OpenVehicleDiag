@@ -58,7 +58,7 @@ impl JsonDiagSession {
                         can_clear: false
                     })
                 } else {
-                    Err(SessionError::Other("Could not locate ECU variant".into()))
+                    Err(SessionError::Other(format!("Could not locate ECU variant in JSON - Its variant: {}", variant)))
                 }
             },
             Err(e) => {
@@ -103,11 +103,10 @@ impl SessionTrait for JsonDiagSession {
                         } else {
                             self.log_view.add_msg(format!("Found {} errors 😢", res.len()), LogType::Warn);
                             for e in res {
-                                let desc = self.ecu_data.errors.clone().into_iter().find(|x| x.error_name == e.error);
-        
+                                let desc = self.ecu_data.errors.clone().into_iter().find(|x| x.error_name.ends_with(e.error.as_str()));
                                 let err_txt = match desc {
                                     Some(d) =>  format!("{} - {}", e.error, d.description),
-                                    None => format!("{} - Unknown", e.error)
+                                    None => format!("{} - Unknown description", e.error)
                                 };
                                 self.log_view.add_msg(err_txt, LogType::Warn)
                             }

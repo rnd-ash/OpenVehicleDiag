@@ -7,7 +7,7 @@ use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage, ecu::E
 
 use super::service::Service;
 
-const INT_SIZE_MAP: [u8; 8] = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40];
+const INT_SIZE_MAP: [u8; 7] = [0x00, 0x01, 0x04, 0x08, 0x10, 0x20, 0x40];
 
 #[derive(Debug, Copy, Clone)]
 pub enum InferredDataType {
@@ -31,8 +31,8 @@ impl Default for InferredDataType {
 
 #[derive(Debug, Clone, Default)]
 pub struct Preparation {
-    qualifier: String,
-    name: Option<String>,
+    pub qualifier: String,
+    pub name: Option<String>,
 
     unk1: i32,
     unk2: i32,
@@ -44,12 +44,12 @@ pub struct Preparation {
     system_param: i32,
     dump_mode: i32,
     dump_size: i32,
-    dump: Vec<u8>,
-    field_type: InferredDataType,
+    pub dump: Vec<u8>,
+    pub field_type: InferredDataType,
 
-    bit_pos: i32,
+    pub bit_pos: i32,
     mode_cfg: u16,
-    size_in_bits: i32
+    pub size_in_bits: i32
 }
 
 impl Preparation {

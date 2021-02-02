@@ -481,7 +481,6 @@ impl ProtocolServer for KWP2000ECU {
             ecu.stop_tester_present.store(false, Relaxed);
             Ok(ecu)
         }
-    
     }
 
     fn exit_diag_session(&mut self) {

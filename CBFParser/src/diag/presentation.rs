@@ -60,10 +60,6 @@ impl Presentation {
         let mut bitflags = reader.read_u32()?;
         let bitflags_ext = reader.read_u16()? as u32;
 
-            //qualifier: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
-            //name: lang.get_string(creader::read_primitive(&mut bitflags, reader, -1i32)?),
-            //description: lang.get_string(creader::read_primitive(&mut bitflags, reader, -1i32)?),
-
         let mut res = Self {
             base_addr,
             presentation_idx,
@@ -120,17 +116,14 @@ impl Presentation {
         res.unk26 = creader::read_primitive(&mut bitflags, reader, 0i32)?;
 
         if res.scale_count > 0 {
-
             let scale_table_base = base_addr + res.scale_table_offset as usize;
             for i in 0..res.scale_count as usize {
                 reader.seek(scale_table_base + (i*4));
-
                 let entry_offset = reader.read_i32()? as usize;
-
                 res.scale_list.push(Scale::new(reader, entry_offset + scale_table_base)?)
             }
         }
-
+        println!("{:?}", res);
         Ok(res)
     }
 }

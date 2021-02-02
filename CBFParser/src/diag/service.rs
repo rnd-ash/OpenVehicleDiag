@@ -46,8 +46,8 @@ impl Default for ServiceType {
 #[derive(Debug, Clone, Default)]
 pub struct Service {
     pub qualifier: String,
-    name: Option<String>,
-    description: Option<String>,
+    pub name: Option<String>,
+    pub description: Option<String>,
 
     data_class_service_type: u16,
     pub data_class_service_type_shifted: i32,
