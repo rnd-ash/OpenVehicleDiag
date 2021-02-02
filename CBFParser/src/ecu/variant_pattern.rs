@@ -102,7 +102,7 @@ impl VariantPattern {
         self.unk13 = creader::read_primitive(&mut bitflags, reader, 0u8)? as u32;
         self.unk14 = creader::read_primitive(&mut bitflags, reader, 0u8)? as u32;
         self.unk15 = creader::read_primitive(&mut bitflags, reader, 0u8)? as u32;
-        //self.unk16 = creader::read_bitflag_dump(&mut bitflags, reader, 5, base_addr)?;
+        self.unk16 = creader::read_bitflag_dump(&mut bitflags, reader, 5, base_addr)?;
         self.unk17 = creader::read_primitive(&mut bitflags, reader, 0u8)? as u32;
         self.unk18 = creader::read_primitive(&mut bitflags, reader, 0u8)? as u32;
         self.unk19 = creader::read_primitive(&mut bitflags, reader, 0u8)? as u32;
