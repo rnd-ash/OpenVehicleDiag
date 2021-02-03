@@ -113,9 +113,9 @@ impl DiagServer {
         }
     }
 
-    pub fn run_cmd<T: Selectable + ECUCommand>(&mut self, cmd: T, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
+    pub fn run_cmd(&mut self, cmd: u8, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
         match self {
-            Self::KWP2000(s) => s.run_command(cmd.get_byte(), args, max_timeout_ms),
+            Self::KWP2000(s) => s.run_command(cmd, args, max_timeout_ms),
             Self::UDS => todo!()
         }
     }

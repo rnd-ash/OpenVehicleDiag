@@ -163,7 +163,7 @@ impl ECU {
         res.global_presentations = Self::create_presentations(reader, lang, &res.presentations)?;
         res.global_internal_presentations = Self::create_presentations(reader, lang, &res.internal_presentations)?;
 
-        res.global_services = res.create_services(reader, lang, &res.env)?;
+        res.global_services = res.create_env(reader, lang, &res.env)?;
         res.global_diag_jobs = res.create_diag_jobs(reader, lang, &res.diag_job)?;
 
         // Create DTCs
@@ -173,14 +173,9 @@ impl ECU {
         res.variants = res.create_ecu_variants(reader, lang, &res.ecu_variant)?;
 
 
-
-
         // Done building our ECU varients, we can destroy our working arrays
         res.global_services.clear();
         res.global_dtcs.clear();
-
-
-
 
         Ok(res)
     }
@@ -225,7 +220,7 @@ impl ECU {
         Ok(res)
     }
 
-    fn create_services(&self, reader: &mut Raf, lang: &CTFLanguage, env_blk: &Block) -> std::result::Result<Vec<Service>, CaesarError> {
+    fn create_env(&self, reader: &mut Raf, lang: &CTFLanguage, env_blk: &Block) -> std::result::Result<Vec<Service>, CaesarError> {
         let pool = Self::read_pool(reader, env_blk)?;
         let mut res = vec![Service::default(); env_blk.entry_count];
         let mut tmp_reader = Raf::from_bytes(&pool, common::raf::RafByteOrder::LE);
@@ -233,7 +228,6 @@ impl ECU {
         for i in 0..env_blk.entry_count {
             let offset = tmp_reader.read_i32()? as usize;
             let _size = tmp_reader.read_i32()?;
-
             let env_base_address = offset + env_blk.block_offset;
         
             res[i] = Service::new(reader, env_base_address, i, lang, self)?

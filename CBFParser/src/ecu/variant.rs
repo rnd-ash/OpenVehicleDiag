@@ -103,13 +103,12 @@ impl ECUVariant {
         };
 
         tmp_reader.seek(res.diag_services.offset);
-        let diag_services_pool_offsets: Vec<i32> = (0..res.diag_services.count)
-            .into_iter()
-            .map(|_| tmp_reader.read_i32())
-            .filter_map(|x| x.ok())
-            .collect();
-
-            tmp_reader.seek(res.dtc.offset);
+        let mut diag_services_pool_offsets: Vec<i32> = Vec::new();
+        for _ in 0..res.diag_services.count {
+            diag_services_pool_offsets.push(tmp_reader.read_i32()?)
+        }
+        
+        tmp_reader.seek(res.dtc.offset);
         let mut dtc_pool_bounds: Vec<DTCPoolBounds> = vec![DTCPoolBounds::default(); res.dtc.count];
         for i in 0..res.dtc.count {
             dtc_pool_bounds[i] = DTCPoolBounds::new(&mut tmp_reader)?;
@@ -151,13 +150,11 @@ impl ECUVariant {
             let ptn_offset = reader.read_i32()? as usize;
             res.push(VariantPattern::new(reader, ptn_offset + table_offset)?)
         }
-
         Ok(res)
     }
 
     fn create_dtcs(&self, count: usize, pool: Vec<DTCPoolBounds>, parent: &ECU) -> std::result::Result<Vec<DTC>, CaesarError> {
         let mut res = vec![DTC::default(); count];
-        println!("{:?}", pool);
         parent.global_dtcs.iter().for_each(|dtc| {
             for i in 0..count {
                 if dtc.pool_idx == pool[i].actual_index as usize {

@@ -86,14 +86,14 @@ pub struct Service {
 
     pub req_bytes: Vec<u8>,
 
-    base_addr: usize,
+    pub (crate) base_addr: usize,
 
     pub (crate) pool_idx: usize,
 
     pub com_params: Vec<ComParameter>,
 
     pub input_preparations: Vec<Preparation>,
-    pub output_preparations: Vec<Vec<Preparation>>
+    pub output_preparations: Vec<Preparation>
 }
 
 impl Service {
@@ -193,12 +193,8 @@ impl Service {
 
                 res_pres_vec.push(Preparation::new(reader, lang, prep_base_addr + prep_entry_offset, prep_entry_bit_pos, prep_entry_mode, parent, &res)?);
             }
-            res.output_preparations.push(res_pres_vec);
+            res.output_preparations.extend_from_slice(&res_pres_vec);
         }
-
-
-
-
 
         let com_param_base_address = base_addr + res.t_com_param.offset;
         for i in 0..res.t_com_param.count {
@@ -207,6 +203,8 @@ impl Service {
             let cp_entry_base_address = com_param_base_address + cp_offset;
             res.com_params.push(ComParameter::new(reader, cp_entry_base_address, &parent.interfaces)?)
         }
+        
+        // Sort input and outputs so that start_bit is correct
         Ok(res)
     }
 
@@ -217,4 +215,8 @@ impl Service {
     pub (crate) fn get_p_count(&self) -> usize {
         self.p.count
     }
+
+
+    // For converting to param tyoe only!
+
 }

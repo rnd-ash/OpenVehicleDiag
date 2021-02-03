@@ -1,12 +1,12 @@
 use common::raf::Raf;
 use creader::read_primitive;
 
-use crate::caesar::{CaesarError, creader};
+use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Scale {
-    pub (crate) unk1: i32,
+    pub (crate) index: i32,
     pub (crate) unk2: i32,
     pub (crate) prep_lower_bound: i32,
     pub (crate) prep_upper_bound: i32,
@@ -16,20 +16,20 @@ pub struct Scale {
     pub (crate) offset_si: i32,
     pub (crate) us_count: i32,
     pub (crate) offset_us: i32,
-    pub (crate) enum_description: i32,
+    pub (crate) enum_description: Option<String>,
     pub (crate) unkc: i32,
     pub (crate) base_addr: usize
 }
 
 impl Scale {
-    pub fn new(reader: &mut Raf, base_addr: usize) -> std::result::Result<Self, CaesarError> {
+    pub fn new(reader: &mut Raf, base_addr: usize, lang: &CTFLanguage) -> std::result::Result<Self, CaesarError> {
         println!("Processing Scale data format - Base address: 0x{:08X}", base_addr);
         reader.seek(base_addr);
 
         let mut bitflags = reader.read_u16()? as u32;
         Ok(Self {
             base_addr,
-            unk1: creader::read_primitive(&mut bitflags, reader, 0i32)?,
+            index: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             unk2: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             prep_lower_bound: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             prep_upper_bound: creader::read_primitive(&mut bitflags, reader, 0i32)?,
@@ -39,7 +39,7 @@ impl Scale {
             offset_si: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             us_count: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             offset_us: creader::read_primitive(&mut bitflags, reader, 0i32)?,
-            enum_description: creader::read_primitive(&mut bitflags, reader, 0i32)?,
+            enum_description: lang.get_string(creader::read_primitive(&mut bitflags, reader, -1i32)?),
             unkc: creader::read_primitive(&mut bitflags, reader, 0i32)?,
         })
 

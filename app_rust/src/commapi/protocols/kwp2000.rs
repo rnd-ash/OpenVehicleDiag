@@ -452,7 +452,7 @@ impl ProtocolServer for KWP2000ECU {
                                 timeout_count += 1;
                             }
                         }
-                        if timeout_count > 2 {
+                        if timeout_count > 5 {
                             should_run_t.store(false, Relaxed);
                             *error_t.write().unwrap() = Some(ProtocolError::CustomError("ECU Tester present response timeout".into()));
                         }
