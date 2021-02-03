@@ -1,10 +1,10 @@
 use std::{env, io::Write};
 use std::fs::File;
 use caesar::container;
-use common::raf::Raf;
-use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::{dtc::ECUDTC, service::{Service, DataType, Parameter}}};
+use common::{raf::Raf, schema::diag::{DataFormat, StringEncoding, TableData}};
+use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::{dtc::ECUDTC, service::{Service, Parameter}}};
 use ctf::cff_header;
-use diag::preparation::InferredDataType;
+use diag::{preparation::InferredDataType, presentation::{DataTypeCBF, Presentation}};
 use ecu::ECU;
 use std::io::Read;
 
@@ -95,40 +95,84 @@ fn decode_ecu(e: &ECU) {
             let mut service = Service {
                 name: s.qualifier.clone(),
                 description: s.name.clone().unwrap_or("".into()),
-                input_type: DataType::None,
+                //input_type: DataType::None,
                 payload: s.req_bytes.clone(),
                 input_params: Vec::new(),
                 output_params: Vec::new()
             };
 
+            let mut tmp: Vec<Vec<u8>> = Vec::new();
+
+            if s.qualifier.clone() == "DT_04_Gearbox_Type" {
+                if let Some(p) = &s.output_preparations[0].presentation {
+                    println!("FOUND {} - {}", p.scale_list.len(), s.base_addr)
+                }
+            }
+
             s.input_preparations.iter().for_each(|p| {
-                service.input_params.push(
-                    Parameter {
-                        name: p.qualifier.clone(),
-                        start_bit: p.bit_pos as usize,
-                        length_bits: p.size_in_bits as usize,
-                        dump: p.dump.clone(),
-                        data_type: if_to_dt(&p.field_type)
+                let mut param = Parameter {
+                    name: p.qualifier.clone(),
+                    unit: "".into(),
+                    start_bit: p.bit_pos, // Need to minus 8 as OVD starts are response start, CBF starts at message start
+                    length_bits: p.size_in_bits as usize,
+                    byte_order: common::schema::diag::service::ParamByteOrder::LittleEndian, // Always
+                    data_format: if_to_dt(&p.field_type, p.size_in_bits as usize),
+                };
+                tmp.push(p.dump.clone());
+
+                if param.name.contains("ASCII") {
+                    param.data_format = DataFormat::String(StringEncoding::ASCII)
+                }
+
+                if let Some(pres) = &p.presentation {
+                    param.unit = pres.display_unit.clone().unwrap_or("".into());
+                    if let Some(name) = pres.description.clone() {
+                        param.name = name;
                     }
-                )
+
+                    if let Some(p) = DataTypeCBF::create(pres.scale_list.clone()) {
+                        param.data_format = create_data_fmt(&p) // Calculate extended formatting type
+                    }
+                }
+                service.input_params.push(param);
             });
 
-            s.output_preparations.iter().for_each(|i| {
-                i.iter().for_each(|p| {
-                    service.output_params.push(
-                        Parameter {
-                            name: p.qualifier.clone(),
-                            start_bit: p.bit_pos as usize,
-                            length_bits: p.size_in_bits as usize,
-                            dump: p.dump.clone(),
-                            data_type: if_to_dt(&p.field_type)
-                        }
-                    )
-                })
+            s.output_preparations.iter().for_each(|p| {
+                    
+                let mut param = Parameter {
+                    name: p.qualifier.clone(),
+                    unit: "".into(),
+                    start_bit: p.bit_pos as usize,
+                    length_bits: p.size_in_bits as usize,
+                    byte_order: common::schema::diag::service::ParamByteOrder::LittleEndian, // Always
+                    data_format: if_to_dt(&p.field_type, p.size_in_bits as usize), // Get default (Basic) data type
+                };
+
+                if param.name.contains("ASCII") {
+                    param.data_format = DataFormat::String(StringEncoding::ASCII)
+                }
+
+                if let Some(pres) = &p.presentation {
+                    param.unit = pres.display_unit.clone().unwrap_or("".into());
+                    if let Some(name) = pres.description.clone() {
+                        param.name = name;
+                    }
+
+                    if let Some(p) = DataTypeCBF::create(pres.scale_list.clone()) {
+                        param.data_format = create_data_fmt(&p)
+                    }
+                }
+                service.output_params.push(param);
             });
 
+            // For CBF, it appears input params are repeated in the payload.
+            // Delete them
+            delete_input_params(&service.payload, &mut service.input_params, tmp);
 
-            ecu_variant.services.push(service);
+            // Only add if we have a valid payload (Functions like {{INITIALIZATION}} are ignored)
+            if !service.payload.is_empty() {
+                ecu_variant.services.push(service);
+            }
         });
 
         ecu.variants.push(ecu_variant);
@@ -138,16 +182,76 @@ fn decode_ecu(e: &ECU) {
     println!("ECU decoding complete. Output file is {}.json. Have a nice day!", ecu.name)
 }
 
-fn if_to_dt(if_dt: &InferredDataType) -> DataType {
+fn delete_input_params(payload: &[u8], v: &mut Vec<Parameter>, dumps: Vec<Vec<u8>>) {
+    let mut to_delete : Vec<usize> = Vec::new();
+
+    for (pos, param) in v.iter().enumerate() {
+        if param.length_bits == 8 {
+            // Full byte, check
+            let idx =  param.start_bit/8;
+
+            if let Some(b) = payload.get(idx) {
+                if let Some(x) = dumps[pos].get(0) {
+                    if b == x {
+                        to_delete.push(pos)
+                    }
+                }
+            }
+        }
+    }
+
+    for (pos, entry) in to_delete.iter().enumerate() {
+        let real_idx = *entry - pos;
+        v.remove(real_idx);
+    }
+}
+
+fn if_to_dt(if_dt: &InferredDataType, length: usize) -> DataFormat {
+    if length > 32 { // CBF is from a time of 16/32bit computing. No 64bit integers or floats exist
+        return DataFormat::HexDump;
+    }
+
+
     match if_dt {
-        InferredDataType::Unassigned => DataType::None,
-        InferredDataType::Integer => DataType::Int,
-        InferredDataType::NativeInfoPool => DataType::Enum,
-        InferredDataType::NativePresentation => DataType::Enum,
-        InferredDataType::UnhandledITT => DataType::None,
-        InferredDataType::UnhandledSP17 => DataType::None,
-        InferredDataType::Unhandled => DataType::None,
-        InferredDataType::BitDump => DataType::Hex,
-        InferredDataType::ExtendedBitDump => DataType::Hex
+        InferredDataType::Unassigned => DataFormat::HexDump,
+        InferredDataType::Integer => DataFormat::RawInt,
+        InferredDataType::NativeInfoPool => DataFormat::RawInt,
+        InferredDataType::NativePresentation => DataFormat::RawInt,
+        InferredDataType::UnhandledITT => DataFormat::HexDump,
+        InferredDataType::UnhandledSP17 => DataFormat::HexDump,
+        InferredDataType::Unhandled => DataFormat::HexDump,
+        InferredDataType::BitDump => DataFormat::HexDump,
+        InferredDataType::ExtendedBitDump => DataFormat::HexDump,
+        InferredDataType::String => DataFormat::String(StringEncoding::ASCII) // Always ASCII with CBF
+    }
+}
+
+fn create_data_fmt(sf: &DataTypeCBF) -> DataFormat {
+
+    match sf {
+        DataTypeCBF::Bool { pos_str, neg_str } => {
+            DataFormat::Bool {
+                pos_name: pos_str.clone(),
+                neg_name: neg_str.clone(),
+            }
+        },
+        DataTypeCBF::Table(entries) => {
+
+            let tables : Vec<TableData> = entries.iter().map(|(pos, x)| {
+                TableData {
+                    name: x.clone(),
+                    start: *pos as f32,
+                    end: *pos as f32
+                }
+            }).collect();
+            DataFormat::Table(tables)
+        },
+
+        DataTypeCBF::Linear{m, c} => {
+            DataFormat::Linear {
+                multiplier: *m,
+                offset: *c
+            }
+        }
     }
 }

@@ -5,7 +5,7 @@ use creader::read_bitflag_dump;
 
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage, ecu::ECU};
 
-use super::service::Service;
+use super::{presentation::Presentation, service::Service};
 
 const INT_SIZE_MAP: [u8; 7] = [0x00, 0x01, 0x04, 0x08, 0x10, 0x20, 0x40];
 
@@ -19,6 +19,7 @@ pub enum InferredDataType {
     UnhandledSP17,
     Unhandled,
     BitDump,
+    String,
     ExtendedBitDump
 }
 
@@ -47,9 +48,10 @@ pub struct Preparation {
     pub dump: Vec<u8>,
     pub field_type: InferredDataType,
 
-    pub bit_pos: i32,
+    pub bit_pos: usize,
     mode_cfg: u16,
-    pub size_in_bits: i32
+    pub size_in_bits: i32,
+    pub presentation: Option<Presentation>
 }
 
 impl Preparation {
@@ -65,6 +67,7 @@ impl Preparation {
             //description: lang.get_string(creader::read_primitive(&mut bitflags, reader, -1i32)?),
 
         let mut res = Self {
+            bit_pos,
             qualifier: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
             name: lang.get_string(creader::read_primitive(&mut bitflags, reader, -1i32)?),
             unk1: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
@@ -82,7 +85,7 @@ impl Preparation {
         };
 
         if res.dump_mode == 5 { // Dump is string
-
+            res.field_type = InferredDataType::String
         }
         res.dump = creader::read_bitflag_dump(&mut bitflags, reader, res.dump_size as usize, base_addr)?;
         res.size_in_bits = res.get_size_in_bits(parent_ecu, parent_service)?;
@@ -124,6 +127,7 @@ impl Preparation {
                 if pres.type_1c == 0 { // Presentation is in bytes, convert length to bits
                     result_bit_size *= 8;
                 }
+                self.presentation = Some(pres);
             } else {
                 return Err(CaesarError::ProcessException(format!("Unknown system type for {}. mode_cfg: {:04X} mode_e: {:04X} mode_h: {:04X} mode_l: {:04X}", self.qualifier, self.mode_cfg, mode_e, mode_h, mode_l)))
             }
@@ -131,7 +135,7 @@ impl Preparation {
             let reduced_sys_param = self.system_param - 0x10;
             if reduced_sys_param == 0 {
                 // LOWBYTE (&0xFF)
-                result_bit_size = ((parent_diag_service.get_byte_count() & 0xFF) as i32 - (self.bit_pos / 8)) * 8;
+                result_bit_size =(((parent_diag_service.get_byte_count() & 0xFF) - (self.bit_pos / 8)) * 8) as i32;
                 self.field_type = InferredDataType::ExtendedBitDump;
             } else if reduced_sys_param == 17 {
                 if let Some(referenced_service) = parent_ecu.global_services.iter().find(|x| x.qualifier == parent_diag_service.input_ref_name) {
