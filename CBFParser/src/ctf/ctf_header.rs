@@ -1,3 +1,5 @@
+use std::{io::{Read, Write}, str::FromStr};
+
 use common::raf::Raf;
 use creader::{read_bitflag_string, read_primitive};
 
@@ -98,6 +100,38 @@ impl CTFLanguage {
             return None
         }
         self.strings.get(idx as usize).cloned()
+    }
+
+    pub fn dump_language_table(&self, name: String) -> std::io::Result<()> {
+        let mut file = std::fs::File::create(name)?;
+
+        for (idx, string) in self.strings.iter().enumerate() {
+            file.write_all(format!("{},\"{}\"\n", idx, string).as_bytes())?;
+        }
+        file.flush()?;
+        Ok(())
+    }
+
+    pub fn load_language_table(&mut self, name: String) -> std::io::Result<()> {
+        let mut file = std::fs::File::open(name)?;
+        let mut r = String::new();
+        file.read_to_string(&mut r)?;
+        let list: Vec<(usize, String)> = r.split("\n").map(|s| {
+            let split: Vec<String> = s.split(",\"").map(|u| u.to_string()).collect();
+            if let Ok(idx) = split[0].parse::<usize>() {
+                let string: String = split[1].replace("\"", "");
+                Some((idx, string))
+            } else {
+                None
+            }
+        }).filter_map(|x|x).collect();
+
+        for (idx, string) in list {
+            println!("{} -> {}", self.strings[idx], string);
+            self.strings[idx] = string
+        }
+
+        Ok(())
     }
 }
 
