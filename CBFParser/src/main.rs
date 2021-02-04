@@ -17,18 +17,28 @@ fn help(err: String) -> ! {
     println!("Error: {}", err);
     println!("Usage:");
     println!("cbf_parser <INPUT.CBF>");
+    println!("cbf_parser <INPUT.CBF> -dump_strings <STRINGS.csv>");
+    println!("cbf_parser <INPUT.CBF> -load_strings <STRINGS.csv>");
     std::process::exit(1);
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    match args.len() {
-        2 => read_file(&args[1]),
-        _ => help(format!("Invalid number of args: {}", args.len() - 1)),
+
+    if args.len() == 4 {
+        match args[2].as_str() {
+            "-dump_strings" => read_file(&args[1], Some(args[3].clone()), true),
+            "-load_strings" => read_file(&args[1], Some(args[3].clone()), false),
+            _ => help("String operation is not valid: {}".into())
+        }
+    } else if args.len() == 2 {
+        read_file(&args[1], None, false)
+    } else {
+        help(format!("Invalid number of args: {}", args.len() - 1))
     }
 }
 
-fn read_file(path: &String) {
+fn read_file(path: &String, str_path: Option<String>, is_dump: bool) {
     if path.ends_with(".cff") {
         eprintln!("Cannot be used with CFF. Only CBF!");
         return;
@@ -39,9 +49,22 @@ fn read_file(path: &String) {
     println!("Have {} bytes", buffer.len());
     let mut br = Raf::from_bytes(&buffer, common::raf::RafByteOrder::LE);
 
-    let container = container::Container::new(&mut br);
-    match container {
-        Ok(c) => decode_ecu(&c.ecus[0]),
+    let c = container::Container::new(&mut br);
+
+
+    match c {
+        Ok((mut container, reader)) => {
+            if let Some(p) = str_path {
+                if is_dump {
+                    return container.dump_strings(p)
+                } else {
+                    container.load_strings(p);
+                }
+            }
+            if let Ok(_) = container.read_ecus(reader) {
+                decode_ecu(&container.ecus[0])
+            }
+        },
         Err(e) => eprintln!("{:?}", e)
     }
 }

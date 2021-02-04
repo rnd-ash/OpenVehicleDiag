@@ -176,4 +176,13 @@ impl Preparation {
         }
         Ok(result_bit_size)
     }
+
+
+    pub fn get_scale_table_count(&self) -> usize {
+        if let Some(p) = &self.presentation {
+            p.scale_list.len()
+        } else {
+            0
+        }
+    }
 }

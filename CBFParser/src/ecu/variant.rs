@@ -133,7 +133,7 @@ impl ECUVariant {
         parent_ecu.global_diag_jobs.iter().for_each(|d| {
             for (pos, idx) in pool.iter().enumerate() {
                 if d.pool_idx == *idx as usize {
-                    res[pos] = d.clone()
+                    res[pos] = d.clone();
                 }
             }
         });

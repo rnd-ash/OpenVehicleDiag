@@ -1,3 +1,5 @@
 *.cbf
 *.txt
 *.json
+*.csv
+*.csv_translated
