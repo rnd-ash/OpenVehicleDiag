@@ -1,12 +1,8 @@
-use std::sync::Arc;
-
 use common::raf::Raf;
 use ctf_header::CTFHeader;
 use ecu::ECU;
 
 use crate::{ctf::{STUB_HEADER_SIZE, StubHeader, cff_header::CFFHeader, ctf_header}, ecu};
-
-
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Container {
@@ -23,7 +19,7 @@ impl Container {
         StubHeader::read_header(&header);
 
         let cff_header_size = reader.read_i32()? as usize;
-        let cff_header_bytes = reader.read_bytes(cff_header_size)?;
+        let _cff_header_bytes = reader.read_bytes(cff_header_size)?;
 
         let mut container = Container::default();
 
@@ -45,10 +41,9 @@ impl Container {
         self.ecus.clear();
         let ecu_table_offset = self.cff_header.ecu_offset as usize + self.cff_header.base_addr;
         for i in 0..self.cff_header.ecu_count as usize {
-            let arc = Arc::new(self.clone());
             reader.seek(ecu_table_offset + (i*4));
             let offset_to_actual_ecu = reader.read_i32()? as usize;
-            self.ecus.push(ECU::new(reader, &self.ctf_header.get_languages(0), &self.cff_header,ecu_table_offset + offset_to_actual_ecu, arc)?)
+            self.ecus.push(ECU::new(reader, &self.ctf_header.get_languages(0), &self.cff_header,ecu_table_offset + offset_to_actual_ecu)?)
         }
         Ok(())
     }

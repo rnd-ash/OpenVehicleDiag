@@ -3,7 +3,7 @@ pub mod ctf_header;
 
 
 pub const STUB_HEADER_SIZE: usize = 0x410;
-const FILE_HEADER: &'static [u8] = "CBF-TRANSLATOR-VERSION:04.00".as_bytes();
+const FILE_HEADER: &[u8] = "CBF-TRANSLATOR-VERSION:04.00".as_bytes();
 
 pub struct StubHeader;
 

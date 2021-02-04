@@ -65,9 +65,9 @@ impl Raf {
     /// # Params
     /// * data - Original source data - Will be cloned
     /// * bo - Byte order of the source data
-    pub fn from_bytes(data: &Vec<u8>, bo: RafByteOrder) -> Self {
+    pub fn from_bytes(data: &[u8], bo: RafByteOrder) -> Self {
         Raf {
-            data: data.clone(),
+            data: Vec::from(data),
             size: data.len(),
             pos: 0,
             bo,
@@ -92,7 +92,10 @@ impl Raf {
     pub fn adv(&mut self, pos: usize) -> Result<()> {
         match pos {
             x if self.pos + x > self.size => Err(RafError::StartOutOfRange),
-            _ => Ok(self.pos += pos),
+            _ => {
+                self.pos += pos;
+                Ok(())
+            },
         }
     }
 
@@ -133,14 +136,14 @@ impl Raf {
     pub fn read_cstr(&mut self) -> Result<String> {
         let mut bytes: Vec<u8> = Vec::new();
         loop {
-            let nextByte = self.read_u8()?;
-            if nextByte == 0 {
+            let next_byte = self.read_u8()?;
+            if next_byte == 0 {
                 return match String::from_utf8(bytes) {
                     Err(_) => Err(RafError::StrParseError),
                     Ok(s) => Ok(s)
                 }
             } else {
-                bytes.push(nextByte);
+                bytes.push(next_byte);
             }
         }
     }

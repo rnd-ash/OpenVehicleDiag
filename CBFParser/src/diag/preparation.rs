@@ -1,15 +1,11 @@
-use std::todo;
-
 use common::raf::Raf;
-use creader::read_bitflag_dump;
-
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage, ecu::ECU};
-
 use super::{presentation::Presentation, service::Service};
 
 const INT_SIZE_MAP: [u8; 7] = [0x00, 0x01, 0x04, 0x08, 0x10, 0x20, 0x40];
 
 #[derive(Debug, Copy, Clone)]
+#[allow(dead_code)]
 pub enum InferredDataType {
     Unassigned,
     Integer,
@@ -175,14 +171,5 @@ impl Preparation {
             return Err(CaesarError::ProcessException(format!("Unhandled param type {} for {}", mode_h, self.qualifier)))
         }
         Ok(result_bit_size)
-    }
-
-
-    pub fn get_scale_table_count(&self) -> usize {
-        if let Some(p) = &self.presentation {
-            p.scale_list.len()
-        } else {
-            0
-        }
     }
 }

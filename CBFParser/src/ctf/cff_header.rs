@@ -1,4 +1,3 @@
-use std::vec;
 use common::raf::Raf;
 use crate::caesar::{CaesarError, creader};
 

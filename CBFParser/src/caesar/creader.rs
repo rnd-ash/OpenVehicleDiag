@@ -1,7 +1,3 @@
-use std::{primitive, string};
-
-use common::raf;
-
 use crate::Raf;
 
 use super::CaesarError;
@@ -33,6 +29,7 @@ pub fn read_bitflag_dump(bit_flag: &mut u32, reader: &mut Raf, dump_size: usize,
     }
 }
 
+#[allow(dead_code)]
 pub fn read_bitflag_dump_as_string(bit_flag: &mut u32, reader: &mut Raf, dump_size: usize, base_addr: usize) -> super::Result<String> {
     let data = read_bitflag_dump(bit_flag, reader, dump_size, base_addr)?;
     Ok(String::from_utf8(data).unwrap())

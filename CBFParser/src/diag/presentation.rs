@@ -1,8 +1,5 @@
 use common::raf::Raf;
-use creader::read_bitflag_string;
-
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
-
 use super::pres_types::scale::Scale;
 
 #[derive(Debug, Clone, Default)]

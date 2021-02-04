@@ -1,29 +1,9 @@
-use std::fs::read_to_string;
-
 use common::raf::Raf;
-use creader::{CaesarPrimitive, read_bitflag_string, read_primitive};
-
-use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage, ecu::{ECU, com_param::ComParameter}};
-
+use crate::{caesar::{CaesarError, PoolTuple, creader}, ctf::ctf_header::CTFLanguage, ecu::{ECU, com_param::ComParameter}};
 use super::preparation::Preparation;
 
-
-#[derive(Debug, Clone, Default, Copy)]
-struct cData {
-    count: usize,
-    offset: usize,
-}
-
-impl cData {
-    pub fn new<T: CaesarPrimitive, X: CaesarPrimitive>(reader: &mut Raf, bf: &mut u32, d1: T, d2: X) -> std::result::Result<Self, CaesarError> {
-        Ok(Self {
-            count: creader::read_primitive(bf, reader, d1)?.to_usize() as usize,
-            offset: creader::read_primitive(bf, reader, d2)?.to_usize() as usize,
-        })
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[allow(dead_code)]
 pub enum ServiceType {
     Data = 5,
     Download = 7,
@@ -56,16 +36,16 @@ pub struct Service {
     client_access_level: i32,
     security_access_level: i32,
 
-    t_com_param: cData,
-    q: cData,
-    r: cData,
+    t_com_param: PoolTuple,
+    q: PoolTuple,
+    r: PoolTuple,
 
     pub input_ref_name: String,
 
-    u_prep: cData,
-    v: cData,
-    request_bytes: cData,
-    w_out_pres: cData,
+    u_prep: PoolTuple,
+    v: PoolTuple,
+    request_bytes: PoolTuple,
+    w_out_pres: PoolTuple,
 
     field50: u16,
 
@@ -73,16 +53,16 @@ pub struct Service {
     unk_str3: String,
     unk_str4: String,
 
-    p: cData,
-    diag_service_code: cData,
+    p: PoolTuple,
+    diag_service_code: PoolTuple,
 
-    s: cData,
+    s: PoolTuple,
 
-    x: cData,
+    x: PoolTuple,
 
-    y: cData,
+    y: PoolTuple,
 
-    z: cData,
+    z: PoolTuple,
 
     pub req_bytes: Vec<u8>,
 
@@ -121,18 +101,18 @@ impl Service {
             client_access_level: creader::read_primitive(&mut bitflags, reader, 0u16)? as i32,
             security_access_level: creader::read_primitive(&mut bitflags, reader, 0u16)? as i32,
 
-            t_com_param: cData::new(reader, &mut bitflags, 0i32, 0i32)?,
-            q: cData::new(reader, &mut bitflags, 0i32, 0i32)?,
-            r: cData::new(reader, &mut bitflags, 0i32, 0i32)?,
+            t_com_param: PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?,
+            q: PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?,
+            r: PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?,
 
             input_ref_name: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
 
-            u_prep: cData::new(reader, &mut bitflags, 0i32, 0i32)?,
-            v: cData::new(reader, &mut bitflags, 0i32, 0i32)?,
+            u_prep: PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?,
+            v: PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?,
 
-            request_bytes: cData::new(reader, &mut bitflags, 0i16, 0i32)?,
+            request_bytes: PoolTuple::new_default(reader, &mut bitflags, 0i16, 0i32)?,
 
-            w_out_pres: cData::new(reader, &mut bitflags, 0i32, 0i32)?,
+            w_out_pres: PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?,
 
             field50: creader::read_primitive(&mut bitflags, reader, 0u16)?,
 
@@ -140,19 +120,19 @@ impl Service {
             unk_str3: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
             unk_str4: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
 
-            p: cData::new(reader, &mut bitflags, 0i32, 0i32)?,
+            p: PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?,
 
-            diag_service_code: cData::new(reader, &mut bitflags, 0i32, 0i32)?,
+            diag_service_code: PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?,
 
-            s: cData::new(reader, &mut bitflags, 0i16, 0i32)?,
+            s: PoolTuple::new_default(reader, &mut bitflags, 0i16, 0i32)?,
             ..Default::default()
         };
 
         bitflags = bitflags_ext;
 
-        res.x = cData::new(reader, &mut bitflags, 0i32, 0i32)?;
-        res.y = cData::new(reader, &mut bitflags, 0i32, 0i32)?;
-        res.z = cData::new(reader, &mut bitflags, 0i32, 0i32)?;
+        res.x = PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?;
+        res.y = PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?;
+        res.z = PoolTuple::new_default(reader, &mut bitflags, 0i32, 0i32)?;
 
         res.data_class_service_type_shifted = 1 << (res.data_class_service_type - 1);
 
@@ -211,12 +191,5 @@ impl Service {
     pub (crate) fn get_byte_count(&self) -> usize {
         self.request_bytes.count
     }
-
-    pub (crate) fn get_p_count(&self) -> usize {
-        self.p.count
-    }
-
-
     // For converting to param tyoe only!
-
 }
