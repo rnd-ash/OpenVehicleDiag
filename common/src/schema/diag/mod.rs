@@ -1,9 +1,6 @@
 pub mod dtc;
 pub mod service;
-
 use serde::{Serialize, Deserialize};
-
-type DataFormatResult<T> = std::result::Result<T, String>;
 
 /// Derived from the ODX specification
 /// See https://www.emotive.de/wiki/index.php?title=Diagnoselayer_und_Diagnosedienste#DATA-OBJECT-PRO.C2.ADPER.C2.ADTY_.28DOP.29
@@ -24,8 +21,8 @@ impl TableData {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum StringEncoding {
     ASCII,
-    UTF_8,
-    UTF_16,
+    Utf8,
+    Utf16,
 }
 
 

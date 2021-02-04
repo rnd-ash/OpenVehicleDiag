@@ -1,11 +1,8 @@
 use common::raf::Raf;
-use creader::read_primitive;
-
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
-
 use super::com_param::ComParameter;
 
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, dead_code)]
 #[derive(Debug, Clone)]
 pub enum ParamName {
     CP_BAUDRATE,

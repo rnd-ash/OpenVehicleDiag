@@ -1,28 +1,7 @@
 use std::vec;
-
 use common::raf::Raf;
-use creader::{CaesarPrimitive, read_bitflag_string};
-
-use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage, diag::{dtc::{self, DTC}, service::Service}};
-
-use super::{ECU, variant_pattern::{self, VariantPattern}};
-
-
-
-#[derive(Debug, Copy, Clone, Default)]
-pub (crate) struct cOffset{
-    count: usize,
-    offset: usize
-}
-
-impl cOffset {
-    pub fn new(reader: &mut Raf, bf: &mut u32) -> std::result::Result<Self, CaesarError> {
-        Ok(Self{
-            count: creader::read_primitive(bf, reader, 0i32)?.to_usize(),
-            offset: creader::read_primitive(bf, reader, 0i32)?.to_usize()
-        })
-    }
-}
+use crate::{caesar::{CaesarError, PoolTuple, creader}, ctf::ctf_header::CTFLanguage, diag::{dtc::DTC, service::Service}};
+use super::{ECU, variant_pattern::{VariantPattern}};
 
 #[derive(Debug, Copy, Clone, Default)]
 struct DTCPoolBounds {
@@ -50,15 +29,15 @@ pub struct ECUVariant {
     pub (crate) unk_str1: String,
     pub (crate) unk_str2: String,
     pub (crate) unk1: i32,
-    matching_parent: cOffset,
-    subsection_b: cOffset,
-    com_params: cOffset,
-    diag_service_code: cOffset,
-    diag_services: cOffset,
-    dtc: cOffset,
-    environment_ctx: cOffset,
-    xref: cOffset,
-    vc_domain: cOffset,
+    matching_parent: PoolTuple,
+    subsection_b: PoolTuple,
+    com_params: PoolTuple,
+    diag_service_code: PoolTuple,
+    diag_services: PoolTuple,
+    dtc: PoolTuple,
+    environment_ctx: PoolTuple,
+    xref: PoolTuple,
+    vc_domain: PoolTuple,
     pub (crate) negative_response_name: String,
     pub (crate) unk_byte: i32,
 
@@ -86,16 +65,16 @@ impl ECUVariant {
             unk_str2: creader::read_bitflag_string(&mut bitflags, &mut tmp_reader, 0)?,
 
             unk1: creader::read_primitive(&mut bitflags, &mut tmp_reader, 0i32)?,
-            matching_parent: cOffset::new(&mut tmp_reader, &mut bitflags)?,
-            subsection_b: cOffset::new(&mut tmp_reader, &mut bitflags)?,
-            com_params: cOffset::new(&mut tmp_reader, &mut bitflags)?,
-            diag_service_code: cOffset::new(&mut tmp_reader, &mut bitflags)?,
-            diag_services: cOffset::new(&mut tmp_reader, &mut bitflags)?,
-            dtc: cOffset::new(&mut tmp_reader, &mut bitflags)?,
-            environment_ctx: cOffset::new(&mut tmp_reader, &mut bitflags)?,
-            xref: cOffset::new(&mut tmp_reader, &mut bitflags)?,
+            matching_parent: PoolTuple::new_int(&mut tmp_reader, &mut bitflags)?,
+            subsection_b: PoolTuple::new_int(&mut tmp_reader, &mut bitflags)?,
+            com_params: PoolTuple::new_int(&mut tmp_reader, &mut bitflags)?,
+            diag_service_code: PoolTuple::new_int(&mut tmp_reader, &mut bitflags)?,
+            diag_services: PoolTuple::new_int(&mut tmp_reader, &mut bitflags)?,
+            dtc: PoolTuple::new_int(&mut tmp_reader, &mut bitflags)?,
+            environment_ctx: PoolTuple::new_int(&mut tmp_reader, &mut bitflags)?,
+            xref: PoolTuple::new_int(&mut tmp_reader, &mut bitflags)?,
 
-            vc_domain: cOffset::new(&mut tmp_reader, &mut bitflags)?,
+            vc_domain: PoolTuple::new_int(&mut tmp_reader, &mut bitflags)?,
 
             negative_response_name: creader::read_bitflag_string(&mut bitflags, &mut tmp_reader, 0)?,
             unk_byte: creader::read_primitive(&mut bitflags, &mut tmp_reader, 0u8)? as i32,
@@ -115,7 +94,8 @@ impl ECUVariant {
         }
 
         tmp_reader.seek(res.environment_ctx.offset);
-        let env_ctx_pool_offsets: Vec<i32> = (0..res.environment_ctx.count)
+        // TODO process ENV pool
+        let _env_ctx_pool_offsets: Vec<i32> = (0..res.environment_ctx.count)
             .into_iter()
             .map(|_| tmp_reader.read_i32())
             .filter_map(|x| x.ok())

@@ -1,12 +1,8 @@
-use std::{default, sync::Arc, vec};
-
+use std::{vec};
 use common::{raf::Raf};
-use creader::{CaesarPrimitive, read_primitive};
-use hyper::header::Basic;
+use creader::{CaesarPrimitive};
 use interface_subtype::InterfaceSubType;
-
-use crate::{caesar::{CaesarError, container::Container, creader}, ctf::{STUB_HEADER_SIZE, cff_header::CFFHeader, ctf_header::CTFLanguage}, diag::{dtc::DTC, presentation::Presentation, service::Service}};
-
+use crate::{caesar::{CaesarError, creader}, ctf::{STUB_HEADER_SIZE, cff_header::CFFHeader, ctf_header::CTFLanguage}, diag::{dtc::DTC, presentation::Presentation, service::Service}};
 use self::{interface::ECUInterface, variant::ECUVariant};
 
 pub mod variant_pattern;
@@ -89,12 +85,12 @@ pub struct ECU {
 }
 
 impl ECU {
-    pub (crate) fn new(reader: &mut Raf, lang: &CTFLanguage, header: &CFFHeader, base_addr: usize, parent_container: Arc<Container>) -> std::result::Result<Self, CaesarError> {
+    pub (crate) fn new(reader: &mut Raf, lang: &CTFLanguage, header: &CFFHeader, base_addr: usize) -> std::result::Result<Self, CaesarError> {
         
         let mut bitflags = reader.read_u32()?;
         let bitflags_ext = reader.read_u16()? as u32;
 
-        let unk_0 = reader.read_i32()?;
+        let _unk_0 = reader.read_i32()?;
 
         println!("Processing ECU - Base address: 0x{:08X}", base_addr);
         let mut res = ECU {

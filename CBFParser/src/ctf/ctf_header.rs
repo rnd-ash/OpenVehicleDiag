@@ -1,13 +1,7 @@
-use std::{io::{Read, Write}, str::FromStr};
-
+use std::{io::{Read, Write}};
 use common::raf::Raf;
-use creader::{read_bitflag_string, read_primitive};
-
 use crate::caesar::{CaesarError, creader};
-
 use super::STUB_HEADER_SIZE;
-
-
 
 #[derive(Debug, Clone, Default)]
 pub struct CTFHeader {
@@ -127,10 +121,8 @@ impl CTFLanguage {
         }).filter_map(|x|x).collect();
 
         for (idx, string) in list {
-            println!("{} -> {}", self.strings[idx], string);
             self.strings[idx] = string
         }
-
         Ok(())
     }
 }

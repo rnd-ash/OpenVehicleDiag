@@ -1,10 +1,7 @@
 use std::{cmp::min, string::FromUtf8Error};
-
 use bit_field::BitArray;
 use serde::{Serialize, Deserialize};
 use super::DataFormat;
-
-#[macro_use]
 use serde_with::{serde_as};
 
 #[serde_as]

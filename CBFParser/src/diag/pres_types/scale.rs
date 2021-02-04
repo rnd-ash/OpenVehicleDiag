@@ -1,8 +1,5 @@
 use common::raf::Raf;
-use creader::read_primitive;
-
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
-
 
 #[derive(Debug, Clone, Default)]
 pub struct Scale {

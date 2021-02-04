@@ -3,8 +3,7 @@ use std::fs::File;
 use caesar::container;
 use common::{raf::Raf, schema::diag::{DataFormat, StringEncoding, TableData}};
 use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::{dtc::ECUDTC, service::{Service, Parameter}}};
-use ctf::cff_header;
-use diag::{preparation::InferredDataType, presentation::{DataTypeCBF, Presentation}};
+use diag::{preparation::InferredDataType, presentation::{DataTypeCBF}};
 use ecu::ECU;
 use std::io::Read;
 
@@ -61,7 +60,7 @@ fn read_file(path: &String, str_path: Option<String>, is_dump: bool) {
                     container.load_strings(p);
                 }
             }
-            if let Ok(_) = container.read_ecus(reader) {
+            if container.read_ecus(reader).is_ok() {
                 decode_ecu(&container.ecus[0])
             }
         },
