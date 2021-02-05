@@ -32,10 +32,6 @@ pub enum DataDecodeFailure {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum DataFormat {
-    /// Returns the value as i32
-    RawInt,
-    /// Returns the value as a raw f32
-    RawFloat,
     /// Value is a hex dump
     HexDump,
     /// Value is an encoded String

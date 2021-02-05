@@ -119,10 +119,10 @@ impl SessionTrait for JsonDiagSession {
         }
 
 
-        Column::new().align_items(Align::Center)
+        Column::new().align_items(Align::Center).spacing(8).padding(8)
             .push(title_text(format!("ECU: {} ({}). DiagVersion: {}, Vendor: {}", self.ecu_text.0, self.ecu_text.1, self.ecu_data.name, self.pattern.vendor).as_str(), crate::themes::TitleSize::P4))
             .push(
-            Row::new()
+            Row::new().spacing(8).padding(8)
                 .push(btn_view)
                 .push(Container::new(self.log_view.view()).width(Length::FillPortion(1))))
         .into()
