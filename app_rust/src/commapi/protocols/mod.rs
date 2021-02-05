@@ -135,6 +135,13 @@ impl DiagServer {
     }
 }
 
+impl Drop for DiagServer {
+    fn drop(&mut self) {
+        println!("Drop for diagserver called!");
+        self.kill_diag_server()
+    }
+}
+
 pub trait ProtocolServer : Clone {
     type Command: Selectable + ECUCommand;
     fn start_diag_session(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self>;
