@@ -95,7 +95,6 @@ fn decode_ecu(e: &ECU) {
                 ECUVariantPattern {
                     vendor: p.vendor_name.clone(),
                     vendor_id: p.get_vendor_id()as u32,
-                    hw_id: 0
                 }
             );
         });
@@ -124,13 +123,6 @@ fn decode_ecu(e: &ECU) {
             };
 
             let mut tmp: Vec<Vec<u8>> = Vec::new();
-
-            if s.qualifier.clone() == "DT_04_Gearbox_Type" {
-                if let Some(p) = &s.output_preparations[0].presentation {
-                    println!("FOUND {} - {}", p.scale_list.len(), s.base_addr)
-                }
-            }
-
             s.input_preparations.iter().for_each(|p| {
                 let mut param = Parameter {
                     name: p.qualifier.clone(),
@@ -236,9 +228,9 @@ fn if_to_dt(if_dt: &InferredDataType, length: usize) -> DataFormat {
 
     match if_dt {
         InferredDataType::Unassigned => DataFormat::HexDump,
-        InferredDataType::Integer => DataFormat::RawInt,
-        InferredDataType::NativeInfoPool => DataFormat::RawInt,
-        InferredDataType::NativePresentation => DataFormat::RawInt,
+        InferredDataType::Integer => DataFormat::Identical,
+        InferredDataType::NativeInfoPool => DataFormat::Identical,
+        InferredDataType::NativePresentation => DataFormat::Identical,
         InferredDataType::UnhandledITT => DataFormat::HexDump,
         InferredDataType::UnhandledSP17 => DataFormat::HexDump,
         InferredDataType::Unhandled => DataFormat::HexDump,

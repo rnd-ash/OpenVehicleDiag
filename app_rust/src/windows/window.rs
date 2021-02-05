@@ -1,5 +1,5 @@
 use std::fmt::{Debug};
-use iced::{button, executor, Align, Application, Column, Command, Element, Length, Row, Text, Subscription, time, Rule, Space};
+use iced::{Align, Application, Column, Command, Container, Element, Length, Row, Rule, Space, Subscription, Text, button, executor, time};
 use crate::{commapi::comm_api::{ComServer, ComServerError}, themes};
 use crate::windows::launcher::{Launcher, LauncherMessage};
 use crate::windows::home::{Home, HomeMessage};
@@ -134,6 +134,7 @@ impl Application for MainWindow {
     type Message = WindowMessage;
     type Flags = ();
 
+
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
         (Self {
             state: WindowState::Launcher(Launcher::new()),
@@ -200,6 +201,7 @@ impl Application for MainWindow {
     }
 
     fn view(&mut self) -> Element<'_, Self::Message> {
+
         // If not in launcher mode we should draw the bottom status bar as well
         return if let WindowState::Launcher { .. } = self.state {
             self.state.view()
@@ -218,7 +220,7 @@ impl Application for MainWindow {
                 text(format!("{}V", self.voltage).as_str(), TextType::Success)
             };
             let page_name = &self.state.get_name();
-            let view_contents = self.state.view();
+            let view_contents = Container::new(self.state.view()).height(Length::Units(768-50)).width(Length::Fill);
             let mut s_bar = Row::new().padding(5).spacing(5).height(Length::Shrink)
                     .push(Row::new().spacing(5)
                     .push(Text::new("Status: "))
@@ -244,14 +246,13 @@ impl Application for MainWindow {
                 }
                 btn_row = btn_row.push(home_btn)
             }
-            s_bar = s_bar.push(btn_row);
+            s_bar = s_bar.push(btn_row).height(Length::Units(50));
 
 
 
 
             let mut c: Element<_> = Column::new()
                 .push(view_contents)
-                .push(Space::with_height(Length::Fill))
                 .push(Rule::horizontal(1))
                 .push(s_bar)
                 .into();

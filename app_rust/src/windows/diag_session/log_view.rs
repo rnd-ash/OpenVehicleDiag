@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use iced::{Column, Element};
+use iced::{Column, Element, Length, Scrollable, scrollable};
 
 use crate::themes::{TextType, text, title_text};
 
@@ -37,10 +37,10 @@ impl LogOperation {
             LogType::Info => TextType::Normal
         };
         if let Some(r) = &self.request {
-            c = c.push(text(&r, text_type))
+            c = c.push(text(&r, text_type).size(15))
         }
         if let Some(r) = &self.response {
-            c = c.push(text(&r, text_type))
+            c = c.push(text(&r, text_type).size(15))
         }
         c.into()
     }
@@ -49,22 +49,26 @@ impl LogOperation {
 
 #[derive(Debug, Clone)]
 pub struct LogView {
-    logs: VecDeque<LogOperation>
+    logs: VecDeque<LogOperation>,
+    scroll_state: scrollable::State
 }
 
 impl LogView {
     pub fn new() -> Self {
         Self {
-            logs: VecDeque::new()
+            logs: VecDeque::new(),
+            scroll_state: scrollable::State::default()
         }
     }
 
-    pub fn view<'a, T>(&mut self) -> Element<'a, T> where T: 'a {
-        let mut c = Column::new().spacing(5);
+    pub fn view<'a, T>(&'a mut self) -> Element<'a, T> where T: 'a {
+        let mut c = Column::new().spacing(5).width(Length::Fill);
         c = c.push(title_text("Log view", crate::themes::TitleSize::P3));
+        let mut s = Scrollable::new(&mut self.scroll_state).width(Length::Fill).height(Length::Fill);
         for l in &self.logs {
-            c = c.push(l.render())
+            s = s.push(l.render())
         }
+        c = c.push(s);
         c.into()
     }
 

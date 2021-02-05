@@ -72,7 +72,7 @@ impl SessionTrait for KWP2000DiagSession {
             ui = ui.push(button_outlined(&mut self.back_btn, "Back", ButtonType::Secondary).on_press(KWP2000DiagSessionMsg::Back))
         }
 
-        Row::new()
+        Row::new().spacing(8).padding(8)
             .push(ui.width(Length::FillPortion(1)))
             .push(Container::new(self.logview.view()).width(Length::FillPortion(1)))
             .into()

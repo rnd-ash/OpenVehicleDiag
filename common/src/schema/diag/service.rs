@@ -11,7 +11,11 @@ pub struct Service {
     pub description: String,
     #[serde_as(as = "serde_with::hex::Hex<serde_with::formats::Uppercase>")]
     pub payload: Vec<u8>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default = "Vec::new")]
     pub input_params: Vec<Parameter>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default = "Vec::new")]
     pub output_params: Vec<Parameter>
 }
 
@@ -55,8 +59,6 @@ impl Parameter {
     pub fn decode_value_to_string(&self, input: &[u8]) -> std::result::Result<String, ParamDecodeError> {
         let mut result: String = String::new();
         match &self.data_format {
-            DataFormat::RawInt => result.push_str(format!("{}", self.get_number(input)? as u32).as_str()),
-            DataFormat::RawFloat => result.push_str(format!("{}", self.get_number(input)? as f32).as_str()),
             DataFormat::HexDump => {
                 let start_byte = self.start_bit/8;
                 let end_byte = (self.start_bit+self.length_bits)/8;
@@ -107,8 +109,6 @@ impl Parameter {
 
     pub fn decode_value_to_number(&self, input: &[u8]) -> std::result::Result<f32, ParamDecodeError> {
         match &self.data_format {
-            DataFormat::RawInt => Ok(self.get_number(input)? as f32),
-            DataFormat::RawFloat => Ok(self.get_number(input)? as f32),
             DataFormat::HexDump => Err(ParamDecodeError::DecodeNotSupported),
             DataFormat::String(_) => Err(ParamDecodeError::DecodeNotSupported),
             DataFormat::Bool { pos_name: _, neg_name: _ } => Ok(self.get_number(input)? as f32),
@@ -126,8 +126,6 @@ impl Parameter {
     /// Returns if the data type is capable of being plotted on a chart or not
     pub fn can_plot(&self) -> bool {
         match &self.data_format {
-            DataFormat::RawInt => true,
-            DataFormat::RawFloat => true,
             DataFormat::HexDump => false,
             DataFormat::String(_) => false,
             DataFormat::Bool { pos_name: _, neg_name: _ } => true,

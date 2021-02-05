@@ -15,5 +15,4 @@ pub struct ECUVariantDefinition {
 pub struct ECUVariantPattern {
     pub vendor: String,
     pub vendor_id: u32,
-    pub hw_id: u32,
 }
