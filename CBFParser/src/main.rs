@@ -3,7 +3,7 @@ use std::fs::File;
 use caesar::container;
 use common::{raf::Raf, schema::diag::{DataFormat, StringEncoding, TableData}};
 use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::{dtc::ECUDTC, service::{Service, Parameter}}};
-use diag::{preparation::InferredDataType, presentation::{DataTypeCBF}};
+use diag::{preparation::InferredDataType};
 use ecu::ECU;
 use std::io::Read;
 
@@ -126,66 +126,52 @@ fn decode_ecu(e: &ECU) {
 
             let mut tmp: Vec<Vec<u8>> = Vec::new();
             s.input_preparations.iter().for_each(|p| {
-                let mut param = Parameter {
-                    name: p.qualifier.clone(),
-                    unit: "".into(),
-                    start_bit: p.bit_pos, // Need to minus 8 as OVD starts are response start, CBF starts at message start
-                    length_bits: p.size_in_bits as usize,
-                    byte_order: common::schema::diag::service::ParamByteOrder::BigEndian, // Always
-                    data_format: if_to_dt(&p.field_type, p.size_in_bits as usize),
-                    limits: None
-                };
-                tmp.push(p.dump.clone());
-
-                if param.name.contains("ASCII") {
-                    param.data_format = DataFormat::String(StringEncoding::ASCII)
-                }
-
                 if let Some(pres) = &p.presentation {
-                    param.unit = pres.display_unit.clone().unwrap_or("".into());
-                    if let Some(name) = pres.description.clone() {
-                        param.name = name;
-                    }
+                    if let Some(data_fmt) = pres.create(p) {
+                        let mut param = Parameter {
+                            name: p.qualifier.clone(),
+                            unit: pres.display_unit.clone().unwrap_or("".into()),
+                            start_bit: p.bit_pos,
+                            length_bits: p.size_in_bits as usize,
+                            byte_order: common::schema::diag::service::ParamByteOrder::BigEndian,
+                            data_format: data_fmt,
+                            limits: None,
 
-                    if let Some(p) = DataTypeCBF::create(pres.scale_list.clone()) {
-                        param.data_format = create_data_fmt(&p) // Calculate extended formatting type
+                        };
+                        if let Some(name) = pres.description.clone() {
+                            param.name = name;
+                        }
+                        tmp.push(p.dump.clone());
+                        service.input_params.push(param);
                     }
                 }
-                service.input_params.push(param);
             });
 
             s.output_preparations.iter().for_each(|p| {
-                    
-                let mut param = Parameter {
-                    name: p.qualifier.clone(),
-                    unit: "".into(),
-                    start_bit: p.bit_pos as usize,
-                    length_bits: p.size_in_bits as usize,
-                    byte_order: common::schema::diag::service::ParamByteOrder::BigEndian, // Always
-                    data_format: if_to_dt(&p.field_type, p.size_in_bits as usize), // Get default (Basic) data type
-                    limits: None
-                };
-
-                if param.name.contains("ASCII") {
-                    param.data_format = DataFormat::String(StringEncoding::ASCII)
-                }
-
                 if let Some(pres) = &p.presentation {
-                    param.unit = pres.display_unit.clone().unwrap_or("".into());
-                    if let Some(name) = pres.description.clone() {
-                        param.name = name;
-                    }
+                    if let Some(data_fmt) = pres.create(p) {
+                        let mut param = Parameter {
+                            name: p.qualifier.clone(),
+                            unit: pres.display_unit.clone().unwrap_or("".into()),
+                            start_bit: p.bit_pos,
+                            length_bits: p.size_in_bits as usize,
+                            byte_order: common::schema::diag::service::ParamByteOrder::BigEndian,
+                            data_format: data_fmt,
+                            limits: None,
 
-                    if let Some(p) = DataTypeCBF::create(pres.scale_list.clone()) {
-                        param.data_format = create_data_fmt(&p)
+                        };
+                        if let Some(name) = pres.description.clone() {
+                            param.name = name;
+                        }
+                        service.output_params.push(param);
                     }
                 }
-                service.output_params.push(param);
+                
             });
 
             // For CBF, it appears input params are repeated in the payload.
             // Delete them
-            delete_input_params(&service.payload, &mut service.input_params, tmp);
+            //delete_input_params(&service.payload, &mut service.input_params, tmp);
 
             // Only add if we have a valid payload (Functions like {{INITIALIZATION}} are ignored)
             if !service.payload.is_empty() {
@@ -221,55 +207,5 @@ fn delete_input_params(payload: &[u8], v: &mut Vec<Parameter>, dumps: Vec<Vec<u8
     for (pos, entry) in to_delete.iter().enumerate() {
         let real_idx = *entry - pos;
         v.remove(real_idx);
-    }
-}
-
-fn if_to_dt(if_dt: &InferredDataType, length: usize) -> DataFormat {
-    if length > 32 { // CBF is from a time of 16/32bit computing. No 64bit integers or floats exist
-        return DataFormat::HexDump;
-    }
-
-
-    match if_dt {
-        InferredDataType::Unassigned => DataFormat::HexDump,
-        InferredDataType::Integer => DataFormat::Identical,
-        InferredDataType::NativeInfoPool => DataFormat::Identical,
-        InferredDataType::NativePresentation => DataFormat::Identical,
-        InferredDataType::UnhandledITT => DataFormat::HexDump,
-        InferredDataType::UnhandledSP17 => DataFormat::HexDump,
-        InferredDataType::Unhandled => DataFormat::HexDump,
-        InferredDataType::BitDump => DataFormat::HexDump,
-        InferredDataType::ExtendedBitDump => DataFormat::HexDump,
-        InferredDataType::String => DataFormat::String(StringEncoding::ASCII) // Always ASCII with CBF
-    }
-}
-
-fn create_data_fmt(sf: &DataTypeCBF) -> DataFormat {
-
-    match sf {
-        DataTypeCBF::Bool { pos_str, neg_str } => {
-            DataFormat::Bool {
-                pos_name: pos_str.clone(),
-                neg_name: neg_str.clone(),
-            }
-        },
-        DataTypeCBF::Table(entries) => {
-
-            let tables : Vec<TableData> = entries.iter().map(|(pos, x)| {
-                TableData {
-                    name: x.clone(),
-                    start: *pos as f32,
-                    end: *pos as f32
-                }
-            }).collect();
-            DataFormat::Table(tables)
-        },
-
-        DataTypeCBF::Linear{m, c} => {
-            DataFormat::Linear {
-                multiplier: *m,
-                offset: *c
-            }
-        }
     }
 }

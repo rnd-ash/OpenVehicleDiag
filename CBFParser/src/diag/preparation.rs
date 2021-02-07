@@ -15,7 +15,6 @@ pub enum InferredDataType {
     UnhandledSP17,
     Unhandled,
     BitDump,
-    String,
     ExtendedBitDump
 }
 
@@ -79,10 +78,6 @@ impl Preparation {
             mode_cfg,
             ..Default::default()
         };
-
-        if res.dump_mode == 5 { // Dump is string
-            res.field_type = InferredDataType::String
-        }
         res.dump = creader::read_bitflag_dump(&mut bitflags, reader, res.dump_size as usize, base_addr)?;
         res.size_in_bits = res.get_size_in_bits(parent_ecu, parent_service)?;
         Ok(res)
@@ -90,8 +85,8 @@ impl Preparation {
 
     fn get_size_in_bits(&mut self, parent_ecu: &ECU, parent_diag_service: &Service) -> std::result::Result<i32, CaesarError> {
         let mode_e = self.mode_cfg & 0xF000;
-        let mode_h = self.mode_cfg & 0xFF0; // Param type
-        let mode_l = self.mode_cfg & 0xF;
+        let mode_h = self.mode_cfg & 0x0FF0; // Param type
+        let mode_l = self.mode_cfg & 0x000F;
         let mut result_bit_size: i32 = 0;
 
 
@@ -116,7 +111,15 @@ impl Preparation {
                 _ => eprintln!("Warning - mode_h is unrecognized value? 0x{:04X}", mode_h)
             }
         } else if self.system_param == -1 {
-            if mode_e == 0x8000 || mode_e == 0x2000 {
+            if mode_e == 0x8000 {
+                self.field_type = InferredDataType::NativePresentation;
+                let pres = parent_ecu.global_internal_presentations[self.pres_pool_idx].clone();
+                result_bit_size = if pres.type_length_1a > 0 { pres.type_length_1a } else { pres.type_length_bytes_maybe };
+                if pres.type_1c == 0 { // Presentation is in bytes, convert length to bits
+                    result_bit_size *= 8;
+                }
+                self.presentation = Some(pres);
+            } else if mode_e == 0x2000 {
                 self.field_type = InferredDataType::NativePresentation;
                 let pres = parent_ecu.global_presentations[self.pres_pool_idx].clone();
                 result_bit_size = if pres.type_length_1a > 0 { pres.type_length_1a } else { pres.type_length_bytes_maybe };
