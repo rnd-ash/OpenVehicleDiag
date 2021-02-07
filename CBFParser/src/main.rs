@@ -112,7 +112,9 @@ fn decode_ecu(e: &ECU) {
 
 
         variant.services.iter().for_each(|s| {
-            //println!("{:#?}",s);
+            if s.qualifier == "ACT_IO10_Idle_Speed" {
+                println!("{:#?}", s)
+            }
             let mut service = Service {
                 name: s.qualifier.clone(),
                 description: s.name.clone().unwrap_or("".into()),
@@ -129,8 +131,9 @@ fn decode_ecu(e: &ECU) {
                     unit: "".into(),
                     start_bit: p.bit_pos, // Need to minus 8 as OVD starts are response start, CBF starts at message start
                     length_bits: p.size_in_bits as usize,
-                    byte_order: common::schema::diag::service::ParamByteOrder::LittleEndian, // Always
+                    byte_order: common::schema::diag::service::ParamByteOrder::BigEndian, // Always
                     data_format: if_to_dt(&p.field_type, p.size_in_bits as usize),
+                    limits: None
                 };
                 tmp.push(p.dump.clone());
 
@@ -158,8 +161,9 @@ fn decode_ecu(e: &ECU) {
                     unit: "".into(),
                     start_bit: p.bit_pos as usize,
                     length_bits: p.size_in_bits as usize,
-                    byte_order: common::schema::diag::service::ParamByteOrder::LittleEndian, // Always
+                    byte_order: common::schema::diag::service::ParamByteOrder::BigEndian, // Always
                     data_format: if_to_dt(&p.field_type, p.size_in_bits as usize), // Get default (Basic) data type
+                    limits: None
                 };
 
                 if param.name.contains("ASCII") {

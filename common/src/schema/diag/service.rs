@@ -1,5 +1,6 @@
-use std::{cmp::min, string::FromUtf8Error};
+use std::{cmp::min, collections::VecDeque, string::FromUtf8Error};
 use bit_field::BitArray;
+use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use serde::{Serialize, Deserialize};
 use super::DataFormat;
 use serde_with::{serde_as};
@@ -46,13 +47,23 @@ pub enum ParamDecodeError {
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Limit {
+    upper: f32,
+    lower: f32,
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Parameter {
     pub name: String,
     pub unit: String,
     pub start_bit: usize,
     pub length_bits: usize,
     pub byte_order: ParamByteOrder,
-    pub data_format: DataFormat
+    pub data_format: DataFormat,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default = "Option::default")]
+    pub limits: Option<Limit>,
 }
 
 impl Parameter {
@@ -62,7 +73,7 @@ impl Parameter {
             DataFormat::HexDump => {
                 let start_byte = self.start_bit/8;
                 let end_byte = (self.start_bit+self.length_bits)/8;
-                return Ok(format!("{:02X?}", &input[start_byte..end_byte]))
+                return Ok(format!("{:02X?}", &input[start_byte..min(end_byte, input.len())]))
             }
             DataFormat::String(_s) => { // TODO take into account encoding of string
                 let start_byte = self.start_bit/8;
@@ -152,31 +163,35 @@ impl Parameter {
     fn get_number(&self, resp: &[u8]) -> std::result::Result<u32, ParamDecodeError> {
         if self.length_bits <= 32 {
             let result = std::panic::catch_unwind(||{
-                let mut tmp_start = self.start_bit;
                 if self.length_bits <= 8 {
                     resp.get_bits(self.start_bit..self.start_bit+self.length_bits) as u32
                 } else {
                     let mut res = 0;
-                    if self.byte_order == ParamByteOrder::LittleEndian {
-                        // Decode LE
-                        let mut shift: usize = 0;
-                        while tmp_start < self.start_bit+self.length_bits {
-                            let max_read = min(8, (self.start_bit+self.length_bits)-tmp_start);
-                            res |= (resp.get_bits(tmp_start..tmp_start+max_read) as u32) << shift;
-                            tmp_start += 8;
-                            shift += 8;
-                        }
-                    } else {
-                        // Decode BE
-                        let mut shift: usize = (self.start_bit+self.length_bits)-8;
-                        while tmp_start < self.start_bit+self.length_bits {
-                            let max_read = min(8, (self.start_bit+self.length_bits)-tmp_start);
-                            res |= (resp.get_bits(tmp_start..tmp_start+max_read) as u32) << shift;
-                            tmp_start += 8;
-                            shift -= 8;
-                        }
+                    let mut buf: Vec<u8> = Vec::new();
+                    let mut start = self.start_bit;
+                    while start < self.length_bits + self.start_bit {
+                        let max_read = min(self.start_bit + self.length_bits, start + 8);
+                        println!("{} {}", start, max_read);
+                        buf.push(resp.get_bits(start..max_read));
+                        start += 8;
                     }
-                    res as u32
+                    
+                    if buf.len() > 4 {
+                        panic!("Number too big!") // Cannot handle more than 32bits atm
+                    } else {
+                        if buf.len() >= 4 {                        
+                            res = match self.byte_order {
+                                ParamByteOrder::BigEndian => BigEndian::read_u32(&buf),
+                                ParamByteOrder::LittleEndian => LittleEndian::read_u32(&buf)
+                            }
+                        } else if buf.len() >= 2 {
+                            res = match self.byte_order {
+                                ParamByteOrder::BigEndian => BigEndian::read_u16(&buf) as u32,
+                                ParamByteOrder::LittleEndian => LittleEndian::read_u16(&buf) as u32
+                            }
+                        }
+                        res as u32
+                    }
                 }
             });
 

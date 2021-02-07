@@ -32,7 +32,7 @@ impl ProtocolError {
     }
 }
 
-type ProtocolResult<T> = std::result::Result<T, ProtocolError>;
+pub type ProtocolResult<T> = std::result::Result<T, ProtocolError>;
 
 pub trait Selectable {
     fn get_byte(&self) -> u8;

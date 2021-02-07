@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
-use iced::{Column, Element, Length, Scrollable, scrollable};
+use iced::{Column, Element, Length, Row, Scrollable, Space, scrollable};
 
-use crate::themes::{TextType, text, title_text};
+use crate::themes::{ButtonType, TextType, button_outlined, text, title_text};
 
 
 
@@ -50,20 +50,27 @@ impl LogOperation {
 #[derive(Debug, Clone)]
 pub struct LogView {
     logs: VecDeque<LogOperation>,
-    scroll_state: scrollable::State
+    scroll_state: scrollable::State,
+    btn_state: iced::button::State,
 }
 
 impl LogView {
     pub fn new() -> Self {
         Self {
             logs: VecDeque::new(),
-            scroll_state: scrollable::State::default()
+            scroll_state: Default::default(),
+            btn_state: Default::default()
         }
     }
 
-    pub fn view<'a, T>(&'a mut self) -> Element<'a, T> where T: 'a {
+    pub fn view<'a, T: Clone>(&'a mut self, clear_log_msg: T) -> Element<'a, T> where T: 'a {
         let mut c = Column::new().spacing(5).width(Length::Fill);
-        c = c.push(title_text("Log view", crate::themes::TitleSize::P3));
+        c = c.push(
+            Row::new().width(Length::Fill)
+                .push(title_text("Log view", crate::themes::TitleSize::P3))
+                .push(Space::with_width(Length::Fill))
+                .push(button_outlined(&mut self.btn_state, "Clear logs", ButtonType::Success).on_press(clear_log_msg))
+        );
         let mut s = Scrollable::new(&mut self.scroll_state).width(Length::Fill).height(Length::Fill);
         for l in &self.logs {
             s = s.push(l.render())

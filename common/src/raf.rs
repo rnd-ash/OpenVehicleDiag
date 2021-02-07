@@ -210,11 +210,3 @@ impl Raf {
         }
     }
 }
-
-#[test]
-fn test_seek() {
-    let data: Vec<u8> = (0x00..0xFF).collect();
-
-    let mut reader: Raf = Raf::from_bytes(&data, RafByteOrder::BE);
-    println!("{}", reader.seek_read(0, Raf::read_i32).unwrap());
-}
