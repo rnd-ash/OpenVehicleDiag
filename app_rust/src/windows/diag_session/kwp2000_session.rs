@@ -16,7 +16,8 @@ pub enum KWP2000DiagSessionMsg {
     DisconnectECU,
     Back,
     PollServer(Instant),
-    LoadErrorDefinition
+    LoadErrorDefinition,
+    ClearLogs,
 }
 
 impl DiagMessageTrait for KWP2000DiagSessionMsg {
@@ -74,7 +75,7 @@ impl SessionTrait for KWP2000DiagSession {
 
         Row::new().spacing(8).padding(8)
             .push(ui.width(Length::FillPortion(1)))
-            .push(Container::new(self.logview.view()).width(Length::FillPortion(1)))
+            .push(Container::new(self.logview.view(KWP2000DiagSessionMsg::ClearLogs)).width(Length::FillPortion(1)))
             .into()
     }
 
@@ -116,6 +117,7 @@ impl SessionTrait for KWP2000DiagSession {
                     }
                 }
             }
+            KWP2000DiagSessionMsg::ClearLogs => self.logview.clear_logs(),
             _ =>{}
         }
         None
