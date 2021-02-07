@@ -1,6 +1,6 @@
-use common::raf::Raf;
+use common::{raf::Raf, schema::diag::{DataFormat, TableData}};
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
-use super::pres_types::scale::Scale;
+use super::{preparation::Preparation, pres_types::scale::Scale};
 
 #[derive(Debug, Clone, Default)]
 pub struct Presentation {
@@ -120,74 +120,80 @@ impl Presentation {
         }
         Ok(res)
     }
-}
 
-
-    // Functions below are just for generation generic JSON and nothing to do with CBF decompiling
-    #[derive(Debug, Clone)]
-pub (crate) enum DataTypeCBF {
-    /// Represents a boolean value from the data presentation.
-    /// each boolean value (true/false) can have an optional
-    /// string attached to it
-    Bool{pos_str: Option<String>, neg_str: Option<String>},
-
-    /// Table values
-    /// This is a list of values, where each value is mapped
-    Table(Vec<(usize, String)>),
-
-    /// Linear values
-    /// This uses a conversion formula of y=mx+c to convert from input to output value
-    Linear{m: f32, c: f32}
-}
-
-impl DataTypeCBF {
-    pub fn create(x: Vec<Scale>) -> Option<Self> {
-        if x.is_empty() {
-            None // No scale list
+    pub fn get_data_type(&self) -> i32 {
+        let mut res: i32 = -1;
+        if self.unk14 != -1 {
+            return 20
         }
-        // (x.len() == 2 && x[1].index == 0xFF) checks if there is an 'undefined'
-        // value, if there is, ignore it as the underlying value is still linear
-        // (Daimler use 0xFF or 0xFFFF to represent undefined values)
-        else if x.len() == 1 || (x.len() == 2 && (x[1].index == 0xFF || x[1].index == 0xFFFF)) { // This is a linear value
-            Some(Self::Linear{
-                m: x[0].multiply_factor,
-                c: x[0].add_const_offset,
-            })
-        } else if x.len() > 1 && (x[0].add_const_offset != 0f32 || x[0].multiply_factor != 0f32) {
-            eprintln!("Skipping reserved values");
-            Some(Self::Linear{
-                m: x[0].multiply_factor,
-                c: x[0].add_const_offset,
-            })
-        }
-
-        // This is a boolean
-        else if x.len() == 2 && (x[0].index == 0 && x[1].index == 1) || (x[0].index == 1 && x[1].index == 0) {
-            // Should be illegal if the table has some m and c values
-            if x[0].multiply_factor != 0f32 || x[1].multiply_factor != 0f32 || x[0].add_const_offset != 0f32 || x[1].add_const_offset != 0f32 {
-                panic!("Bool with mm and sf?? -> {:#?}", x)
+        if self.scale_table_offset != -1 {
+            return 20
+        } else {
+            if self.unk5 != -1 || self.unk17 != -1 || self.unk19 != -1 || self.unk22 != -1 {
+                return 18
             }
-            let negative = x.iter().find(|n| n.index == 0).unwrap();
-            let positive = x.iter().find(|n| n.index == 1).unwrap();
-            Some(Self::Bool{
-                pos_str: positive.enum_description.clone(),
-                neg_str: negative.enum_description.clone()
-            })
-        }
-
-        // This is a table value list
-        else {
-            // Should be illegal if the table has some m and c values
-            for scale in x.iter() {
-                if scale.add_const_offset != 0f32 || scale.multiply_factor != 0f32 {
-                    panic!("Table with mm and sf?? -> {:#?}", x)
+            if self.unk1b != -1 {
+                if self.unk1b == 6 {
+                    return 17
+                } else if self.unk1b == 7 {
+                    return 22
+                } else if self.unk1b == 8 {
+                    res = 6
+                } else if self.unk1b == 5 {
+                    res = 6
+                }
+            } else {
+                if self.type_length_1a == -1 || self.type_1c != -1 {
+                    eprintln!("Typelength and type must be valid")
+                }
+                if self.enumtype_1e == 1 || self.enumtype_1e == 2 {
+                    res = 5;
+                } else {
+                    res = 2;
                 }
             }
-            let mut res: Vec<(usize, String)> = Vec::new();
-            x.iter().for_each(|t| {
-                res.push((t.index as usize, t.enum_description.clone().expect(format!("Table entry has no value name?? {:#?}", t).as_str())))
-            });
-            Some(Self::Table(res))
+        }
+        res
+    }
+
+    pub fn create(&self, prep: &Preparation) -> Option<DataFormat> {
+        let is_enum = (self.enumtype_1e == 0 && self.type_1c == 1) || self.scale_count > 1;
+        if prep.size_in_bits == 1 {
+            if is_enum {
+                return Some(DataFormat::Bool { pos_name: self.scale_list[1].enum_description.clone(), neg_name: self.scale_list[0].enum_description.clone() })
+            } else {
+                return Some(DataFormat::Identical)
+            }
+        }
+        let d_type = self.get_data_type();
+        if d_type == 6 {
+            return Some(DataFormat::Identical)
+        } else if d_type == 20 {
+            if self.scale_list.is_empty() {
+                eprintln!("Warning. Scale type {} has no scale list. Assuming identical", self.qualifier);
+                return Some(DataFormat::Identical)
+            } else {
+                return Some(DataFormat::Linear { multiplier: self.scale_list[0].multiply_factor, offset: self.scale_list[0].add_const_offset })
+            }
+        } else if d_type == 18 {
+            return Some(DataFormat::HexDump)
+        } else if d_type == 17 {
+            return Some(DataFormat::String(common::schema::diag::StringEncoding::Utf8))
+        }
+
+        if is_enum {
+            let mut res: Vec<TableData> = Vec::new();
+            for (pos, s) in self.scale_list.iter().enumerate() {
+                res.push(TableData {
+                    name: s.enum_description.clone().unwrap_or("MISSING ENUM".into()),
+                    start: pos as f32,
+                    end: pos as f32,
+
+                })
+            }
+            return Some(DataFormat::Table(res))
+        } else {
+            return None
         }
     }
 }

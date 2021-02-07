@@ -146,10 +146,10 @@ impl SessionTrait for JsonDiagSession {
                 match self.server.read_errors() {
                     Ok(res) => {
                         if res.is_empty() {
-                            self.log_view.add_msg("No ECU Errors 😊", LogType::Info);
+                            self.log_view.add_msg("No ECU Errors", LogType::Info);
                             self.can_clear = false;
                         } else {
-                            self.log_view.add_msg(format!("Found {} errors 😢", res.len()), LogType::Warn);
+                            self.log_view.add_msg(format!("Found {} errors", res.len()), LogType::Warn);
                             for e in res {
                                 let desc = self.ecu_data.errors.clone().into_iter().find(|x| x.error_name.ends_with(e.error.as_str()));
                                 let err_txt = match desc {
@@ -183,8 +183,10 @@ impl SessionTrait for JsonDiagSession {
                 println!("Exec {}", s.inner.borrow().name);
                 match s.exec(args, &mut self.server) {
                     Ok(res) => {
+                        let mut v = vec![0x00]; // Pad this out // TODO REMOVE
+                        v.extend(res);
                         self.log_view.add_log(format!("{} ({}):", s.inner.borrow().name, s.inner.borrow().description), 
-                            s.args_to_string(&res), 
+                            s.args_to_string(&v), 
                             LogType::Info
                         )
                     },

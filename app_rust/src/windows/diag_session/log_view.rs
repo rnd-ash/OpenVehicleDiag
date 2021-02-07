@@ -37,10 +37,10 @@ impl LogOperation {
             LogType::Info => TextType::Normal
         };
         if let Some(r) = &self.request {
-            c = c.push(text(&r, text_type).size(15))
+            c = c.push(text(&r, text_type).size(16))
         }
         if let Some(r) = &self.response {
-            c = c.push(text(&r, text_type).size(15))
+            c = c.push(text(&r, text_type).size(16))
         }
         c.into()
     }
