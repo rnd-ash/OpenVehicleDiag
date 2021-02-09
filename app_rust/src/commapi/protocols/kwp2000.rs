@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, sync::{Arc, RwLock, atomic::AtomicBool}};
+use std::{cell::RefCell, rc::Rc, sync::{Arc, Mutex, RwLock, atomic::AtomicBool, mpsc::{self, Receiver, Sender, channel}}, time::Instant};
 use std::sync::atomic::Ordering::Relaxed;
 use commapi::comm_api::{ComServer, ISO15765Config, ISO15765Data};
 
@@ -188,6 +188,7 @@ impl ECUCommand for Service {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 enum DiagSession {
     Normal = 0x81,
     ECUFlash = 0x85,
@@ -328,11 +329,14 @@ enum ClearDTCType {
 
 #[derive(Debug, Clone)]
 pub struct KWP2000ECU {
-    comm_server: Box<dyn ComServer>,
     iso_tp_settings: ISO15765Config,
     should_run: Arc<AtomicBool>,
-    stop_tester_present: Arc<AtomicBool>,
-    last_error: Arc<RwLock<Option<ProtocolError>>>
+    last_error: Arc<RwLock<Option<ProtocolError>>>,
+    cmd_tx: Sender<(u8, Vec<u8>, bool)>,
+    cmd_rx: Arc<Receiver<ProtocolResult<Vec<u8>>>>,
+    curr_session_type: DiagSession,
+    send_id: u32,
+    cmd_mutex: Arc<Mutex<()>>
 }
 
 #[derive(Debug, Clone)]
@@ -364,7 +368,7 @@ fn bcd_decode(input: u8) -> String {
 }
 
 impl KWP2000ECU {
-    pub (crate) fn send_kwp2000_cmd(server: &dyn ComServer, send_id: u32, cmd: u8, args: &[u8]) -> std::result::Result<usize, ComServerError> {
+    pub (crate) fn send_receive_kwp2000_cmd(server: &dyn ComServer, send_id: u32, cmd: u8, args: &[u8], receive_require: bool) -> std::result::Result<Vec<u8>, ProtocolError> {
         let mut data = ISO15765Data {
             id: send_id,
             data: vec![],
@@ -372,11 +376,37 @@ impl KWP2000ECU {
         };
         data.data.push(cmd);
         data.data.extend_from_slice(args);
-        server.send_iso15765_data(&[data], 0)
+        if !receive_require {
+            server.send_iso15765_data(&[data], 0).map(|_| vec![]).map_err(ProtocolError::CommError)
+        } else {
+            // Await max 1 second for response
+            let mut tmp_res = server.send_receive_iso15765(data, 1000, 1).map(|r| r[0].data.clone())?;
+            if tmp_res[0] == 0x7F && tmp_res[2] == 0x78 { // ResponsePending
+                println!("KWP2000 - ECU is processing request - Waiting!");
+                let start = Instant::now();
+                while start.elapsed().as_millis() < 500 {
+                    // ECU is sending a response, but its busy right now. just gotta wait for the ECU to give us its response!
+                    if let Some(msg) = server.read_iso15765_packets(0, 1)?.get(0) {
+                        tmp_res = msg.data.clone();
+                    }
+                }
+            }
+            if tmp_res[0] == 0x7F {
+                // Still error :(
+                Err(ProtocolError::ProtocolError(Box::new(NegativeResponse::from_byte(tmp_res[2]))))
+            } else if tmp_res[0] == (cmd + 0x40) {
+                Ok(tmp_res)
+            } else {
+                eprintln!("KWP2000 - Command response did not match request? Send: {:02X} - Recv: {:02X}", cmd, tmp_res[0]);
+                Err(ProtocolError::Timeout)
+            }
+        }
     }
 
     pub fn get_ecu_info_data(&self) -> std::result::Result<ECUIdentification, ProtocolError> {
-        let res = self.run_command(Service::ReadECUID.get_byte(), &[0x87], 500)?;
+        let mut res = self.run_command(Service::ReadECUID.get_byte(), &[0x87], 500)?;
+        res.drain(..1);
+        println!("RES: {:02X?}", res);
         let mut diag = ECUIdentification::default();
         let origin = res[2];
         let supplier_id = res[3];
@@ -400,127 +430,94 @@ impl KWP2000ECU {
         self.run_command(Service::ClearDiagnosticInformation.get_byte(), &[0xFF, 0x00], 1000)?;
         Ok(())
     }
+
+    fn set_diag_session_mode(&mut self, mode: DiagSession) -> std::result::Result<(), ProtocolError> {
+        match self.run_command(Service::StartDiagSession.get_byte(), &[mode as u8], 1000) {
+            Ok(_) => {
+                self.curr_session_type = mode; // Switch diagnostic modes!
+                Ok(())
+            },
+            Err(e) => {
+                self.curr_session_type = DiagSession::Normal; // Assume normal if something happens
+                Err(e)
+            }
+        }
+    }
 }
+
+
 
 impl ProtocolServer for KWP2000ECU {
     type Command = Service;
 
     fn start_diag_session(mut comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self> {
         comm_server.open_iso15765_interface(500_000, false).map_err(ProtocolError::CommError)?;
-        comm_server.add_iso15765_filter(
-            cfg.recv_id,
-            0xFFF, 
-            cfg.send_id
-        ).map_err(ProtocolError::CommError)?;
-        comm_server.set_iso15765_params(cfg.sep_time, cfg.block_size).map_err(ProtocolError::CommError)?;
+        comm_server.configure_iso15765(cfg).map_err(ProtocolError::CommError)?;
     
 
         let should_run = Arc::new(AtomicBool::new(true));
-        let stop_send_tester_present = Arc::new(AtomicBool::new(true));
-
         let should_run_t = should_run.clone();
-        let stop_tester_present_t = stop_send_tester_present.clone();
-
-        let server_t = comm_server.clone();
-        let ecu_id = cfg.send_id;
 
         let error = Arc::new(RwLock::new(None));
         let mut error_t = error.clone();
 
+        let (channel_tx_sender, channel_tx_receiver): (Sender<(u8, Vec<u8>, bool)>, Receiver<(u8, Vec<u8>, bool)>) = mpsc::channel();
+        let (channel_rx_sender, channel_rx_receiver): (Sender<ProtocolResult<Vec<u8>>>, Receiver<ProtocolResult<Vec<u8>>>) = mpsc::channel();
+
         // Enter extended diagnostic session (Full features)
-        comm_server.clear_iso15765_rx_buffer();
+        let s_id = cfg.send_id;
         std::thread::spawn(move || {
-            let mut timeout_count = 0;
-            let mut last_send = std::time::Instant::now();
-            println!("DIAG SERVER START");
+            println!("KWP2000 Diag server start!");
+            let mut timer = Instant::now();
             while should_run_t.load(Relaxed) {
-                if last_send.elapsed().as_millis() > 2500 {
-                    last_send = std::time::Instant::now();
-                    if !stop_tester_present_t.load(Relaxed) {
-                        // Tell the ECU Tester is still here, no response required though :)
-                        KWP2000ECU::send_kwp2000_cmd(server_t.as_ref(), ecu_id, Service::TesterPresent.get_byte(), &[0x01]);
-                        if let Ok(v) = server_t.read_iso15765_packets(1000, 1) {
-                            if let Some(response) = v.get(0) {
-                                timeout_count = 0;
-                                if response.data[0] == 0x7F && response.data[1] == Service::TesterPresent.get_byte() {
-                                    should_run_t.store(false, Relaxed);
-                                    let error_type = NegativeResponse::from_byte(response.data[2]);
-                                    *error_t.write().unwrap() = Some(ProtocolError::ProtocolError(Box::new(error_type)));
-                                    eprintln!("Terminating diag session!");
-                                }
-                            } else {
-                                timeout_count += 1;
-                            }
-                        }
-                        if timeout_count > 5 {
-                            should_run_t.store(false, Relaxed);
-                            *error_t.write().unwrap() = Some(ProtocolError::CustomError("ECU Tester present response timeout".into()));
-                        }
-                    }
+                if let Ok(data) = channel_tx_receiver.try_recv() {
+                    let res = KWP2000ECU::send_receive_kwp2000_cmd(comm_server.as_ref(), s_id, data.0, &data.1, data.2);
+                    channel_rx_sender.send(res);
                 }
-                std::thread::sleep(std::time::Duration::from_millis(10));
+                if timer.elapsed().as_millis() >= 2000 {
+                    if let Ok(res) = KWP2000ECU::send_receive_kwp2000_cmd(comm_server.as_ref(), s_id, Service::TesterPresent.get_byte(), &[0x01], true) {
+                        println!("Tester present resp: {:02X?}", res);
+                    }
+                    timer = Instant::now();
+                }
+                std::thread::sleep(std::time::Duration::from_micros(100))
             }
-            println!("DIAG SERVER STOP");
+            println!("KWP2000 Diag server stop!");
+            comm_server.close_iso15765_interface();
         });
 
-
         let mut ecu = KWP2000ECU {
-            comm_server,
             iso_tp_settings: *cfg,
-            stop_tester_present: stop_send_tester_present,
             should_run,
-            last_error: error
-
+            last_error: error,
+            cmd_tx: channel_tx_sender,
+            cmd_rx: Arc::new(channel_rx_receiver),
+            send_id: cfg.send_id,
+            curr_session_type: DiagSession::Normal, // Assumed,
+            cmd_mutex: Arc::new(Mutex::new(()))
         };
-        if let Err(e) = ecu.run_command(Service::StartDiagSession.get_byte(), &[0x92], 250) {
-            eprintln!("Error sending tester present {:?}", e);
+
+        if let Err(e) = ecu.set_diag_session_mode(DiagSession::ExtendedDiag) {
             ecu.should_run.store(false, Relaxed);
-            ecu.comm_server.close_iso15765_interface();
-            Err(e)
-        } else {
-            ecu.stop_tester_present.store(false, Relaxed);
-            Ok(ecu)
+            return Err(e)
         }
+        Ok(ecu)
     }
 
     fn exit_diag_session(&mut self) {
         self.should_run.store(false, Relaxed);
-        self.comm_server.close_iso15765_interface();
     }
 
     fn run_command(&self, cmd: u8, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
-        if let Err(e) =  KWP2000ECU::send_kwp2000_cmd(self.comm_server.as_ref(), self.iso_tp_settings.send_id, cmd, args) {
-            self.stop_tester_present.store(false, Relaxed); // Wait for response
-            return Err(ProtocolError::CommError(e));
-        }
-        if max_timeout_ms == 0 {
-            Ok(vec![])
+        self.cmd_mutex.lock().unwrap(); // We are allowed to send / receive!
+        self.cmd_tx.send((cmd, Vec::from(args), true));
+        
+        let resp = self.cmd_rx.recv().unwrap()?;
+        if resp[0] == 0x7F {
+            let neg_code = NegativeResponse::from_byte(resp[2]);
+            Err(ProtocolError::ProtocolError(Box::new(neg_code)))
         } else {
-            let start = std::time::Instant::now();
-            while start.elapsed().as_millis() < max_timeout_ms {
-                if let Ok(msgs) = self.comm_server.read_iso15765_packets(0, 1) {
-                    for m in msgs {
-                        if !m.data.is_empty() { // Avoid FF indications
-                            if m.data[0] == cmd + 0x40 {
-                                self.stop_tester_present.store(false, Relaxed);
-                                return Ok(Vec::from(&m.data[1..]))
-                            } else if m.data[0] == 0x7F { // Negative response
-                                // data[1] = SID
-                                if m.data[2] == 0x78 { // Response pending!
-                                    self.stop_tester_present.store(true, Relaxed); // STOP Sending Tester present!
-                                } else {
-                                    // Other error
-                                    self.stop_tester_present.store(false, Relaxed);
-                                    return Err(ProtocolError::ProtocolError(Box::new(NegativeResponse::from_byte(m.data[2]))))
-                                }
-                            }
-                        }
-                    }
-                }
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
-            self.stop_tester_present.store(false, Relaxed);
-            Err(ProtocolError::Timeout)
+            Ok(resp)
         }
     }
 
@@ -528,6 +525,7 @@ impl ProtocolServer for KWP2000ECU {
         // 0x02 - Request Hex DTCs as 2 bytes
         // 0xFF00 - Request all DTCs (Mandatory per KWP2000)
         let mut bytes = self.run_command(Service::ReadDTCByStatus.get_byte(), &[0x02, 0xFF, 0x00], 500)?;
+        bytes.drain(..1);
         println!("{:02X?}", bytes);
         let count = bytes[0] as usize;
         bytes.drain(0..1);

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use comm_api::ISO15765Config;
+use comm_api::{ComServerError, ISO15765Config};
 use kwp2000::KWP2000ECU;
 
 use super::comm_api::{self, ComServer};
@@ -16,6 +16,12 @@ pub enum ProtocolError {
     ProtocolError(Box<dyn CommandError>),
     CustomError(String),
     Timeout,
+}
+
+impl From<ComServerError> for ProtocolError {
+    fn from(x: ComServerError) -> Self {
+        ProtocolError::CommError(x)
+    }
 }
 
 unsafe impl Send for ProtocolError{}
@@ -142,7 +148,7 @@ impl Drop for DiagServer {
     }
 }
 
-pub trait ProtocolServer : Clone {
+pub trait ProtocolServer: Sized {
     type Command: Selectable + ECUCommand;
     fn start_diag_session(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self>;
     fn exit_diag_session(&mut self);

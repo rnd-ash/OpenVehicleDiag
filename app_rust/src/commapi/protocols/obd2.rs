@@ -19,7 +19,7 @@ fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &OBDReques
         block_size: 8, // Sensible decision
         sep_time: 20, // Sensible decision
     };
-    let res = server.send_receive_iso15765(send_data, &cfg, 500, 1);
+    let res = server.send_receive_iso15765(send_data, 500, 1);
 
     server.close_iso15765_interface();
 

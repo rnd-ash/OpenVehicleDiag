@@ -158,13 +158,28 @@ impl Presentation {
 
     pub fn create(&self, prep: &Preparation) -> Option<DataFormat> {
         let is_enum = (self.enumtype_1e == 0 && self.type_1c == 1) || self.scale_count > 1;
-        if prep.size_in_bits == 1 {
+        if prep.size_in_bits == 1 || (is_enum && self.scale_count == 2) {
             if is_enum {
                 return Some(DataFormat::Bool { pos_name: self.scale_list[1].enum_description.clone(), neg_name: self.scale_list[0].enum_description.clone() })
             } else {
-                return Some(DataFormat::Identical)
+                return Some(DataFormat::Identical) // Somehow a number with only 2 states??
             }
         }
+        if is_enum && self.scale_count >= 1 {
+            let mut res: Vec<TableData> = Vec::new();
+            for (pos, s) in self.scale_list.iter().enumerate() {
+                res.push(TableData {
+                    name: s.enum_description.clone().unwrap_or("MISSING ENUM".into()),
+                    start: pos as f32,
+                    end: pos as f32,
+
+                })
+            }
+            println!("Table {}", self.qualifier);
+            return Some(DataFormat::Table(res))
+        }
+
+
         let d_type = self.get_data_type();
         if d_type == 6 {
             return Some(DataFormat::Identical)
@@ -179,19 +194,6 @@ impl Presentation {
             return Some(DataFormat::HexDump)
         } else if d_type == 17 {
             return Some(DataFormat::String(common::schema::diag::StringEncoding::Utf8))
-        }
-
-        if is_enum {
-            let mut res: Vec<TableData> = Vec::new();
-            for (pos, s) in self.scale_list.iter().enumerate() {
-                res.push(TableData {
-                    name: s.enum_description.clone().unwrap_or("MISSING ENUM".into()),
-                    start: pos as f32,
-                    end: pos as f32,
-
-                })
-            }
-            return Some(DataFormat::Table(res))
         } else {
             return None
         }
