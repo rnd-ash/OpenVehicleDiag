@@ -29,7 +29,7 @@ impl UDSRequest {
             data: packet,
             pad_frame: false // Todo do we need to pad flow control frame?
         };
-        let res =  server.send_receive_iso15765(payload, tp_config, 250, 2);
+        let res =  server.send_receive_iso15765(payload, 250, 2);
         if let Err(e) = server.close_iso15765_interface() {
             eprintln!("FATAL Cannot close ISO-TP Interface {}", e)
         }

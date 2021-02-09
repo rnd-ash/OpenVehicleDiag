@@ -1,4 +1,4 @@
-use std::{sync::{Arc, atomic::AtomicBool}, thread::JoinHandle, time::Instant};
+use std::{borrow::BorrowMut, cell::RefCell, sync::{Arc, atomic::AtomicBool}, thread::JoinHandle, time::Instant};
 
 use iced::{Column, Container, Length, Row, Subscription, time};
 use log_view::{LogType, LogView};
@@ -96,7 +96,7 @@ impl SessionTrait for KWP2000DiagSession {
             },
             KWP2000DiagSessionMsg::DisconnectECU => {
                 if let Some(ref mut server) = self.diag_server {
-                    server.exit_diag_session()
+                    server.borrow_mut().exit_diag_session()
                 }
                 self.logview.add_msg("Connection to ECU terminated", LogType::Info);
                 self.diag_server.take();

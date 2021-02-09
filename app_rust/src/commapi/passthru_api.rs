@@ -2,7 +2,7 @@ use crate::passthru::{PassthruDevice, PassthruDrv, DrvVersion};
 use crate::commapi::comm_api::{ComServer, ISO15765Data, FilterType, CanFrame, ComServerError, DeviceCapabilities, Capability};
 use J2534Common::{PassthruError, PASSTHRU_MSG, Protocol, IoctlID, SConfig, IoctlParam, SConfigList, ConnectFlags, TxFlag, Loggable};
 use J2534Common::IoctlID::READ_VBATT;
-use std::os::raw::c_void;
+use std::{os::raw::c_void, time::Instant};
 use J2534Common::PassthruError::{ERR_INVALID_CHANNEL_ID, ERR_FAILED};
 use J2534Common::FilterType::{PASS_FILTER, BLOCK_FILTER, FLOW_CONTROL_FILTER};
 use std::sync::{Arc, Mutex, RwLock};
@@ -70,19 +70,34 @@ impl ComServer for PassthruApi {
             Some(id) => id,
             None => return Err(self.convert_error(ERR_INVALID_CHANNEL_ID))
         };
-        let res = self.driver.lock().unwrap().read_messages(channel_id, max_msgs as u32, timeout_ms)
+
+        
+        let elapsed = Instant::now();
+        let mut res: Vec<ISO15765Data> = Vec::new();
+        while elapsed.elapsed().as_millis() <= timeout_ms as u128 {
+            let t: Result<Vec<ISO15765Data>, PassthruError> = self.driver.lock().unwrap().read_messages(channel_id, 1, timeout_ms)
             .map(|read| {
-                read.iter().map(|msg| { PassthruApi::pt_msg_to_iso15765(msg) }).filter_map(Option::Some).map(|x| {x.unwrap()}).collect()
+                read
+                .iter()
+                .map(|msg| { PassthruApi::pt_msg_to_iso15765(msg) }).filter_map(Option::Some).map(|x| {x.unwrap()})
+                .filter(|x| !x.data.is_empty())
+                .collect()
             });
-        if let Err(e) = res {
-            if e == PassthruError::ERR_BUFFER_EMPTY {
-                Ok(Vec::new())
-            } else {
-                Err(e).map_err(|e| self.convert_error(e))
+            match t {
+                Ok(vec) => {
+                    res.extend(vec);
+                    if res.len() == max_msgs {
+                        return Ok(res) // Max reached, return now!
+                    }
+                },
+                Err(e) => {
+                    if e != PassthruError::ERR_BUFFER_EMPTY {
+                        return Err(self.convert_error(e))
+                    }
+                }
             }
-        } else {
-            res.map_err(|e| self.convert_error(e))
         }
+        Ok(res) // Return what we have
     }
 
     fn open_can_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError> {

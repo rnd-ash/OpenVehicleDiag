@@ -3,6 +3,7 @@ mod commapi;
 mod passthru;
 mod themes;
 mod windows;
+mod graphs;
 
 use windows::window::MainWindow;
 use iced::window::Icon;

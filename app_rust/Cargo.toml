@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 #iced = { version = "0.2.0", features = ["tokio", "image"] }
-iced = {git = "https://github.com/hecrj/iced", features = ["tokio", "image"]} # Drink from the fire hose
+iced = {git = "https://github.com/hecrj/iced", features = ["tokio", "image", "canvas"]} # Drink from the fire hose
 
 serde_json = "1.0"
 libloading = "0.6.4"

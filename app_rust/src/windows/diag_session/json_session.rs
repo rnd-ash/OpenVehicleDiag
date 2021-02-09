@@ -1,8 +1,8 @@
-use std::{cell::RefCell, cmp::min, collections::HashMap};
+use std::{cell::RefCell, cmp::min, collections::HashMap, sync::Arc, time::Instant};
 
 use commapi::protocols;
 use common::schema::{OvdECU, diag::service::{ParamDecodeError, Service}, variant::{ECUVariantDefinition, ECUVariantPattern}};
-use iced::{Align, Column, Container, Length, Row, Subscription};
+use iced::{Align, Column, Container, Length, Row, Subscription, time};
 use protocols::{ECUCommand, Selectable};
 use serde_json::de::Read;
 
@@ -20,6 +20,7 @@ pub enum JsonDiagSessionMsg {
     ExecuteService(ServiceRef, Vec<u8>),
     ClearLogs,
     Selector(SelectorMsg),
+    LoopRead(Instant),
     Back
 }
 
@@ -50,7 +51,9 @@ pub struct JsonDiagSession {
 
     execute_service: iced::button::State,
     clear_log_btn: iced::button::State,
-    read_errors: iced::button::State
+    read_errors: iced::button::State,
+    looping_text: String,
+    looping_service: Option<ServiceRef>, // Allow only read-only services to be loop read 
 }
 
 impl JsonDiagSession {
@@ -58,7 +61,7 @@ impl JsonDiagSession {
         match DiagServer::new(comm_server, &ecu, DiagProtocol::KWP2000) {
             Ok(mut server) => {
                 let res = server.run_cmd(DiagService::ReadECUID.get_byte(), &[0x87], 500)?;
-                let variant = (res[3] as u32) << 8 | (res[4] as u32);
+                let variant = (res[4] as u32) << 8 | (res[5] as u32);
                 let ecu_variant = ecu_data.variants.into_iter().find(|x| {
                     x.clone().patterns.into_iter().any(|p| p.vendor_id == variant)
                 });
@@ -100,7 +103,9 @@ impl JsonDiagSession {
                         read_errors: Default::default(),
                         clear_errors: Default::default(),
                         execute_service: Default::default(),
-                        clear_log_btn: Default::default()
+                        clear_log_btn: Default::default(),
+                        looping_service: None,
+                        looping_text: String::new(),
                     })
                 } else {
                     Err(SessionError::Other(format!("Could not locate ECU variant in JSON - Its variant: {}", variant)))
@@ -127,7 +132,9 @@ impl SessionTrait for JsonDiagSession {
         }
 
         btn_view = btn_view.push(self.service_selector.view().map(JsonDiagSessionMsg::Selector));
-
+        if self.looping_service.is_some() {
+            btn_view = btn_view.push(text(&self.looping_text, TextType::Normal));
+        }
         Column::new().align_items(Align::Center).spacing(8).padding(8)
             .push(title_text(format!("ECU: {} ({}). DiagVersion: {}, Vendor: {}", self.ecu_text.0, self.ecu_text.1, self.ecu_data.name, self.pattern.vendor).as_str(), crate::themes::TitleSize::P4))
             .push(
@@ -176,17 +183,22 @@ impl SessionTrait for JsonDiagSession {
             }
 
             JsonDiagSessionMsg::Selector(s) => {
-                return self.service_selector.update(s)
+                match s {
+                    SelectorMsg::PickLoopService(l) => self.looping_service = Some(l.clone()),
+                    SelectorMsg::StopLoopService => {
+                        self.looping_service = None;
+                        return self.service_selector.update(s)
+                    },
+                    _ => return self.service_selector.update(s)
+                }
             }
 
             JsonDiagSessionMsg::ExecuteService(s, args) => {
                 println!("Exec {}", s.inner.borrow().name);
                 match s.exec(args, &mut self.server) {
                     Ok(res) => {
-                        let mut v = vec![0x00]; // Pad this out // TODO REMOVE
-                        v.extend(res);
                         self.log_view.add_log(format!("{} ({}):", s.inner.borrow().name, s.inner.borrow().description), 
-                            s.args_to_string(&v), 
+                            s.args_to_string(&res), 
                             LogType::Info
                         )
                     },
@@ -198,12 +210,24 @@ impl SessionTrait for JsonDiagSession {
             JsonDiagSessionMsg::ClearLogs => {
                 self.log_view.clear_logs()
             }
+            JsonDiagSessionMsg::LoopRead(_) => {
+                if let Some(s) = &self.looping_service {
+                    if let Ok(res) = s.exec(&[], &mut self.server) {
+                        let mut v = vec![0x00]; // Pad this out // TODO REMOVE
+                        v.extend(res);
+                        self.looping_text = format!("{}({})\n->{}",s.inner.borrow().name, s.inner.borrow().description, s.args_to_string(&v))
+                    }
+                }
+            }
             _ => todo!()
         }
         None
     }
 
     fn subscription(&self) -> iced::Subscription<Self::msg> {
+        if self.looping_service.is_some() {
+            return time::every(std::time::Duration::from_millis(333)).map(JsonDiagSessionMsg::LoopRead);
+        }
         Subscription::none()
     }
 }
@@ -266,6 +290,9 @@ pub enum SelectorMsg {
     ViewWrite,
     ViewActuation,
     PickService(ServiceRef),
+    PickLoopService(ServiceRef),
+    StopLoopService,
+    BeginLoopService,
     ExecService,
     Search(String)
 }
@@ -284,6 +311,8 @@ pub struct ServiceSelector {
     w_btn: iced::button::State,
     a_btn: iced::button::State,
     execb: iced::button::State,
+    l_btn: iced::button::State,
+    is_loop: bool,
     args: Vec<u8>,
 
     s_bar: iced::text_input::State,
@@ -312,12 +341,14 @@ impl ServiceSelector {
             s_bar: Default::default(),
             picker:Default::default(),
             execb: Default::default(),
+            l_btn: Default::default(),
             args: Vec::new(),
             selected_service: None,
             view_selection: [true, false, false], // Read is default view
             shown_services: r,
             can_execute: false,
             input_require: false,
+            is_loop: false,
         }
     }
 
@@ -362,15 +393,24 @@ impl ServiceSelector {
                 }
             }
 
-            if self.can_execute {
-                let text = if self.view_selection[0] {
-                    "Read "
-                } else if self.view_selection[1] {
-                    "Write "
-                } else {
-                    "Actuate "
-                };
-                content_view = content_view.push(button_coloured(&mut self.execb, format!("{}{}", text, curr_service.inner.borrow().name).as_str(), ButtonType::Danger).on_press(SelectorMsg::ExecService))
+            if !self.is_loop {
+                if self.can_execute {
+                    let text = if self.view_selection[0] {
+                        "Read "
+                    } else if self.view_selection[1] {
+                        "Write "
+                    } else {
+                        "Actuate "
+                    };
+                    content_view = content_view.push(button_coloured(&mut self.execb, format!("{}{}", text, curr_service.inner.borrow().name).as_str(), ButtonType::Danger).on_press(SelectorMsg::ExecService))
+                }
+                if self.can_execute == self.view_selection[0] {
+                    // Show the loop button
+                    content_view = content_view.push(button_coloured(&mut self.l_btn, "Begin loop", ButtonType::Warning).on_press(SelectorMsg::BeginLoopService))
+                }
+            } else {    
+                // Stop the loop
+                content_view = content_view.push(button_coloured(&mut self.l_btn, "Stop loop", ButtonType::Warning).on_press(SelectorMsg::StopLoopService))
             }
         }
 
@@ -440,9 +480,19 @@ impl ServiceSelector {
                 self.selected_service = Some(s.clone());
                 println!("{} selected", s.inner.borrow().name);
             },
+            SelectorMsg::StopLoopService => {
+                self.is_loop = false;
+            },
+            SelectorMsg::BeginLoopService => {
+                if let Some(s) = &self.selected_service {
+                    self.is_loop = true;
+                    return Some(JsonDiagSessionMsg::Selector(SelectorMsg::PickLoopService(s.clone())))
+                }
+            }
             SelectorMsg::ExecService => {
                 return Some(JsonDiagSessionMsg::ExecuteService(self.selected_service.clone().unwrap(), self.args.clone()))
-            }
+            },
+            _ => {}
         }
         None
     }
