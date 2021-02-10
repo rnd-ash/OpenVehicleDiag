@@ -199,6 +199,18 @@ pub enum DiagSession {
     ExtendedDiag = 0x92,
 }
 
+impl ToString for DiagSession {
+    fn to_string(&self) -> String {
+        match &self {
+            DiagSession::Normal => "Normal",
+            DiagSession::ECUFlash => "Flash",
+            DiagSession::StandBy => "Standby",
+            DiagSession::ECUPassive => "Passive",
+            DiagSession::ExtendedDiag => "Extended diagnostics"
+        }.into()
+    }
+}
+
 impl DiagSession {
     pub (crate) fn send_tester_present(&self) -> bool {
         self != &DiagSession::Normal
@@ -418,14 +430,14 @@ impl ProtocolServer for KWP2000ECU {
             let mut timer = Instant::now();
             while should_run_t.load(Relaxed) {
                 if let Ok(data) = channel_tx_receiver.try_recv() {
-                    let res = Self::run_command_isotp(comm_server.as_ref(), s_id, data.0, &data.1, data.2);
+                    let res = Self::run_command_iso_tp(comm_server.as_ref(), s_id, data.0, &data.1, data.2);
                     if channel_rx_sender.send(res).is_err() {
                         *last_error_t.write().unwrap() = Some(ProtocolError::CustomError("Sender channel died".into()));
                         break
                     }
                 }
                 if timer.elapsed().as_millis() >= 2000 && session_type_t.read().unwrap().send_tester_present() {
-                    if let Ok(res) = Self::run_command_isotp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], true) {
+                    if let Ok(res) = Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], true) {
                         println!("Tester present resp: {:02X?}", res);
                     }
                     timer = Instant::now();

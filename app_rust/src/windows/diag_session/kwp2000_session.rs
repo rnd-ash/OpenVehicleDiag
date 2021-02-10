@@ -1,6 +1,6 @@
 use std::{borrow::BorrowMut, cell::RefCell, sync::{Arc, atomic::AtomicBool}, thread::JoinHandle, time::Instant};
 
-use iced::{Column, Container, Length, Row, Subscription, time};
+use iced::{Column, Container, Length, Row, Space, Subscription, time};
 use log_view::{LogType, LogView};
 
 use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, protocols::{ProtocolServer, kwp2000::KWP2000ECU}}, themes::{ButtonType, TextType, TitleSize, button_outlined, text, title_text}, windows::{diag_manual::DiagManualMessage, window}};
@@ -71,6 +71,10 @@ impl SessionTrait for KWP2000DiagSession {
         
         if !in_session {
             ui = ui.push(button_outlined(&mut self.back_btn, "Back", ButtonType::Secondary).on_press(KWP2000DiagSessionMsg::Back))
+        }
+        ui = ui.push(Space::with_height(Length::Fill));
+        if let Some(se) = &self.diag_server {
+            ui = ui.push(Row::new().push(text(format!("Current session type: {}", se.get_session_type().to_string()).as_str(), TextType::Normal)));
         }
 
         Row::new().spacing(8).padding(8)
