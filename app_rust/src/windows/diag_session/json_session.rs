@@ -1,4 +1,4 @@
-use std::{cell::RefCell, cmp::min, collections::HashMap, sync::Arc, time::Instant};
+use std::{borrow::Borrow, cell::RefCell, cmp::min, collections::HashMap, sync::Arc, time::Instant};
 
 use commapi::protocols;
 use common::schema::{OvdECU, diag::service::{ParamDecodeError, Service}, variant::{ECUVariantDefinition, ECUVariantPattern}};
@@ -224,7 +224,7 @@ impl SessionTrait for JsonDiagSession {
 
     fn subscription(&self) -> iced::Subscription<Self::msg> {
         if self.looping_service.is_some() {
-            return time::every(std::time::Duration::from_millis(333)).map(JsonDiagSessionMsg::LoopRead);
+            return time::every(std::time::Duration::from_millis(500)).map(JsonDiagSessionMsg::LoopRead);
         }
         Subscription::none()
     }
@@ -403,12 +403,12 @@ impl ServiceSelector {
                     content_view = content_view.push(button_coloured(&mut self.execb, format!("{}{}", text, curr_service.inner.borrow().name).as_str(), ButtonType::Danger).on_press(SelectorMsg::ExecService))
                 }
                 if self.can_execute == self.view_selection[0] {
-                    // Show the loop button
-                    content_view = content_view.push(button_coloured(&mut self.l_btn, "Begin loop", ButtonType::Warning).on_press(SelectorMsg::BeginLoopService))
+                    // Show the graph button
+                    content_view = content_view.push(button_coloured(&mut self.l_btn, "Begin graphing", ButtonType::Info).on_press(SelectorMsg::BeginLoopService))
                 }
             } else {    
                 // Stop the loop
-                content_view = content_view.push(button_coloured(&mut self.l_btn, "Stop loop", ButtonType::Warning).on_press(SelectorMsg::StopLoopService))
+                content_view = content_view.push(button_coloured(&mut self.l_btn, "Stop graphing", ButtonType::Info).on_press(SelectorMsg::StopLoopService))
             }
         }
 

@@ -142,7 +142,7 @@ impl DiagServer {
 
 impl Drop for DiagServer {
     fn drop(&mut self) {
-        println!("Drop for diagserver called!");
+        println!("Drop for Diag Server called!");
         self.kill_diag_server()
     }
 }
@@ -157,13 +157,12 @@ pub trait ProtocolServer: Sized {
     fn is_in_diag_session(&self) -> bool;
     fn get_last_error(&self) -> Option<String>;
 
-    fn run_command_isotp(server: &dyn ComServer, send_id: u32, cmd: u8, args: &[u8], receive_require: bool) -> std::result::Result<Vec<u8>, ProtocolError> {
+    fn run_command_iso_tp(server: &dyn ComServer, send_id: u32, cmd: u8, args: &[u8], receive_require: bool) -> std::result::Result<Vec<u8>, ProtocolError> {
         let mut data = ISO15765Data {
             id: send_id,
-            data: vec![],
+            data: vec![cmd],
             pad_frame: false,
         };
-        data.data.push(cmd);
         data.data.extend_from_slice(args);
         if !receive_require {
             server.send_iso15765_data(&[data], 0).map(|_| vec![]).map_err(ProtocolError::CommError)

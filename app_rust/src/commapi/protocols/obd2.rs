@@ -15,7 +15,7 @@ fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &OBDReques
 
     let cfg = ISO15765Config {
         send_id: 0x07DF,
-        recv_id: 0x7E8,
+        recv_id: 0x07E8,
         block_size: 8, // Sensible decision
         sep_time: 20, // Sensible decision
     };

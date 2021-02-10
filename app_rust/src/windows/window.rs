@@ -9,7 +9,7 @@ use crate::windows::diag_home::{DiagHomeMessage};
 use crate::windows::obd::{OBDMessage, OBDHome};
 use crate::themes::{toggle_theme, button_coloured, ButtonType, container, text, TextType};
 
-use super::diag_home::{self, DiagHome};
+use super::diag_home::{DiagHome};
 
 
 // This can be modified by diagnostic sessions in order to disable going
@@ -289,9 +289,9 @@ impl MainWindow {
 impl Drop for MainWindow {
     fn drop(&mut self) {
         if let Some(mut s) = self.server.take() {
-            s.close_iso15765_interface();
-            s.close_can_interface();
-            s.close_device();
+            s.close_iso15765_interface().expect("Error closing ISO15765");
+            s.close_can_interface().expect("Error closing can Interface");
+            s.close_device().expect("Error closing device");
         }
     }
 }
