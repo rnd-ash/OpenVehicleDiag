@@ -369,15 +369,15 @@ impl ServiceSelector {
 
         let search_bar = text_input(&mut self.s_bar, "Search for function", self.query_string.as_str(), SelectorMsg::Search);
 
-        let btn_row = Row::new().spacing(5).width(Length::Fill)
+        let btn_row = Row::new().spacing(5).width(Length::Fill).padding(5)
             .push(r_btn.on_press(SelectorMsg::ViewRead).width(Length::FillPortion(1)))
             .push(w_btn.on_press(SelectorMsg::ViewWrite).width(Length::FillPortion(1)))
             .push(a_btn.on_press(SelectorMsg::ViewActuation).width(Length::FillPortion(1)));
 
         let mut content_view = if self.shown_services.is_empty() {
-            Column::new().push(text("No functions match your query", TextType::Normal))
+            Column::new().push(text("No functions match your query", TextType::Normal)).spacing(5).width(Length::Fill).padding(5)
         } else {
-            Column::new()
+            Column::new().spacing(5).width(Length::Fill).padding(5)
                 .push(text(format!("{} function(s) match your query", self.shown_services.len()).as_str(), TextType::Normal))
                 .push(picklist(&mut self.picker, &self.shown_services, self.selected_service.clone(), SelectorMsg::PickService))
         };
@@ -412,8 +412,7 @@ impl ServiceSelector {
             }
         }
 
-
-        Column::new().width(Length::Fill)
+        Column::new().width(Length::Fill).spacing(5).width(Length::Fill).padding(5)
             .push(search_bar.width(Length::Fill))
             .push(btn_row)
             .push(content_view)

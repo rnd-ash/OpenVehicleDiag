@@ -169,7 +169,11 @@ pub trait ProtocolServer: Sized {
             server.send_iso15765_data(&[data], 0).map(|_| vec![]).map_err(ProtocolError::CommError)
         } else {
             // Await max 1 second for response
-            let mut tmp_res = server.send_receive_iso15765(data, 1000, 1).map(|r| r[0].data.clone())?;
+            let res = server.send_receive_iso15765(data, 1000, 1)?;
+            if res.is_empty() {
+                return Err(ProtocolError::Timeout)
+            }
+            let mut tmp_res = res[0].data.clone();
             if tmp_res[0] == 0x7F && tmp_res[2] == 0x78 { // ResponsePending
                 println!("KWP2000 - ECU is processing request - Waiting!");
                 let start = Instant::now();
