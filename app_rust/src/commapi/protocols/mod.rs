@@ -177,7 +177,7 @@ pub trait ProtocolServer: Sized {
             if tmp_res[0] == 0x7F && tmp_res[2] == 0x78 { // ResponsePending
                 println!("KWP2000 - ECU is processing request - Waiting!");
                 let start = Instant::now();
-                while start.elapsed().as_millis() < 500 {
+                while start.elapsed().as_millis() < 1000 {
                     // ECU is sending a response, but its busy right now. just gotta wait for the ECU to give us its response!
                     if let Some(msg) = server.read_iso15765_packets(0, 1)?.get(0) {
                         tmp_res = msg.data.clone();
