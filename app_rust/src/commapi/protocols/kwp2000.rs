@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, sync::{Arc, Mutex, RwLock, atomic::AtomicBool, mpsc::{self, Receiver, Sender, channel}}, time::Instant};
+use std::{borrow::Borrow, cell::RefCell, rc::Rc, sync::{Arc, Mutex, RwLock, atomic::AtomicBool, mpsc::{self, Receiver, Sender, channel}}, time::Instant};
 use std::sync::atomic::Ordering::Relaxed;
 use commapi::comm_api::{ComServer, ISO15765Config, ISO15765Data};
 
@@ -76,39 +76,6 @@ impl Service {
 }
 
 impl Selectable for Service {
-    fn get_byte(&self) -> u8 {
-        match self {
-            Service::StartDiagSession => 0x10,
-            Service::ECUReset => 0x11,
-            Service::ClearDiagnosticInformation => 0x14,
-            Service::ReadDTCStatus => 0x17,
-            Service::ReadDTCByStatus => 0x18,
-            Service::ReadECUID => 0x1A,
-            Service::ReadDataByLocalID => 0x21,
-            Service::ReadDataByID => 0x22,
-            Service::ReadMemoryByAddress => 0x23,
-            Service::SecurityAccess => 0x27,
-            Service::DisableNormalMsgTransmission => 0x28,
-            Service::EnableNormalMsgTransmission => 0x29,
-            Service::DynamicallyDefineLocalID => 0x2C,
-            Service::WriteDataByID => 0x2E,
-            Service::IOCTLByLocalID => 0x30,
-            Service::StartRoutineByLocalID => 0x31,
-            Service::StopRoutineByLocalID => 0x32,
-            Service::RequestRoutineResultsByLocalID => 0x33,
-            Service::RequestDownload => 0x34,
-            Service::RequestUpload => 0x35,
-            Service::TransferData => 0x36,
-            Service::RequestTransferExit => 0x37,
-            Service::WriteDataByLocalID => 0x3B,
-            Service::WriteMemoryByAddress => 0x3D,
-            Service::TesterPresent => 0x3E,
-            Service::ControlDTCSettings => 0x85,
-            Service::ResponseOnEvent => 0x86,
-            Service::SupplierCustom(sid) => *sid
-        }
-    }
-
     fn get_name(&self) -> String {
         format!("{:?}", &self)
     }
@@ -149,7 +116,42 @@ impl Selectable for Service {
 
 impl ToString for Service {
     fn to_string(&self) -> String {
-        format!("{}(0x{:02X})", self.get_name(), self.get_byte())
+        self.get_name()
+    }
+}
+
+impl Into<u8> for Service {
+    fn into(self) -> u8 {
+        match self {
+            Service::StartDiagSession => 0x10,
+            Service::ECUReset => 0x11,
+            Service::ClearDiagnosticInformation => 0x14,
+            Service::ReadDTCStatus => 0x17,
+            Service::ReadDTCByStatus => 0x18,
+            Service::ReadECUID => 0x1A,
+            Service::ReadDataByLocalID => 0x21,
+            Service::ReadDataByID => 0x22,
+            Service::ReadMemoryByAddress => 0x23,
+            Service::SecurityAccess => 0x27,
+            Service::DisableNormalMsgTransmission => 0x28,
+            Service::EnableNormalMsgTransmission => 0x29,
+            Service::DynamicallyDefineLocalID => 0x2C,
+            Service::WriteDataByID => 0x2E,
+            Service::IOCTLByLocalID => 0x30,
+            Service::StartRoutineByLocalID => 0x31,
+            Service::StopRoutineByLocalID => 0x32,
+            Service::RequestRoutineResultsByLocalID => 0x33,
+            Service::RequestDownload => 0x34,
+            Service::RequestUpload => 0x35,
+            Service::TransferData => 0x36,
+            Service::RequestTransferExit => 0x37,
+            Service::WriteDataByLocalID => 0x3B,
+            Service::WriteMemoryByAddress => 0x3D,
+            Service::TesterPresent => 0x3E,
+            Service::ControlDTCSettings => 0x85,
+            Service::ResponseOnEvent => 0x86,
+            Service::SupplierCustom(sid) => sid
+        }
     }
 }
 
@@ -188,13 +190,19 @@ impl ECUCommand for Service {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-enum DiagSession {
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum DiagSession {
     Normal = 0x81,
     ECUFlash = 0x85,
     StandBy = 0x89,
     ECUPassive = 0x90,
     ExtendedDiag = 0x92,
+}
+
+impl DiagSession {
+    pub (crate) fn send_tester_present(&self) -> bool {
+        self != &DiagSession::Normal
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -279,9 +287,9 @@ impl CommandError for NegativeResponse {
             NegativeResponse::SecurityAccessDenied => Some("In order to execute this function, you need to obtain a higher security clearance.".into()),
             NegativeResponse::ResponsePending => Some("The ECU is currently trying to send a response".into()),
             NegativeResponse::ServiceNotSupportedActiveSession => Some("This function is not supported in the current diagnostic session. Try to switch diagnostic sessions".into()),
-            NegativeResponse::CustomDaimler(x) => Some("This error code is reserved by DaimlerChrysler. Therefore its meaning is unknown".into()),
-            NegativeResponse::Reserved(x) => None,
-            NegativeResponse::Unknown(x) => None,
+            NegativeResponse::CustomDaimler(_) => Some("This error code is reserved by DaimlerChrysler. Therefore its meaning is unknown".into()),
+            NegativeResponse::Reserved(_) => None,
+            NegativeResponse::Unknown(_) => None,
         }
     }
 
@@ -317,16 +325,6 @@ impl CommandError for NegativeResponse {
     }
 }
 
-
-enum ResetType {
-    PowerOnReset = 0x01,
-    // NonVolativeMemoryReset = 0x82 // Don't support this as its optional
-}
-
-enum ClearDTCType {
-    AllDTCs = 0xFF00
-}
-
 #[derive(Debug, Clone)]
 pub struct KWP2000ECU {
     iso_tp_settings: ISO15765Config,
@@ -334,7 +332,7 @@ pub struct KWP2000ECU {
     last_error: Arc<RwLock<Option<ProtocolError>>>,
     cmd_tx: Sender<(u8, Vec<u8>, bool)>,
     cmd_rx: Arc<Receiver<ProtocolResult<Vec<u8>>>>,
-    curr_session_type: DiagSession,
+    curr_session_type: Arc<RwLock<DiagSession>>,
     send_id: u32,
     cmd_mutex: Arc<Mutex<()>>
 }
@@ -368,80 +366,27 @@ fn bcd_decode(input: u8) -> String {
 }
 
 impl KWP2000ECU {
-    pub (crate) fn send_receive_kwp2000_cmd(server: &dyn ComServer, send_id: u32, cmd: u8, args: &[u8], receive_require: bool) -> std::result::Result<Vec<u8>, ProtocolError> {
-        let mut data = ISO15765Data {
-            id: send_id,
-            data: vec![],
-            pad_frame: false,
-        };
-        data.data.push(cmd);
-        data.data.extend_from_slice(args);
-        if !receive_require {
-            server.send_iso15765_data(&[data], 0).map(|_| vec![]).map_err(ProtocolError::CommError)
-        } else {
-            // Await max 1 second for response
-            let mut tmp_res = server.send_receive_iso15765(data, 1000, 1).map(|r| r[0].data.clone())?;
-            if tmp_res[0] == 0x7F && tmp_res[2] == 0x78 { // ResponsePending
-                println!("KWP2000 - ECU is processing request - Waiting!");
-                let start = Instant::now();
-                while start.elapsed().as_millis() < 500 {
-                    // ECU is sending a response, but its busy right now. just gotta wait for the ECU to give us its response!
-                    if let Some(msg) = server.read_iso15765_packets(0, 1)?.get(0) {
-                        tmp_res = msg.data.clone();
-                    }
-                }
-            }
-            if tmp_res[0] == 0x7F {
-                // Still error :(
-                Err(ProtocolError::ProtocolError(Box::new(NegativeResponse::from_byte(tmp_res[2]))))
-            } else if tmp_res[0] == (cmd + 0x40) {
-                Ok(tmp_res)
-            } else {
-                eprintln!("KWP2000 - Command response did not match request? Send: {:02X} - Recv: {:02X}", cmd, tmp_res[0]);
-                Err(ProtocolError::Timeout)
-            }
-        }
-    }
-
-    pub fn get_ecu_info_data(&self) -> std::result::Result<ECUIdentification, ProtocolError> {
-        let mut res = self.run_command(Service::ReadECUID.get_byte(), &[0x87], 500)?;
-        res.drain(..1);
-        println!("RES: {:02X?}", res);
-        let mut diag = ECUIdentification::default();
-        let origin = res[2];
-        let supplier_id = res[3];
-        let variant = (res[4] as u32) << 8 | res[5] as u32;
-        //let diag_version = res[5];
-        let hw_major = bcd_decode(res[7]);
-        let hw_minor = bcd_decode(res[8]);
-        let sw_xx = bcd_decode(res[9]);
-        let sw_yy = bcd_decode(res[10]);
-        let sw_zz = bcd_decode(res[11]);
-        let part_number = String::from_utf8(Vec::from(&res[11..])).unwrap();
-
-        diag.part_num = part_number;
-        diag.sw_version = format!("{} {} {}", sw_xx, sw_yy, sw_zz);
-        diag.hw_version = format!("{}.{}", hw_major, hw_minor);
-        diag.variant = variant;
-        Ok(diag)
-    }
 
     pub fn clear_errors(&self) -> std::result::Result<(), ProtocolError> {
-        self.run_command(Service::ClearDiagnosticInformation.get_byte(), &[0xFF, 0x00], 1000)?;
+        self.run_command(Service::ClearDiagnosticInformation.into(), &[0xFF, 0x00], 1000)?;
         Ok(())
     }
 
     fn set_diag_session_mode(&mut self, mode: DiagSession) -> std::result::Result<(), ProtocolError> {
-        match self.run_command(Service::StartDiagSession.get_byte(), &[mode as u8], 1000) {
+        match self.run_command(Service::StartDiagSession.into(), &[mode as u8], 1000) {
             Ok(_) => {
-                self.curr_session_type = mode; // Switch diagnostic modes!
+                *self.curr_session_type.write().unwrap() = mode; // Switch diagnostic modes!
                 Ok(())
             },
             Err(e) => {
-                self.curr_session_type = DiagSession::Normal; // Assume normal if something happens
+                *self.curr_session_type.write().unwrap() = DiagSession::Normal; // Assume normal if something happens
                 Err(e)
             }
         }
+    }
+
+    pub fn get_session_type(&self) -> DiagSession {
+        *self.curr_session_type.read().unwrap()
     }
 }
 
@@ -449,51 +394,56 @@ impl KWP2000ECU {
 
 impl ProtocolServer for KWP2000ECU {
     type Command = Service;
-
+    type Error = NegativeResponse;
     fn start_diag_session(mut comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self> {
         comm_server.open_iso15765_interface(500_000, false).map_err(ProtocolError::CommError)?;
         comm_server.configure_iso15765(cfg).map_err(ProtocolError::CommError)?;
-    
 
         let should_run = Arc::new(AtomicBool::new(true));
         let should_run_t = should_run.clone();
 
-        let error = Arc::new(RwLock::new(None));
-        let mut error_t = error.clone();
+        let last_error = Arc::new(RwLock::new(None));
+        let last_error_t = last_error.clone();
 
         let (channel_tx_sender, channel_tx_receiver): (Sender<(u8, Vec<u8>, bool)>, Receiver<(u8, Vec<u8>, bool)>) = mpsc::channel();
         let (channel_rx_sender, channel_rx_receiver): (Sender<ProtocolResult<Vec<u8>>>, Receiver<ProtocolResult<Vec<u8>>>) = mpsc::channel();
 
+        let session_type = Arc::new(RwLock::new(DiagSession::Normal));
+        let session_type_t = session_type.clone();
+
         // Enter extended diagnostic session (Full features)
         let s_id = cfg.send_id;
         std::thread::spawn(move || {
-            println!("KWP2000 Diag server start!");
+            println!("Diag server start!");
             let mut timer = Instant::now();
             while should_run_t.load(Relaxed) {
                 if let Ok(data) = channel_tx_receiver.try_recv() {
-                    let res = KWP2000ECU::send_receive_kwp2000_cmd(comm_server.as_ref(), s_id, data.0, &data.1, data.2);
-                    channel_rx_sender.send(res);
+                    let res = Self::run_command_isotp(comm_server.as_ref(), s_id, data.0, &data.1, data.2);
+                    if channel_rx_sender.send(res).is_err() {
+                        *last_error_t.write().unwrap() = Some(ProtocolError::CustomError("Sender channel died".into()));
+                        break
+                    }
                 }
-                if timer.elapsed().as_millis() >= 2000 {
-                    if let Ok(res) = KWP2000ECU::send_receive_kwp2000_cmd(comm_server.as_ref(), s_id, Service::TesterPresent.get_byte(), &[0x01], true) {
+                if timer.elapsed().as_millis() >= 2000 && session_type_t.read().unwrap().send_tester_present() {
+                    if let Ok(res) = Self::run_command_isotp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], true) {
                         println!("Tester present resp: {:02X?}", res);
                     }
                     timer = Instant::now();
                 }
                 std::thread::sleep(std::time::Duration::from_micros(100))
             }
-            println!("KWP2000 Diag server stop!");
+            println!("Diag server stop!");
             comm_server.close_iso15765_interface();
         });
 
         let mut ecu = KWP2000ECU {
             iso_tp_settings: *cfg,
             should_run,
-            last_error: error,
+            last_error,
             cmd_tx: channel_tx_sender,
             cmd_rx: Arc::new(channel_rx_receiver),
             send_id: cfg.send_id,
-            curr_session_type: DiagSession::Normal, // Assumed,
+            curr_session_type: session_type, // Assumed,
             cmd_mutex: Arc::new(Mutex::new(()))
         };
 
@@ -508,10 +458,11 @@ impl ProtocolServer for KWP2000ECU {
         self.should_run.store(false, Relaxed);
     }
 
-    fn run_command(&self, cmd: u8, args: &[u8], max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
-        self.cmd_mutex.lock().unwrap(); // We are allowed to send / receive!
-        self.cmd_tx.send((cmd, Vec::from(args), true));
-        
+    fn run_command(&self, cmd: u8, args: &[u8], _max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
+        let _guard = self.cmd_mutex.lock().unwrap(); // We are allowed to send / receive!
+        if self.cmd_tx.send((cmd, Vec::from(args), true)).is_err() {
+            return Err(ProtocolError::CustomError("Channel Tx failed".into()))
+        }
         let resp = self.cmd_rx.recv().unwrap()?;
         if resp[0] == 0x7F {
             let neg_code = NegativeResponse::from_byte(resp[2]);
@@ -524,7 +475,7 @@ impl ProtocolServer for KWP2000ECU {
     fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
         // 0x02 - Request Hex DTCs as 2 bytes
         // 0xFF00 - Request all DTCs (Mandatory per KWP2000)
-        let mut bytes = self.run_command(Service::ReadDTCByStatus.get_byte(), &[0x02, 0xFF, 0x00], 500)?;
+        let mut bytes = self.run_command(Service::ReadDTCByStatus.into(), &[0x02, 0xFF, 0x00], 500)?;
         bytes.drain(..1);
         println!("{:02X?}", bytes);
         let count = bytes[0] as usize;
@@ -546,7 +497,7 @@ impl ProtocolServer for KWP2000ECU {
                 check_engine_on: mil,
 
             });
-            bytes.drain(0..3);
+            bytes.drain(0..3); // DTC is 3 bytes (1 for status, 2 for the ID)
         }
         Ok(res)
     }
