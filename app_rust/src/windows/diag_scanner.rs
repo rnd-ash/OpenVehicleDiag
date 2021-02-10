@@ -83,7 +83,7 @@ impl DiagScanner {
                 // Accumulate scan results here
                 self.can_traffic_id_list.insert(0x07DF, false); // Add OBD-II CAN ID so we don't scan that
                 self.curr_stage += 1; // We can progress to the next stage!
-                self.curr_scan_id = 0x07D0; // REMOVE FOR PRODUCTION
+                self.curr_scan_id = 0x0000; // REMOVE FOR PRODUCTION
                 self.server.clear_can_rx_buffer();
                 return Some(DiagScannerMessage::ScanPoll) // Begin the CAN interrogation (Stage 1)
             }
@@ -109,10 +109,6 @@ impl DiagScanner {
                 self.curr_stage += 1;
                 self.curr_scan_id = 0; // First entry in our array
                 std::thread::sleep(std::time::Duration::from_millis(100)); // Wait for adapter to rest (For some reason this works)
-                self.server.clear_can_rx_buffer();
-                self.server.clear_can_tx_buffer();
-                self.server.clear_iso15765_rx_buffer();
-                self.server.clear_iso15765_tx_buffer();
                 self.clock = Instant::now(); // Reset clock
                 return Some(DiagScannerMessage::ScanPoll)
             },
@@ -251,7 +247,7 @@ impl DiagScanner {
                 // Interrogate the ECU with extended diagnostic session
                 match KWP2000ECU::start_diag_session(self.server.clone(), &ecu) {
                     Ok(mut s) => {
-                        if let Ok(_) = s.run_command(0x1A, &[0x87], 1000) { // Compulsory ECU identification command for KWP2000
+                        if s.run_command(0x1A, &[0x87], 1000).is_ok() { // Compulsory ECU identification command for KWP2000
                             // TODO maybe replace the ECU name with the Part number?
                             println!("ECU 0x{:04X} supports KWP2000!", ecu.send_id);
                             ecu_res.kwp_support = true;
@@ -271,7 +267,7 @@ impl DiagScanner {
                 if self.curr_scan_id as usize >= self.stage3_results.len() {
                     return Some(DiagScannerMessage::IncrementStage)
                 }
-                let ecu = self.stage3_results[self.curr_scan_id as usize];
+                let _ecu = self.stage3_results[self.curr_scan_id as usize];
                 self.curr_scan_id += 1;
                 Some(DiagScannerMessage::ScanPoll)
             }
@@ -356,11 +352,11 @@ impl DiagScanner {
 
     // Setting up the scanner
     fn draw_stage_1(&mut self) -> Element<DiagScannerMessage> {
-        let mut c = Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
+        Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
         .push(title_text("Listening to existing CAN Traffic", crate::themes::TitleSize::P2))
         .push(progress_bar(0f32..=10000f32, self.clock.elapsed().as_millis() as f32, ButtonType::Info))
-        .push(text(format!("Found {} existing can IDs", self.can_traffic_id_list.len()).as_str(), TextType::Normal));
-        c.into()
+        .push(text(format!("Found {} existing can IDs", self.can_traffic_id_list.len()).as_str(), TextType::Normal))
+        .into()
     }
 
     fn draw_stage_2(&mut self) -> Element<DiagScannerMessage> {
@@ -400,26 +396,26 @@ impl DiagScanner {
     }
 
     fn draw_stage_4(&mut self) -> Element<DiagScannerMessage> {
-        let mut c = Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
+        Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
         .push(title_text("Network cool down", crate::themes::TitleSize::P2))
-        .push(progress_bar(0f32..=5000f32, self.clock.elapsed().as_millis() as f32, ButtonType::Info));
-        c.into()
+        .push(progress_bar(0f32..=5000f32, self.clock.elapsed().as_millis() as f32, ButtonType::Info))
+        .into()
     }
 
     fn draw_stage_5(&mut self) -> Element<DiagScannerMessage> {
-        let mut c = Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
+        Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
         .push(title_text("Testing ECUs for KWP2000 Capabilities", crate::themes::TitleSize::P2))
         .push(progress_bar(0f32..=self.stage3_results.len() as f32, self.curr_scan_id as f32, ButtonType::Info))
-        .push(text(format!("Found {} existing can IDs", self.can_traffic_id_list.len()).as_str(), TextType::Normal));
-        c.into()
+        .push(text(format!("Found {} existing can IDs", self.can_traffic_id_list.len()).as_str(), TextType::Normal))
+        .into()
     }
 
     fn draw_stage_6(&mut self) -> Element<DiagScannerMessage> {
-        let mut c = Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
+        Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
         .push(title_text("Testing ECUs for UDS Capability", crate::themes::TitleSize::P2))
         .push(progress_bar(0f32..=self.stage3_results.len() as f32, self.curr_scan_id as f32, ButtonType::Info))
-        .push(text(format!("Found {} existing can IDs", self.can_traffic_id_list.len()).as_str(), TextType::Normal));
-        c.into()
+        .push(text(format!("Found {} existing can IDs", self.can_traffic_id_list.len()).as_str(), TextType::Normal))
+        .into()
     }
 
     fn draw_stage_7(&mut self) -> Element<DiagScannerMessage> {
