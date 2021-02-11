@@ -1,4 +1,4 @@
-use crate::passthru::{PassthruDevice, PassthruDrv};
+use crate::{passthru::{PassthruDevice, PassthruDrv}, themes::images::{LAUNCHER_IMG, pix_to_iced_image}};
 use iced::{pick_list, button, Text, Row, Element, Align, Column, Length, Image};
 use crate::commapi::comm_api::{ComServerError, ComServer};
 use crate::commapi::passthru_api::PassthruApi;
@@ -125,7 +125,7 @@ impl Launcher {
 
         let contents = if self.api_selection == API::DPdu {
             Column::new()
-                .push(Image::new("img/logo.png").width(Length::Units(300)).height(Length::Units(300)))
+                .push(pix_to_iced_image(LAUNCHER_IMG).width(Length::Units(300)).height(Length::Units(300)))
                 .push(selection)
                 .push(Text::new("D-PDU API is unimplemented, check back in a future release!"))
                 .spacing(10)
@@ -167,7 +167,7 @@ impl Launcher {
             // This should NEVER happen.
             None => Err(DriverError(ComServerError{
                 err_code: 99,
-                err_desc: "WTF. Located device is not valid??".to_string()
+                err_desc: "Located device is not valid??".to_string()
             }))
         }
     }
