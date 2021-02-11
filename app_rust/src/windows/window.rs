@@ -278,7 +278,7 @@ impl MainWindow {
                     self.state = WindowState::Home(Home::new(srv));
                     Command::none()
                 },
-                _ => Command::perform(async move { state.clone() }, |x| x)
+                _ => Command::perform(async move  { state.clone() }, |x| x)
             }
         } else {
             Command::none()
