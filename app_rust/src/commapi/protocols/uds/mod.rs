@@ -34,7 +34,6 @@ pub enum UDSCommand {
     RequestFileTransfer,
     ControlDTCSetting,
     LinkControl,
-    Custom(u8)
 }
 
 impl Selectable for UDSCommand {
@@ -68,7 +67,6 @@ impl Selectable for UDSCommand {
             UDSCommand::RequestFileTransfer => {}
             UDSCommand::ControlDTCSetting => {}
             UDSCommand::LinkControl => {}
-            UDSCommand::Custom(_) => {}
         }
         "--TODO--".into()
     }
@@ -107,7 +105,6 @@ impl Into<u8> for UDSCommand {
             UDSCommand::RequestFileTransfer => 0x3F,
             UDSCommand::ControlDTCSetting => 0x85,
             UDSCommand::LinkControl => 0x87,
-            UDSCommand::Custom(b) => *b
         }
     }
 }
@@ -115,33 +112,31 @@ impl Into<u8> for UDSCommand {
 impl ECUCommand for UDSCommand {
     fn get_caution_level(&self) -> CautionLevel {
         match &self {
-            UDSCommand::DiagnosticSessionControl => {}
-            UDSCommand::ECUReset => {}
-            UDSCommand::ClearDTCInformation => {}
-            UDSCommand::ReadDTCInformation => {}
-            UDSCommand::ReadDataByID => {}
-            UDSCommand::ReadMemoryByAddress => {}
-            UDSCommand::ReadScalingDataById => {}
-            UDSCommand::SecurityAccess => {}
-            UDSCommand::CommunicationControl => {}
-            UDSCommand::Authentication => {}
-            UDSCommand::ReadDataByPeriodicID => {}
-            UDSCommand::DynamicDefineDataId => {}
-            UDSCommand::WriteDataByID => {}
-            UDSCommand::IOCTLById => {}
-            UDSCommand::RoutineControl => {}
-            UDSCommand::RequestDownload => {}
-            UDSCommand::RequestUpload => {}
-            UDSCommand::TransferData => {}
-            UDSCommand::TransferExit => {}
-            UDSCommand::WriteMemoryByAddress => {}
-            UDSCommand::TesterPresent => {}
-            UDSCommand::RequestFileTransfer => {}
-            UDSCommand::ControlDTCSetting => {}
-            UDSCommand::LinkControl => {}
-            UDSCommand::Custom(_) => {}
+            UDSCommand::DiagnosticSessionControl => CautionLevel::Warn,
+            UDSCommand::ECUReset => CautionLevel::Alert,
+            UDSCommand::ClearDTCInformation => CautionLevel::None,
+            UDSCommand::ReadDTCInformation => CautionLevel::None,
+            UDSCommand::ReadDataByID => CautionLevel::None,
+            UDSCommand::ReadMemoryByAddress => CautionLevel::Warn,
+            UDSCommand::ReadScalingDataById => CautionLevel::Warn,
+            UDSCommand::SecurityAccess => CautionLevel::Alert,
+            UDSCommand::CommunicationControl => CautionLevel::Warn,
+            UDSCommand::Authentication => CautionLevel::Alert,
+            UDSCommand::ReadDataByPeriodicID => CautionLevel::Warn,
+            UDSCommand::DynamicDefineDataId => CautionLevel::Alert,
+            UDSCommand::WriteDataByID => CautionLevel::Alert,
+            UDSCommand::IOCTLById => CautionLevel::Alert,
+            UDSCommand::RoutineControl => CautionLevel::Warn,
+            UDSCommand::RequestDownload => CautionLevel::Alert,
+            UDSCommand::RequestUpload => CautionLevel::Alert,
+            UDSCommand::TransferData => CautionLevel::Alert,
+            UDSCommand::TransferExit => CautionLevel::Alert,
+            UDSCommand::WriteMemoryByAddress => CautionLevel::Alert,
+            UDSCommand::TesterPresent => CautionLevel::None,
+            UDSCommand::RequestFileTransfer => CautionLevel::Alert,
+            UDSCommand::ControlDTCSetting => CautionLevel::Warn,
+            UDSCommand::LinkControl => CautionLevel::Warn
         }
-        CautionLevel::Alert
     }
 
     fn get_cmd_list() -> Vec<Self> {

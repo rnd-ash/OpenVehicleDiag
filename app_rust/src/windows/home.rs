@@ -46,6 +46,7 @@ impl Home {
             .spacing(10)
             .align_items(Align::Center)
             .push(title_text("Welcome to OpenVehicleDiag", TitleSize::P1))
+            .push(text(format!("Version {}",  env!("CARGO_PKG_VERSION")).as_str(), TextType::Normal))
         // Render contents of info panel
             .push(Rule::horizontal(8))
             .push(title_text("Adapter Info:", TitleSize::P3))
