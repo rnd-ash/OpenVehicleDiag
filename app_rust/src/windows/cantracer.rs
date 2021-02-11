@@ -1,5 +1,5 @@
 use crate::commapi::comm_api::{ComServer, CanFrame, FilterType};
-use iced::{Element, Column, Text, Length, Subscription, Row, Checkbox, Color, button};
+use iced::{Checkbox, Color, Column, Element, Length, Row, Scrollable, Subscription, Text, button};
 use iced::time;
 use std::time::Instant;
 use crate::windows::window::WindowMessage;
@@ -9,8 +9,7 @@ use crate::themes::{button_coloured, ButtonType};
 #[derive(Debug, Clone)]
 pub enum TracerMessage {
     NewData(Instant),
-    ConnectCan,
-    DisconnectCan,
+    ToggleCan,
     ToggleBinaryMode(bool)
 }
 
@@ -18,26 +17,26 @@ pub enum TracerMessage {
 #[derive(Debug, Clone)]
 pub struct CanTracer {
     server: Box<dyn ComServer>,
-    connect_state: button::State,
-    disconnect_state: button::State,
+    btn_state: button::State,
     can_queue: HashMap<u32, CanFrame>,
     can_prev: HashMap<u32, CanFrame>,
     is_connected: bool,
     is_binary_fmt: bool,
-    status_text: String
+    status_text: String,
+    scroll_state: iced::scrollable::State,
 }
 
 impl<'a> CanTracer {
     pub(crate) fn new(server: Box<dyn ComServer>) -> Self {
         Self {
             server,
-            connect_state: button::State::default(),
-            disconnect_state: button::State::default(),
+            btn_state: Default::default(),
             can_queue: HashMap::new(),
             can_prev: HashMap::new(),
             is_connected: false,
             is_binary_fmt: false,
-            status_text: "".into()
+            status_text: "".into(),
+            scroll_state: Default::default(),
         }
     }
 
@@ -54,9 +53,16 @@ impl<'a> CanTracer {
                     self.insert_frames_to_map(m)
                 }
             },
-            TracerMessage::ConnectCan => {
-                if let Err(e) = self.server.as_mut().open_can_interface(500_000, false) {
-                    self.status_text = format!("Error opening CAN Interface {}",  e)
+            TracerMessage::ToggleCan => {
+                if self.is_connected {
+                    if let Err(e) = self.server.as_mut().close_can_interface() {
+                        self.status_text = format!("Error closing CAN Interface {}", e)
+                    } else {
+                        self.is_connected = false;
+                        self.can_queue.clear();
+                    }
+                } else if let Err(e) = self.server.as_mut().open_can_interface(500_000, false) {
+                        self.status_text = format!("Error opening CAN Interface {}",  e)
                 } else {
                     self.is_connected = true;
                     if let Err(e) = self.server.as_mut().add_can_filter(FilterType::Pass, 0x0000, 0x0000) {
@@ -66,16 +72,6 @@ impl<'a> CanTracer {
                     }
                 }
             }
-            TracerMessage::DisconnectCan => {
-                if self.is_connected {
-                    if let Err(e) = self.server.as_mut().close_can_interface() {
-                        self.status_text = format!("Error closing CAN Interface {}", e)
-                    } else {
-                        self.is_connected = false;
-                        self.can_queue.clear();
-                    }
-                }
-            },
             TracerMessage::ToggleBinaryMode(b) => {
                 self.is_binary_fmt = *b
             }
@@ -91,26 +87,20 @@ impl<'a> CanTracer {
     }
 
     pub fn view(&mut self) -> Element<TracerMessage> {
-        let mut connect_btn = button_coloured(&mut self.connect_state, "Connect", ButtonType::Info);
+        let btn = match self.is_connected {
+            false =>button_coloured(&mut self.btn_state, "Connect", ButtonType::Info),
+            true => button_coloured(&mut self.btn_state, "Disconnect", ButtonType::Info)
+        }.on_press(TracerMessage::ToggleCan);
         let check = self.is_binary_fmt;
-        if !self.is_connected {
-            connect_btn = connect_btn.on_press(TracerMessage::ConnectCan)
-        }
 
-        let mut disconnect_btn = button_coloured(&mut self.disconnect_state, "Disconnect", ButtonType::Info);
-        if self.is_connected  {
-            disconnect_btn = disconnect_btn.on_press(TracerMessage::DisconnectCan)
-        }
-
-       Column::new()
+       Column::new().padding(10).spacing(10)
            .push(Text::new("CAN Tracer"))
-           .push(Row::new()
-               .padding(5)
-               .spacing(5)
-               .push(connect_btn)
-               .push(disconnect_btn))
+           .push(btn)
            .push(Checkbox::new(check, "View CAN in Binary", TracerMessage::ToggleBinaryMode))
-           .push(Self::build_can_list(&self.is_binary_fmt, &self.can_queue, &mut self.can_prev))
+           .push(
+               Scrollable::new(&mut self.scroll_state).height(Length::Fill).push(
+                Self::build_can_list(&self.is_binary_fmt, &self.can_queue, &mut self.can_prev))
+            )
            .into()
     }
 
