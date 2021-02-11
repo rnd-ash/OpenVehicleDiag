@@ -1,11 +1,15 @@
 pub mod elements;
-
+pub mod images;
 use iced::{button, Color, Button, Text, PickList, pick_list, Container, Element, Radio, ProgressBar};
 use crate::themes::elements::{ButtonStyle, DropDown, PBar};
 use std::{borrow::Cow, todo};
 use std::ops::RangeInclusive;
 
 use self::elements::TextInput;
+
+
+
+
 
 const BUTTON_RADIUS : f32 = 5.0;
 const BUTTON_BORDER_WIDTH: f32 = 1.5;
