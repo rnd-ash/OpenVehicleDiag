@@ -60,7 +60,7 @@ impl JsonDiagSession {
     pub fn new(comm_server: Box<dyn ComServer>, ecu: ISO15765Config, ecu_data: OvdECU) -> SessionResult<Self> {
         match DiagServer::new(comm_server, &ecu, DiagProtocol::KWP2000) {
             Ok(mut server) => {
-                let res = server.run_cmd(DiagService::ReadECUID.into(), &[0x87], 500)?;
+                let res = server.run_cmd(DiagService::ReadECUID.into(), &[0x87])?;
                 let variant = (res[4] as u32) << 8 | (res[5] as u32);
                 let ecu_variant = ecu_data.variants.into_iter().find(|x| {
                     x.clone().patterns.into_iter().any(|p| p.vendor_id == variant)
@@ -254,7 +254,7 @@ impl ServiceRef {
                 args[pos] |= x;
             }
         }
-        server.run_cmd(self.inner.borrow().payload[0], &args, 2000)
+        server.run_cmd(self.inner.borrow().payload[0], &args)
     }
 
     pub fn args_to_string(&self, args: &[u8]) -> String {

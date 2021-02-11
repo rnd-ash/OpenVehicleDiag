@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::File, io::Write, ops::Index, time::Instant, todo};
 
 use J2534Common::FilterType;
-use commapi::{comm_api::ISO15765Config, protocols::{DiagServer, ProtocolServer, kwp2000::KWP2000ECU}};
+use commapi::{comm_api::ISO15765Config, protocols::{DiagServer, ProtocolServer, kwp2000::KWP2000ECU, uds::UDSECU}};
 use iced::{Align, Column, Container, Element, Length, Row, Space};
 
 use crate::{commapi::{self, comm_api::{CanFrame, ComServer}}, themes::{ButtonType, TextType, button_coloured, button_outlined, progress_bar, text, title_text}};
@@ -247,7 +247,7 @@ impl DiagScanner {
                 // Interrogate the ECU with extended diagnostic session
                 match KWP2000ECU::start_diag_session(self.server.clone(), &ecu) {
                     Ok(mut s) => {
-                        if s.run_command(0x1A, &[0x87], 1000).is_ok() { // Compulsory ECU identification command for KWP2000
+                        if s.run_command(0x1A, &[0x87]).is_ok() { // Compulsory ECU identification command for KWP2000
                             // TODO maybe replace the ECU name with the Part number?
                             println!("ECU 0x{:04X} supports KWP2000!", ecu.send_id);
                             ecu_res.kwp_support = true;
@@ -263,11 +263,23 @@ impl DiagScanner {
                 Some(DiagScannerMessage::ScanPoll)
             },
             6 => {
-                // UDS Scan
+                // KWP2000 scan
                 if self.curr_scan_id as usize >= self.stage3_results.len() {
                     return Some(DiagScannerMessage::IncrementStage)
                 }
-                let _ecu = self.stage3_results[self.curr_scan_id as usize];
+                let ecu = self.stage3_results[self.curr_scan_id as usize];
+                // Interrogate the ECU with extended diagnostic session
+                match UDSECU::start_diag_session(self.server.clone(), &ecu) {
+                    Ok(mut s) => {
+                        // TODO find a UDS only CMD to test with
+                        println!("ECU 0x{:04X} supports UDS!", ecu.send_id);
+                        self.stage4_results[self.curr_scan_id as usize].uds_support = true;
+                        s.exit_diag_session();
+                    },
+                    Err(e) => {
+                        println!("UDS server failed! {:?}", e);
+                    }
+                }
                 self.curr_scan_id += 1;
                 Some(DiagScannerMessage::ScanPoll)
             }

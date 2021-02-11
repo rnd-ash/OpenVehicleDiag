@@ -74,7 +74,7 @@ impl SessionTrait for KWP2000DiagSession {
         }
         ui = ui.push(Space::with_height(Length::Fill));
         if let Some(se) = &self.diag_server {
-            ui = ui.push(Row::new().push(text(format!("Current session type: {}", se.get_session_type().to_string()).as_str(), TextType::Normal)));
+            ui = ui.push(Row::new().push(text(format!("Current session type: {:?}", se.get_session_type()).as_str(), TextType::Normal)));
         }
 
         Row::new().spacing(8).padding(8)

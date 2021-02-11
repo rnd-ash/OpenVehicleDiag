@@ -1,10 +1,19 @@
-use std::{borrow::Borrow, cell::RefCell, rc::Rc, sync::{Arc, Mutex, RwLock, atomic::AtomicBool, mpsc::{self, Receiver, Sender, channel}}, time::Instant};
+use std::{sync::{Arc, Mutex, RwLock, atomic::AtomicBool, mpsc::{self, Receiver, Sender}}, time::Instant};
 use std::sync::atomic::Ordering::Relaxed;
 use commapi::comm_api::{ComServer, ISO15765Config, ISO15765Data};
+use read_ecu_identification::read_code_fingerprint;
 
 use crate::{commapi::{self, comm_api::ComServerError}, windows::diag_session::kwp2000_session::{self, KWP2000DiagSession}};
+use self::start_diag_session::DiagSession;
 
 use super::{CautionLevel, CommandError, ECUCommand, DTC, ProtocolError, ProtocolResult, ProtocolServer, Selectable};
+
+pub mod start_diag_session;
+pub mod ecu_reset;
+pub mod clear_diag_information;
+pub mod read_status_dtc;
+pub mod read_ecu_identification;
+
 
 // Developed using Daimler's KWP2000 documentation
 // http://read.pudn.com/downloads554/ebook/2284613/KWP2000_release2_2.pdf
@@ -39,40 +48,6 @@ pub enum Service {
     ControlDTCSettings,
     ResponseOnEvent,
     SupplierCustom(u8),
-}
-
-impl Service {
-    pub fn to_vec() -> Vec<Service> {
-        vec![
-            //Self::StartDiagSession,
-            Self::ECUReset,
-            Self::ClearDiagnosticInformation,
-            Self::ReadDTCStatus,
-            Self::ReadDTCByStatus,
-            Self::ReadECUID,
-            Self::ReadDataByLocalID,
-            Self::ReadDataByID,
-            Self::ReadMemoryByAddress,
-            Self::SecurityAccess,
-            Self::DisableNormalMsgTransmission,
-            Self::EnableNormalMsgTransmission,
-            Self::DynamicallyDefineLocalID,
-            Self::WriteDataByID,
-            Self::IOCTLByLocalID,
-            Self::StartRoutineByLocalID,
-            Self::StopRoutineByLocalID,
-            Self::RequestRoutineResultsByLocalID,
-            Self::RequestDownload,
-            Self::RequestUpload,
-            Self::TransferData,
-            Self::RequestTransferExit,
-            Self::WriteDataByLocalID,
-            Self::WriteMemoryByAddress,
-            //Self::TesterPresent,
-            Self::ControlDTCSettings,
-            Self::ResponseOnEvent,
-        ]
-    }
 }
 
 impl Selectable for Service {
@@ -188,32 +163,37 @@ impl ECUCommand for Service {
             Service::SupplierCustom(_) => CautionLevel::Warn,
         }
     }
-}
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum DiagSession {
-    Normal = 0x81,
-    ECUFlash = 0x85,
-    StandBy = 0x89,
-    ECUPassive = 0x90,
-    ExtendedDiag = 0x92,
-}
-
-impl ToString for DiagSession {
-    fn to_string(&self) -> String {
-        match &self {
-            DiagSession::Normal => "Normal",
-            DiagSession::ECUFlash => "Flash",
-            DiagSession::StandBy => "Standby",
-            DiagSession::ECUPassive => "Passive",
-            DiagSession::ExtendedDiag => "Extended diagnostics"
-        }.into()
-    }
-}
-
-impl DiagSession {
-    pub (crate) fn send_tester_present(&self) -> bool {
-        self != &DiagSession::Normal
+    fn get_cmd_list() -> Vec<Self> {
+        vec![
+            //Self::StartDiagSession,
+            Self::ECUReset,
+            Self::ClearDiagnosticInformation,
+            Self::ReadDTCStatus,
+            Self::ReadDTCByStatus,
+            Self::ReadECUID,
+            Self::ReadDataByLocalID,
+            Self::ReadDataByID,
+            Self::ReadMemoryByAddress,
+            Self::SecurityAccess,
+            Self::DisableNormalMsgTransmission,
+            Self::EnableNormalMsgTransmission,
+            Self::DynamicallyDefineLocalID,
+            Self::WriteDataByID,
+            Self::IOCTLByLocalID,
+            Self::StartRoutineByLocalID,
+            Self::StopRoutineByLocalID,
+            Self::RequestRoutineResultsByLocalID,
+            Self::RequestDownload,
+            Self::RequestUpload,
+            Self::TransferData,
+            Self::RequestTransferExit,
+            Self::WriteDataByLocalID,
+            Self::WriteMemoryByAddress,
+            //Self::TesterPresent,
+            Self::ControlDTCSettings,
+            Self::ResponseOnEvent,
+        ]
     }
 }
 
@@ -371,27 +351,35 @@ impl std::default::Default for ECUIdentification {
     }
 }
 
-fn bcd_decode(input: u8) -> String {
+fn bcd_decode(input: &u8) -> String {
     let low = input & 0x0F;
     let high = (input & 0xF0) >> 4;
-    return format!("{}{}", low, high);
+    return format!("{}{}", high, low);
+}
+
+fn bcd_decode_slice(input: &[u8]) -> String {
+    let mut res = String::new();
+    for x in input {
+        res.push_str(bcd_decode(x).as_str())
+    }
+    res
 }
 
 impl KWP2000ECU {
 
     pub fn clear_errors(&self) -> std::result::Result<(), ProtocolError> {
-        self.run_command(Service::ClearDiagnosticInformation.into(), &[0xFF, 0x00], 1000)?;
+        self.run_command(Service::ClearDiagnosticInformation.into(), &[0xFF, 0x00])?;
         Ok(())
     }
 
     fn set_diag_session_mode(&mut self, mode: DiagSession) -> std::result::Result<(), ProtocolError> {
-        match self.run_command(Service::StartDiagSession.into(), &[mode as u8], 1000) {
+        match start_diag_session::set_diag_session(&self, mode) {
             Ok(_) => {
                 *self.curr_session_type.write().unwrap() = mode; // Switch diagnostic modes!
                 Ok(())
             },
             Err(e) => {
-                *self.curr_session_type.write().unwrap() = DiagSession::Normal; // Assume normal if something happens
+                *self.curr_session_type.write().unwrap() = DiagSession::Default; // Assume normal if something happens
                 Err(e)
             }
         }
@@ -420,7 +408,7 @@ impl ProtocolServer for KWP2000ECU {
         let (channel_tx_sender, channel_tx_receiver): (Sender<(u8, Vec<u8>, bool)>, Receiver<(u8, Vec<u8>, bool)>) = mpsc::channel();
         let (channel_rx_sender, channel_rx_receiver): (Sender<ProtocolResult<Vec<u8>>>, Receiver<ProtocolResult<Vec<u8>>>) = mpsc::channel();
 
-        let session_type = Arc::new(RwLock::new(DiagSession::Normal));
+        let session_type = Arc::new(RwLock::new(DiagSession::Default));
         let session_type_t = session_type.clone();
 
         // Enter extended diagnostic session (Full features)
@@ -436,9 +424,9 @@ impl ProtocolServer for KWP2000ECU {
                         break
                     }
                 }
-                if timer.elapsed().as_millis() >= 2000 && session_type_t.read().unwrap().send_tester_present() {
-                    if let Ok(res) = Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], true) {
-                        println!("Tester present resp: {:02X?}", res);
+                if timer.elapsed().as_millis() >= 2000 && *session_type_t.read().unwrap() != DiagSession::Default {
+                    if Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], true).is_err() {
+                        println!("Lost connection with ECU!");
                     }
                     timer = Instant::now();
                 }
@@ -459,10 +447,16 @@ impl ProtocolServer for KWP2000ECU {
             cmd_mutex: Arc::new(Mutex::new(()))
         };
 
-        if let Err(e) = ecu.set_diag_session_mode(DiagSession::ExtendedDiag) {
+        if let Err(e) = ecu.set_diag_session_mode(DiagSession::Extended) {
             ecu.should_run.store(false, Relaxed);
             return Err(e)
         }
+
+        match read_ecu_identification::read_data_fingerprint(&ecu) {
+            Ok(res) => println!("{:#?}", res),
+            Err(e) => println!("{}", e.get_text())
+        }
+
         Ok(ecu)
     }
 
@@ -470,7 +464,7 @@ impl ProtocolServer for KWP2000ECU {
         self.should_run.store(false, Relaxed);
     }
 
-    fn run_command(&self, cmd: u8, args: &[u8], _max_timeout_ms: u128) -> ProtocolResult<Vec<u8>> {
+    fn run_command(&self, cmd: u8, args: &[u8]) -> ProtocolResult<Vec<u8>> {
         let _guard = self.cmd_mutex.lock().unwrap(); // We are allowed to send / receive!
         if self.cmd_tx.send((cmd, Vec::from(args), true)).is_err() {
             return Err(ProtocolError::CustomError("Channel Tx failed".into()))
@@ -487,9 +481,8 @@ impl ProtocolServer for KWP2000ECU {
     fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
         // 0x02 - Request Hex DTCs as 2 bytes
         // 0xFF00 - Request all DTCs (Mandatory per KWP2000)
-        let mut bytes = self.run_command(Service::ReadDTCByStatus.into(), &[0x02, 0xFF, 0x00], 500)?;
+        let mut bytes = self.run_command(Service::ReadDTCByStatus.into(), &[0x02, 0xFF, 0x00])?;
         bytes.drain(..1);
-        println!("{:02X?}", bytes);
         let count = bytes[0] as usize;
         bytes.drain(0..1);
 
@@ -497,7 +490,6 @@ impl ProtocolServer for KWP2000ECU {
         for _ in 0..count {
             let name = format!("{:02X}{:02X}", bytes[0], bytes[1]);
             let status = bytes[2];
-            println!("{:08b}", status);
             let flag = (status >> 4 & 0b00000001) > 0;
             let storage_state = (status >> 6) & 0b0000011;
             let mil = (status >> 7 & 0b00000001) > 0;
