@@ -1,10 +1,18 @@
 [package]
 name = "openvehiclediag"
 version = "0.5.0"
+description = "pen Vehicle Diagnostics (OVD) is a Rust-based open source vehicle ECU diagnostic platform."
+edition = "2018"
+[package.metadata.bundle]
+version = "0.5.0"
 authors = ["ashcon"]
 edition = "2018"
+description = """
+Open Vehicle Diagnostics (OVD) is a Rust-based open source vehicle ECU diagnostic platform that makes use of the J2534-2 protocol.
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+The idea is to make diagnosing and exploring your cars diagnostics functions possible, via an API, thus allowing the ability for you to reprogram ECU’s without the need for a special dealer-only tool.
+"""
+
 
 [dependencies]
 iced = { version = "0.2.0", features = ["tokio", "image", "canvas"] }
