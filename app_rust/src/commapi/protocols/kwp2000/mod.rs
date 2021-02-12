@@ -352,9 +352,7 @@ impl std::default::Default for ECUIdentification {
 }
 
 fn bcd_decode(input: &u8) -> String {
-    let low = input & 0x0F;
-    let high = (input & 0xF0) >> 4;
-    return format!("{}{}", high, low);
+    format!("{}{}", input & 0x0F, (input & 0xF0) >> 4)
 }
 
 fn bcd_decode_slice(input: &[u8]) -> String {
@@ -451,12 +449,6 @@ impl ProtocolServer for KWP2000ECU {
             ecu.should_run.store(false, Relaxed);
             return Err(e)
         }
-
-        match read_ecu_identification::read_data_fingerprint(&ecu) {
-            Ok(res) => println!("{:#?}", res),
-            Err(e) => println!("{}", e.get_text())
-        }
-
         Ok(ecu)
     }
 

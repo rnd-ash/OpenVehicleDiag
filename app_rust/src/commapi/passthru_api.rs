@@ -288,7 +288,10 @@ impl ComServer for PassthruApi {
             READ_VBATT,
             std::ptr::null_mut(),
             (&mut output) as *mut _ as *mut c_void
-        ).map(|_| { output as f32 / 1000.0 }).map_err(|e| self.convert_error(e))
+        ).map(|_| { output as f32 / 1000.0 }).map_err(|e| {
+            eprintln!("Error reading battery voltage");
+            self.convert_error(e)
+        })
     }
 
     fn clone_box(&self) -> Box<dyn ComServer> {

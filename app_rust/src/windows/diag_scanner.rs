@@ -65,11 +65,19 @@ impl DiagScanner {
                 } else { // Opening interface was OK
                     match self.server.add_can_filter(commapi::comm_api::FilterType::Pass, 0x0000, 0x0000) {
                         Ok(f_idx) => {
-                            self.filter_idx = f_idx;
-                            self.curr_stage += 1; // We can progress to the next stage!
-                            self.can_traffic_id_list.clear();
-                            self.clock = Instant::now(); // Begin polling clock
-                            return Some(DiagScannerMessage::ScanPoll) // Begin the polling!
+                            // Send the OBD-II get VIN request via CAN. This should wake up the OBD-II port's CAN Iface
+                            // on most cars
+                            if self.server.send_can_packets(&[CanFrame::new(0x07DF, &[0x09, 0x02])], 0).is_err() {
+                                self.status = "Could not send wake up test packet".into();
+                                self.server.close_can_interface().expect("What a terrible failure. Closing CAN Iface failed!?");
+                            } else {
+                                std::thread::sleep(std::time::Duration::from_millis(500));
+                                self.filter_idx = f_idx;
+                                self.curr_stage += 1; // We can progress to the next stage!
+                                self.can_traffic_id_list.clear();
+                                self.clock = Instant::now(); // Begin polling clock
+                                return Some(DiagScannerMessage::ScanPoll) // Begin the polling!
+                            }
                         },
                         Err(e) => {
                             // STOP THE CAN INTERFACE
@@ -83,7 +91,7 @@ impl DiagScanner {
                 // Accumulate scan results here
                 self.can_traffic_id_list.insert(0x07DF, false); // Add OBD-II CAN ID so we don't scan that
                 self.curr_stage += 1; // We can progress to the next stage!
-                self.curr_scan_id = 0x0000; // REMOVE FOR PRODUCTION
+                self.curr_scan_id = 0x0000; // Set start ID to 0
                 self.server.clear_can_rx_buffer();
                 return Some(DiagScannerMessage::ScanPoll) // Begin the CAN interrogation (Stage 1)
             }

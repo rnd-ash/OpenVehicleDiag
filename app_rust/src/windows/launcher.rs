@@ -1,3 +1,5 @@
+use std::process::Command;
+
 use crate::{passthru::{PassthruDevice, PassthruDrv}, themes::images::{LAUNCHER_IMG, pix_to_iced_image}};
 use iced::{pick_list, button, Text, Row, Element, Align, Column, Length, Image};
 use crate::commapi::comm_api::{ComServerError, ComServer};
@@ -17,6 +19,12 @@ pub struct Launcher {
 
     device_names_dpdu: Vec<String>,
     selected_device_dpdu: String,
+
+    #[cfg(target_os = "linux")]
+    device_names_socketcan: Vec<String>,
+    #[cfg(target_os = "linux")]
+    selected_device_socketcan: String,
+
     api_selection: API,
 
     launch_state: button::State,
@@ -28,7 +36,8 @@ pub struct Launcher {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum API {
     DPdu,
-    Passthru
+    Passthru,
+    SocketCAN
 }
 
 
@@ -57,10 +66,18 @@ impl Launcher {
 
         Self {
             device_list_passthru: passthru_devices,
+            
             device_names_passthru: passthru_device_names,
             selected_device_passthru: selected_passthru_device,
+            
             device_names_dpdu: vec![],
             selected_device_dpdu: "".to_string(),
+
+            #[cfg(target_os = "linux")]
+            device_names_socketcan:  Self::find_devices_socketcan(),
+            #[cfg(target_os = "linux")]
+            selected_device_socketcan: "".to_string(),
+
             selection: pick_list::State::default(),
             api_selection: API::Passthru,
             launch_state: button::State::default(),
@@ -74,8 +91,13 @@ impl Launcher {
             LauncherMessage::DeviceSelected(d) => {
                 if self.api_selection == API::Passthru {
                     self.selected_device_passthru = d.clone()
-                } else {
+                } else if self.api_selection == API::DPdu {
                     self.selected_device_dpdu = d.clone()
+                } else {
+                    #[cfg(target_os = "linux")]
+                    {
+                        self.selected_device_socketcan = d.clone()
+                    }
                 }
             }
             LauncherMessage::LaunchRequested => {
@@ -94,8 +116,13 @@ impl Launcher {
                             self.status_text = x.to_string()
                         }
                     }
-                } else {
+                } else if self.api_selection == API::DPdu {
                     // TODO D-PDU Launching
+                } else if self.api_selection == API::SocketCAN {
+                    #[cfg(target_os = "linux")]
+                    {
+                        // TODO SocketCAN Launching
+                    }
                 }
             }
         }
@@ -103,7 +130,7 @@ impl Launcher {
     }
 
     pub fn view(&mut self) -> Element<LauncherMessage> {
-        let selection = Row::new()
+        let mut selection = Row::new()
             .push(Text::new("API:"))
             .push(radio_btn(
                 API::DPdu,
@@ -123,12 +150,43 @@ impl Launcher {
             .spacing(10)
             .align_items(Align::Center);
 
-        let contents = if self.api_selection == API::DPdu {
+            #[cfg(target_os = "linux")] // Only available on Linux
+            {
+                selection = selection.push(radio_btn(
+                    API::SocketCAN,
+                    "Socket CAN",
+                    Some(self.api_selection),
+                    LauncherMessage::SwitchAPI,
+                    ButtonType::Primary
+                ));
+            }
+
+        let mut contents = if self.api_selection == API::DPdu {
             Column::new()
                 .push(pix_to_iced_image(LAUNCHER_IMG).width(Length::Units(300)).height(Length::Units(300)))
                 .push(selection)
                 .push(Text::new("D-PDU API is unimplemented, check back in a future release!"))
                 .spacing(10)
+        } else if self.api_selection == API::SocketCAN {
+            let mut c = Column::new()
+            .push(pix_to_iced_image(LAUNCHER_IMG).width(Length::Units(300)).height(Length::Units(300)))
+            .push(selection).spacing(10);
+            #[cfg(target_os = "linux")]
+            {   
+                if self.device_names_socketcan.is_empty() {
+                    c = c.push(text("No SocketCAN interfaces found on this system", TextType::Normal))
+                } else {
+                    c = c.push(Text::new("Select SocketCAN Interface"))
+                    .push(picklist(
+                        &mut self.selection,
+                        &self.device_names_socketcan,
+                        Some(self.selected_device_socketcan.clone()),
+                        LauncherMessage::DeviceSelected))
+                    .push(button_coloured(&mut self.launch_state, "Socket CAN launching not supported yet", ButtonType::Primary))//.on_press(LaunchRequested))
+                    .push(Text::new(&self.status_text));
+                }
+            }
+            c
         } else {
             let mut c = Column::new()
                 .push(Image::new("img/logo.png").width(Length::Units(300)).height(Length::Units(300)))
@@ -152,6 +210,7 @@ impl Launcher {
             }
             c.align_items(Align::Center)
         };
+        contents = contents.align_items(Align::Center);
         container(contents).center_x().width(Length::Fill).height(Length::Fill).into()
     }
 
@@ -170,5 +229,27 @@ impl Launcher {
                 err_desc: "Located device is not valid??".to_string()
             }))
         }
+    }
+
+    fn get_device_socketcan(&self) -> Result<String> {
+        todo!()
+    }
+
+    fn find_devices_socketcan() -> Vec<String> {
+        let cmd = Command::new("ip")
+            .arg("-o")
+            .arg("link")
+            .arg("show")
+            .output().map(|x| String::from_utf8(x.stdout).unwrap()).unwrap_or_default();
+        if cmd.is_empty() {
+            return Vec::new()
+        }
+        // Parse result
+        cmd.split('\n').filter(|x| !x.is_empty()).map(|x| {
+            let parts: Vec<_> = x.split(' ').collect();
+            let mut name = parts[1].to_string();
+            name.remove(parts[1].len()-1); // Remove the last ':'
+            name
+        }).filter(|s| s.contains("can")).collect()
     }
 }
