@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use crate::commapi;
 use commapi::comm_api::ComServer;
 use crate::commapi::comm_api::{ISO15765Data, CanFrame, FilterType, ComServerError, DeviceCapabilities};
@@ -5,18 +7,34 @@ use crate::commapi::comm_api::{ISO15765Data, CanFrame, FilterType, ComServerErro
 use super::comm_api::Capability;
 
 #[derive(Debug, Copy, Clone)]
+pub enum SocketCanIfaceError {
+
+}
+
+#[derive(Debug, Clone)]
 pub struct SocketCanAPI {
+    iface: String,
+    sockcan_iface: Arc<RwLock<Option<socketcan::CANSocket>>>,
     // TODO SocketCAN
+}
+
+impl SocketCanAPI {
+    pub fn new(iface: String) -> Self {
+        Self {
+            iface,
+            sockcan_iface: Arc::new(RwLock::new(None))
+        }
+    }
 }
 
 #[allow(unused_variables)]
 impl ComServer for SocketCanAPI {
     fn open_device(&mut self) -> Result<(), ComServerError> {
-        unimplemented!()
+        Ok(()) // Device isn't opened in SocketCAN, just the interfaces
     }
 
     fn close_device(&mut self) -> Result<(), ComServerError> {
-        unimplemented!()
+        Ok(())
     }
 
     fn send_can_packets(&self, data: &[CanFrame], timeout_ms: u32) -> Result<usize, ComServerError> {
@@ -36,19 +54,19 @@ impl ComServer for SocketCanAPI {
     }
 
     fn open_can_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError> {
-        unimplemented!()
+        Ok(())
     }
 
     fn close_can_interface(&mut self) -> Result<(), ComServerError> {
-        unimplemented!()
+        Ok(())
     }
 
     fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError> {
-        unimplemented!()
+        Ok(())
     }
 
     fn close_iso15765_interface(&mut self) -> Result<(), ComServerError> {
-        unimplemented!()
+       Ok(())
     }
 
     fn add_can_filter(&self, filter: FilterType, id: u32, mask: u32) -> Result<u32, ComServerError> {
@@ -89,16 +107,22 @@ impl ComServer for SocketCanAPI {
 
     fn read_battery_voltage(&self) -> Result<f32, ComServerError> {
         // Socket CAN cannot measure battery voltage, so return 12.0 just to keep OVD happy
-        Ok(12.0)
+        Err(ComServerError {
+            err_code: 0,
+            err_desc: "Battery reading not supported via SocketCAN".into(),
+
+        })
     }
 
     fn clone_box(&self) -> Box<dyn ComServer> {
-        unimplemented!()
+        Box::new(
+            self.clone()
+        )
     }
 
     fn get_capabilities(&self) -> DeviceCapabilities {
         DeviceCapabilities {
-            name: "Socket CAN".into(),
+            name: self.iface.clone(),
             vendor: "Unknown".into(),
             library_path: "N/A".into(),
             device_fw_version: "N/A".into(),
