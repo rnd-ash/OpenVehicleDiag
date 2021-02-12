@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use crate::{passthru::{PassthruDevice, PassthruDrv}, themes::images::{LAUNCHER_IMG, pix_to_iced_image}};
+use crate::{commapi::socket_can_api::SocketCanAPI, passthru::{PassthruDevice, PassthruDrv}, themes::images::{LAUNCHER_IMG, pix_to_iced_image}};
 use iced::{pick_list, button, Text, Row, Element, Align, Column, Length, Image};
 use crate::commapi::comm_api::{ComServerError, ComServer};
 use crate::commapi::passthru_api::PassthruApi;
@@ -121,7 +121,13 @@ impl Launcher {
                 } else if self.api_selection == API::SocketCAN {
                     #[cfg(target_os = "linux")]
                     {
-                        // TODO SocketCAN Launching
+                        let mut server = SocketCanAPI::new(self.selected_device_socketcan.clone());
+                        if let Err(e) = server.open_device() {
+                            self.status_text = e.to_string()
+                        } else {
+                            // Ready to launch OVD!
+                            return Some(WindowMessage::StartApp(server.clone_box()))
+                        }
                     }
                 }
             }
@@ -182,7 +188,7 @@ impl Launcher {
                         &self.device_names_socketcan,
                         Some(self.selected_device_socketcan.clone()),
                         LauncherMessage::DeviceSelected))
-                    .push(button_coloured(&mut self.launch_state, "Socket CAN launching not supported yet", ButtonType::Primary))//.on_press(LaunchRequested))
+                    .push(button_coloured(&mut self.launch_state, "Launch OVD", ButtonType::Primary).on_press(LaunchRequested))
                     .push(Text::new(&self.status_text));
                 }
             }
@@ -205,7 +211,7 @@ impl Launcher {
                         LauncherMessage::DeviceSelected))
                     //.push(Button::new(&mut self.launch_state, Text::new("Launch OVD!"))
                     //    .on_press(LaunchRequested).style(MaterialButtonOutline)
-                    .push(button_coloured(&mut self.launch_state, "Launch OVD!", ButtonType::Primary).on_press(LaunchRequested))
+                    .push(button_coloured(&mut self.launch_state, "Launch OVD", ButtonType::Primary).on_press(LaunchRequested))
                     .push(Text::new(&self.status_text));
             }
             c.align_items(Align::Center)
@@ -229,10 +235,6 @@ impl Launcher {
                 err_desc: "Located device is not valid??".to_string()
             }))
         }
-    }
-
-    fn get_device_socketcan(&self) -> Result<String> {
-        todo!()
     }
 
     fn find_devices_socketcan() -> Vec<String> {
