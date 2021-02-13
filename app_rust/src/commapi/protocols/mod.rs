@@ -168,6 +168,7 @@ pub trait ProtocolServer: Sized {
             id: send_id,
             data: vec![cmd],
             pad_frame: false,
+            ext_addressing: true,
         };
         data.data.extend_from_slice(args);
         if !receive_require {

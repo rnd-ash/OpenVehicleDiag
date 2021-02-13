@@ -1,6 +1,6 @@
-use iced::Subscription;
+use iced::{Column, Subscription};
 
-use crate::{commapi::comm_api::{ComServer, ISO15765Config}, windows::diag_manual::DiagManualMessage};
+use crate::{commapi::comm_api::{ComServer, ISO15765Config}, themes::{TitleSize, title_text}, windows::diag_manual::DiagManualMessage};
 
 use super::{DiagMessageTrait, SessionError, SessionMsg, SessionResult, SessionTrait};
 
@@ -24,11 +24,11 @@ pub struct UDSDiagSession {
 
 impl UDSDiagSession {
     pub fn new(comm_server: Box<dyn ComServer>, ecu: ISO15765Config) -> SessionResult<Self> {
-        Err(SessionError::Other("UDS Session is not yet implemented".into()))
-        //Ok(Self {
-        //    ecu,
-        //    server: comm_server
-        //})
+        //Err(SessionError::Other("UDS Session is not yet implemented".into()))
+        Ok(Self {
+            ecu,
+            server: comm_server
+        })
     }
 }
 

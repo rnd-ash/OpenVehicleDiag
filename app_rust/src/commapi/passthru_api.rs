@@ -1,4 +1,4 @@
-use crate::passthru::{PassthruDevice, PassthruDrv, DrvVersion};
+use crate::passthru::{self, DrvVersion, PassthruDevice, PassthruDrv};
 use crate::commapi::comm_api::{ComServer, ISO15765Data, FilterType, CanFrame, ComServerError, DeviceCapabilities, Capability};
 use J2534Common::{PassthruError, PASSTHRU_MSG, Protocol, IoctlID, SConfig, IoctlParam, SConfigList, ConnectFlags, TxFlag, Loggable};
 use J2534Common::IoctlID::READ_VBATT;
@@ -126,14 +126,17 @@ impl ComServer for PassthruApi {
         Ok(())
     }
 
-    fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError> {
+    fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool, ext_addressing: bool) -> Result<(), ComServerError> {
         if self.iso15765_channel_idx.read().unwrap().is_some() {
-            // Already open, close first, maybe going from non ext to ext can
+            // Already open, close first, maybe we are changing modes?
             self.close_iso15765_interface()?;
         }
         let mut flags: u32 = 0;
         if is_ext_can {
             flags |= ConnectFlags::CAN_29BIT_ID as u32;
+        }
+        if ext_addressing {
+            flags |= ConnectFlags::ISO15765_ADDR_TYPE as u32;
         }
         let channel_id = self.driver.lock().unwrap().connect(*self.device_idx.read().unwrap(), Protocol::ISO15765, flags, bus_speed).map_err(|e| self.convert_error(e))?;
         *self.iso15765_channel_idx.write().unwrap() = Some(channel_id);
@@ -289,7 +292,6 @@ impl ComServer for PassthruApi {
             std::ptr::null_mut(),
             (&mut output) as *mut _ as *mut c_void
         ).map(|_| { output as f32 / 1000.0 }).map_err(|e| {
-            eprintln!("Error reading battery voltage");
             self.convert_error(e)
         })
     }
@@ -331,7 +333,8 @@ impl ComServer for PassthruApi {
             iso15765: Capability::from_bool(self.device.iso15765),
             iso9141: Capability::from_bool(self.device.iso9141),
             iso14230: Capability::from_bool(self.device.iso14230),
-            ip: Capability::NA
+            ip: Capability::NA,
+            battery_voltage: Capability::Yes
         };
         *self.caps.write().unwrap() = Some(caps.clone());
         caps
@@ -390,7 +393,8 @@ impl PassthruApi {
             ISO15765Data {
                 id: PassthruApi::msg_id_to_u32(msg),
                 data: Vec::from(&msg.data[4..msg.data_size as usize]),
-                pad_frame: false
+                pad_frame: false,
+                ext_addressing: msg.tx_flags & J2534Common::TxFlag::ISO15765_ADDR_TYPE.bits() > 0
             }
         )
     }
@@ -404,7 +408,10 @@ impl PassthruApi {
         PassthruApi::u32_to_msg_id(d.id, &mut msg);
         msg.data[4..msg.data_size as usize].copy_from_slice(d.data.as_slice());
         if d.pad_frame {
-            msg.tx_flags = TxFlag::ISO15765_FRAME_PAD.bits();
+            msg.tx_flags |= TxFlag::ISO15765_FRAME_PAD.bits();
+        }
+        if d.ext_addressing {
+            msg.tx_flags |= TxFlag::ISO15765_ADDR_TYPE.bits();
         }
         msg
     }

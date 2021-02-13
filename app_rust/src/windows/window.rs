@@ -1,6 +1,6 @@
 use std::fmt::{Debug};
 use iced::{Align, Application, Column, Command, Container, Element, Length, Row, Rule, Space, Subscription, Text, button, executor, time};
-use crate::{commapi::comm_api::{ComServer, ComServerError}, themes};
+use crate::{commapi::comm_api::{Capability, ComServer, ComServerError}, themes};
 use crate::windows::launcher::{Launcher, LauncherMessage};
 use crate::windows::home::{Home, HomeMessage};
 use std::time::Instant;
@@ -125,6 +125,7 @@ pub struct MainWindow {
     state: WindowState,
     server: Option<Box<dyn ComServer>>,
     voltage: f32,
+    poll_voltage: bool,
     back_btn_state: button::State,
     theme_toggle: button::State,
 }
@@ -140,6 +141,7 @@ impl Application for MainWindow {
             state: WindowState::Launcher(Launcher::new()),
             server: None,
             voltage: 0.0,
+            poll_voltage: false,
             back_btn_state: button::State::default(),
             theme_toggle: button::State::default()
         }, Command::none())
@@ -185,11 +187,12 @@ impl Application for MainWindow {
     fn subscription(&self) -> Subscription<Self::Message> {
         if let WindowState::Launcher { .. } = self.state {
             Subscription::none()
-        } else {
-            // Ask for battery every 2 seconds
+        } else {    
+            // Ask for battery every 2 seconds (If supported)
             let mut batch: Vec<Subscription<WindowMessage>> = vec![];
-
-            batch.push(time::every(std::time::Duration::from_secs(2)).map(WindowMessage::StatusUpdate));
+            if self.poll_voltage {
+                batch.push(time::every(std::time::Duration::from_secs(2)).map(WindowMessage::StatusUpdate));
+            }
             // See if either other pages request update
             if let WindowState::CanTracer(tracer) = &self.state {
                 batch.push(tracer.subscription().map(WindowMessage::CanTracer))
@@ -212,12 +215,16 @@ impl Application for MainWindow {
                 false => text("Disconnected", TextType::Danger),
             };
 
-            let v = if self.voltage < 12.0 && self.voltage > 11.5 {
-                text(format!("{}V", self.voltage).as_str(), TextType::Warning)
-            } else if self.voltage < 11.5 {
-                text(format!("{}V", self.voltage).as_str(), TextType::Danger)
+            let v = if self.poll_voltage {
+                if self.voltage < 12.0 && self.voltage > 11.5 {
+                    text(format!("{}V", self.voltage).as_str(), TextType::Warning)
+                } else if self.voltage < 11.5 {
+                    text(format!("{}V", self.voltage).as_str(), TextType::Danger)
+                } else {
+                    text(format!("{}V", self.voltage).as_str(), TextType::Success)
+                }
             } else {
-                text(format!("{}V", self.voltage).as_str(), TextType::Success)
+                text("Not supported", TextType::Disabled)
             };
             let page_name = &self.state.get_name();
             let view_contents = Container::new(self.state.view()).height(Length::Units(768-50)).width(Length::Fill);
@@ -274,7 +281,12 @@ impl MainWindow {
             match state {
                 WindowMessage::StartApp(srv) => {
                     self.server = Some(srv.clone_box());
-                    self.voltage = self.server.as_ref().unwrap().read_battery_voltage().unwrap_or(0.0);
+                    self.poll_voltage = srv.get_capabilities().battery_voltage == Capability::Yes;
+                    if self.poll_voltage {
+                        self.voltage = self.server.as_ref().unwrap().read_battery_voltage().unwrap_or(0.0);
+                    } else {
+                        self.voltage = 12.0; // This is to allow scans which measure battery to occur
+                    }
                     self.state = WindowState::Home(Home::new(srv));
                     Command::none()
                 },

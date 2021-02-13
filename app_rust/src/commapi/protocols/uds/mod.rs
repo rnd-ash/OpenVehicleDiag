@@ -416,7 +416,7 @@ impl ProtocolServer for UDSECU {
     type Command = UDSCommand;
     type Error = UDSNegativeCode;
     fn start_diag_session(mut comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self> {
-        comm_server.open_iso15765_interface(500_000, false).map_err(ProtocolError::CommError)?;
+        comm_server.open_iso15765_interface(500_000, false, false).map_err(ProtocolError::CommError)?;
         comm_server.configure_iso15765(cfg).map_err(ProtocolError::CommError)?;
 
         let should_run = Arc::new(AtomicBool::new(true));
@@ -512,6 +512,7 @@ impl ProtocolServer for UDSECU {
             id: send_id,
             data: vec![cmd],
             pad_frame: false,
+            ext_addressing: false,
         };
         data.data.extend_from_slice(args);
         if !receive_require {

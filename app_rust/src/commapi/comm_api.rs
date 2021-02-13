@@ -26,6 +26,28 @@ impl CanFrame {
         }
     }
 }
+
+impl From<CanFrame> for socketcan::CANFrame {
+    fn from(s: CanFrame) -> Self {
+        Self::new(s.id, s.get_data(), false, false).unwrap()
+    }
+}
+
+impl From<socketcan::CANFrame> for CanFrame {
+    fn from(s: socketcan::CANFrame) -> Self {
+        let data = s.data();
+        let mut res = Self {
+            id: s.id(),
+            dlc: data.len() as u8,
+            data: [0,0,0,0,0,0,0,0],
+        };
+        for x in 0..data.len() {
+            res.data[x] = data[x];
+        }
+        res
+    }
+}
+
 unsafe impl Send for CanFrame{}
 unsafe impl Sync for CanFrame{}
 
@@ -41,7 +63,8 @@ impl std::fmt::Display for CanFrame {
 pub struct ISO15765Data {
     pub(crate) id: u32,
     pub(crate) data: Vec<u8>,
-    pub(crate) pad_frame: bool
+    pub(crate) pad_frame: bool,
+    pub(crate) ext_addressing: bool,
 }
 
 impl std::fmt::Display for ISO15765Data {
@@ -119,6 +142,8 @@ pub struct DeviceCapabilities {
     pub (crate) iso14230: Capability,
     /// Supports Ethernet DoIP
     pub (crate) ip: Capability,
+    /// Supports reading the battery voltage
+    pub (crate) battery_voltage: Capability
 }
 
 impl DeviceCapabilities {
@@ -220,8 +245,10 @@ pub trait ComServer : Send + Sync + Debug {
     ///
     /// ## Params
     /// * `bus_speed` - Speed of the vehicle Canbus in bps, typically for an OBD-II port it is 500000
-    /// * `is_ext_can` - Tells the adapter to use extended CAN Addressing
-    fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError>;
+    /// * `is_ext_can` - Tells the adapter to use extended CAN Addressing (29bit CAN ID)
+    /// * `ext_addressing` - Tells the adapter to use extended ISO-TP addressing, where first byte of CAN Frame
+    /// is actually still part of the CAN ID rather than ISO-TP PCI
+    fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool, ext_addressing: bool) -> Result<(), ComServerError>;
 
     /// Attempts to destroy the ISO-TP Interface on the adapter
     fn close_iso15765_interface(&mut self) -> Result<(), ComServerError>;
