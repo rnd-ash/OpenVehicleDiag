@@ -41,7 +41,7 @@ impl ComServer for DpduAPI {
         unimplemented!()
     }
 
-    fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError> {
+    fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool, ext_addressing: bool) -> Result<(), ComServerError> {
         unimplemented!()
     }
 

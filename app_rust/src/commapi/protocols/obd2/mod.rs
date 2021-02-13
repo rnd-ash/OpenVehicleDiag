@@ -5,12 +5,13 @@ use crate::commapi::protocols::vin::Vin;
 pub type Result<T> = std::result::Result<T, OBDProcessError>;
 
 fn read_write_payload_isotp(server: &mut Box<dyn ComServer>, payload: &OBDRequest) -> Result<Vec<u8>> {
-    server.open_iso15765_interface(500_000, false).map_err(|e| OBDProcessError::CommError(e))?;
+    server.open_iso15765_interface(500_000, false, false).map_err(|e| OBDProcessError::CommError(e))?;
     // Guess to use something appropriate for block size and sep time
     let send_data = ISO15765Data {
         id: 0x07DF, // Global request ID for OBD-II over CAN
         data: payload.to_vec(),
-        pad_frame: false
+        pad_frame: false,
+        ext_addressing: false,
     };
 
     let cfg = ISO15765Config {

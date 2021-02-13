@@ -66,7 +66,6 @@ impl JsonDiagSession {
                     x.clone().patterns.into_iter().any(|p| p.vendor_id == variant)
                 });
 
-
                 if let Some(v) = ecu_variant {
                     let pattern = v.clone().patterns.into_iter().find(|x| x.vendor_id == variant).unwrap();
                     println!("ECU Variant: {} (Vendor: {})", v.name, pattern.vendor);

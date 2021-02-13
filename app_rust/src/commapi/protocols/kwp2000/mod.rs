@@ -394,7 +394,7 @@ impl ProtocolServer for KWP2000ECU {
     type Command = Service;
     type Error = NegativeResponse;
     fn start_diag_session(mut comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self> {
-        comm_server.open_iso15765_interface(500_000, false).map_err(ProtocolError::CommError)?;
+        comm_server.open_iso15765_interface(500_000, false, false).map_err(ProtocolError::CommError)?;
         comm_server.configure_iso15765(cfg).map_err(ProtocolError::CommError)?;
 
         let should_run = Arc::new(AtomicBool::new(true));
