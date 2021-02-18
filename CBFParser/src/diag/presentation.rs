@@ -137,9 +137,7 @@ impl Presentation {
                     return 17
                 } else if self.unk1b == 7 {
                     return 22
-                } else if self.unk1b == 8 {
-                    res = 6
-                } else if self.unk1b == 5 {
+                } else if self.unk1b == 8 || self.unk1b == 5 {
                     res = 6
                 }
             } else {
@@ -157,8 +155,11 @@ impl Presentation {
     }
 
     pub fn create(&self, prep: &Preparation) -> Option<DataFormat> {
-        let is_enum = (self.enumtype_1e == 0 && self.type_1c == 1) || self.scale_count > 1;
-        if prep.size_in_bits == 1 || (is_enum && self.scale_count == 2) {
+        let is_enum = (self.enumtype_1e == 0 && self.type_1c == 1) || self.scale_list.len() > 1;
+        if prep.size_in_bits == 1 || (is_enum && self.scale_list.len() == 2) {
+            if self.scale_list.is_empty() { // If there is no enums in an enum value, assume true/false
+                return Some(DataFormat::Bool { pos_name: None, neg_name: None })
+            }
             if is_enum {
                 return Some(DataFormat::Bool { pos_name: self.scale_list[1].enum_description.clone(), neg_name: self.scale_list[0].enum_description.clone() })
             } else {
