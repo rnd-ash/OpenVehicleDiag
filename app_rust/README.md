@@ -13,12 +13,14 @@
 
 ## Diagnostic adapter API Support
 * SAE J2534 (Passthru)
+* SocketCAN - Linux only
 
 ## Platform support
 | OS      | Adapter support | Note |
 |---------|-----------------|------|
 | Windows | ALL J2534       |      |
 | Linux   | Macchina only   | Use Macchina M2 and [this](github.com/rnd-ash/MacchinaM2-J2534-Rust) driver |
+| Linux   | SocketCAN       | WIP - Use at your own risk! |
 | Mac OSX | Macchina only   | Use Macchina M2 and [this](github.com/rnd-ash/MacchinaM2-J2534-Rust) driver |
 
 ## Youtube video playlist
