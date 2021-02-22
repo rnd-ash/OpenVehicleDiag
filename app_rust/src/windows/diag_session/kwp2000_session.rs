@@ -3,7 +3,7 @@ use std::{borrow::BorrowMut, cell::RefCell, sync::{Arc, atomic::AtomicBool}, thr
 use iced::{Column, Container, Length, Row, Space, Subscription, time};
 use log_view::{LogType, LogView};
 
-use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, protocols::{ProtocolServer, kwp2000::KWP2000ECU}}, themes::{ButtonType, TextType, TitleSize, button_outlined, text, title_text}, windows::{diag_manual::DiagManualMessage, window}};
+use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, protocols::{ProtocolServer, kwp2000::KWP2000ECU}}, themes::{ButtonType, TextType, TitleSize, button_outlined, text, text_input, title_text}, windows::{diag_manual::DiagManualMessage, window}};
 
 use super::{DiagMessageTrait, SessionMsg, SessionResult, SessionTrait, log_view};
 
@@ -20,6 +20,8 @@ pub enum KWP2000DiagSessionMsg {
     ClearLogs,
     ClearErrors,
     ReadCodes,
+    SendPayload,
+    EnterPayload(String),
 }
 
 impl DiagMessageTrait for KWP2000DiagSessionMsg {
@@ -39,6 +41,10 @@ pub struct KWP2000DiagSession {
     clear_btn: iced::button::State,
     read_codes_btn: iced::button::State,
     diag_server: Option<KWP2000ECU>,
+    payload_string: String,
+    payload_send_btn: iced::button::State,
+    payload_input: iced::text_input::State,
+    can_send: bool,
     logview: LogView,
 }
 
@@ -55,6 +61,10 @@ impl KWP2000DiagSession {
             can_clear_codes: false,
             clear_btn: Default::default(),
             read_codes_btn: Default::default(),
+            payload_string: String::new(),
+            payload_send_btn: Default::default(),
+            payload_input: Default::default(),
+            can_send: false
         })
     }
 }
@@ -84,6 +94,15 @@ impl SessionTrait for KWP2000DiagSession {
             if self.can_clear_codes {
                 ui = ui.push(button_outlined(&mut self.clear_btn, "Clear error codes", ButtonType::Secondary).on_press(KWP2000DiagSessionMsg::ClearErrors));
             }
+
+            // Payload input
+            ui = ui.push(text("Enter payload (Hex string)", TextType::Normal));
+            ui = ui.push(text_input(&mut self.payload_input, "", &self.payload_string, KWP2000DiagSessionMsg::EnterPayload));
+            let mut btn = button_outlined(&mut self.payload_send_btn, "Send payload", ButtonType::Warning);
+            if self.can_send {
+                btn = btn.on_press(KWP2000DiagSessionMsg::SendPayload);
+            }
+            ui = ui.push(btn);
         }
         ui = ui.push(Space::with_height(Length::Fill));
         if let Some(se) = &self.diag_server {
@@ -156,6 +175,30 @@ impl SessionTrait for KWP2000DiagSession {
                                 self.can_clear_codes = true;
                                 for x in &errors {
                                     self.logview.add_msg(x.error.as_str(), LogType::Warn);
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            KWP2000DiagSessionMsg::EnterPayload(s) => {
+                self.payload_string = s.clone();
+                if s.is_empty() {
+                    self.can_send = false;
+                } else if hex::decode(s).is_ok() && s.len() >= 4 {
+                    self.can_send = true;
+                }
+            },
+            KWP2000DiagSessionMsg::SendPayload => {
+                if let Ok(r) = hex::decode(&self.payload_string) {
+                    if r.len() >= 2 {
+                        if let Some(server) = &self.diag_server {
+                            match server.run_command(r[0], &r[1..]) {
+                                Ok(res) => {
+                                    self.logview.add_log(format!("Req:  {:02X?}", r), format!("Resp: {:02X?}", res), LogType::Info)
+                                },
+                                Err(e) => {
+                                    self.logview.add_log(format!("Req:  {:02X?}", r), format!("Exec error: {}", e.get_text()), LogType::Error)
                                 }
                             }
                         }

@@ -184,7 +184,7 @@ impl ComServer for PassthruApi {
     }
 
     fn rem_can_filter(&self, filter_idx: u32) -> Result<(), ComServerError> {
-        match *self.iso15765_channel_idx.read().unwrap() {
+        match *self.can_channel_idx.read().unwrap() {
             None => Ok(()), // OK as filter has already been deleted when channel was destroyed
             Some(id) => self.driver.lock().unwrap().stop_msg_filter(id, filter_idx).map_err(|e| self.convert_error(e))
         }
