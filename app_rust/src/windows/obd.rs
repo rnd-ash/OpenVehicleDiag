@@ -1,14 +1,13 @@
-use crate::commapi::comm_api::{ComServer, Capability};
-use iced::{Element, Column, Text, Align, Length, Row, Space, button, Button};
-use crate::commapi::protocols::obd2::{Service09, Service01};
+use crate::commapi::comm_api::{Capability, ComServer};
+use crate::commapi::protocols::obd2::{Service01, Service09};
 use crate::commapi::protocols::vin::Vin;
-use crate::themes::{text, TextType, title_text, TitleSize, button_outlined, ButtonType};
+use crate::themes::{button_outlined, text, title_text, ButtonType, TextType, TitleSize};
+use iced::{button, Align, Button, Column, Element, Length, Row, Space, Text};
 
 #[derive(Debug, Clone)]
 pub enum OBDMessage {
-    InitOBD
+    InitOBD,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct OBDHome {
@@ -17,7 +16,7 @@ pub struct OBDHome {
     can_state: button::State,
     vin: Option<Vin>,
     s1: Option<Service01>,
-    s9: Option<Service09>
+    s9: Option<Service09>,
 }
 
 impl OBDHome {
@@ -50,23 +49,34 @@ impl OBDHome {
     }
 
     pub fn view(&mut self) -> Element<OBDMessage> {
-        let obd_btn = button_outlined(&mut self.kline_state, "K-Line not implemented", ButtonType::Danger); // TODO Add K-LINE OBD
+        let obd_btn = button_outlined(
+            &mut self.kline_state,
+            "K-Line not implemented",
+            ButtonType::Danger,
+        ); // TODO Add K-LINE OBD
         let can_btn = match self.server.get_capabilities().supports_iso15765() {
-            Capability::Yes => button_outlined(&mut self.can_state, "OBD over CANBUS", ButtonType::Danger).on_press(OBDMessage::InitOBD),
-            _ => Button::new(&mut self.can_state, Text::new("No CANBUS Support on adapter"))
+            Capability::Yes => {
+                button_outlined(&mut self.can_state, "OBD over CANBUS", ButtonType::Danger)
+                    .on_press(OBDMessage::InitOBD)
+            }
+            _ => Button::new(
+                &mut self.can_state,
+                Text::new("No CANBUS Support on adapter"),
+            ),
         };
-
 
         let mut c = Column::new()
             .padding(10)
             .spacing(10)
             .push(title_text("OBD Diagnostics", TitleSize::P2))
             .push(Space::with_height(Length::Units(10)))
-            .push(Row::new()
-                .padding(10)
-                .spacing(10)
-                .push(obd_btn)
-                .push(can_btn))
+            .push(
+                Row::new()
+                    .padding(10)
+                    .spacing(10)
+                    .push(obd_btn)
+                    .push(can_btn),
+            )
             .align_items(Align::Center);
 
         if let Some(vin) = &self.vin {
@@ -82,8 +92,14 @@ impl OBDHome {
         let s01 = if self.s1.is_some() { "Yes" } else { "No" };
         let s09 = if self.s1.is_some() { "Yes" } else { "No" };
 
-        c = c.push(text(format!("Service 01: {}", s01).as_str(), TextType::Normal));
-        c = c.push(text(format!("Service 09: {}", s09).as_str(), TextType::Normal));
+        c = c.push(text(
+            format!("Service 01: {}", s01).as_str(),
+            TextType::Normal,
+        ));
+        c = c.push(text(
+            format!("Service 09: {}", s09).as_str(),
+            TextType::Normal,
+        ));
 
         if let Some(service_01) = self.s1 {
             let mut pid_row = Row::new();
@@ -93,8 +109,6 @@ impl OBDHome {
             }
             c = c.push(pid_row);
         }
-        c.width(Length::Fill)
-        .align_items(Align::Center)
-        .into()
+        c.width(Length::Fill).align_items(Align::Center).into()
     }
 }

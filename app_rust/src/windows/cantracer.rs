@@ -1,18 +1,17 @@
-use crate::commapi::comm_api::{ComServer, CanFrame, FilterType};
-use iced::{Checkbox, Color, Column, Element, Length, Row, Scrollable, Subscription, Text, button};
-use iced::time;
-use std::time::Instant;
-use crate::windows::window::WindowMessage;
-use std::collections::HashMap;
+use crate::commapi::comm_api::{CanFrame, ComServer, FilterType};
 use crate::themes::{button_coloured, ButtonType};
+use crate::windows::window::WindowMessage;
+use iced::time;
+use iced::{button, Checkbox, Color, Column, Element, Length, Row, Scrollable, Subscription, Text};
+use std::collections::HashMap;
+use std::time::Instant;
 
 #[derive(Debug, Clone)]
 pub enum TracerMessage {
     NewData(Instant),
     ToggleCan,
-    ToggleBinaryMode(bool)
+    ToggleBinaryMode(bool),
 }
-
 
 #[derive(Debug, Clone)]
 pub struct CanTracer {
@@ -52,7 +51,7 @@ impl<'a> CanTracer {
                 if let Ok(m) = self.server.as_ref().read_can_packets(0, 100) {
                     self.insert_frames_to_map(m)
                 }
-            },
+            }
             TracerMessage::ToggleCan => {
                 if self.is_connected {
                     if let Err(e) = self.server.as_mut().close_can_interface() {
@@ -62,19 +61,27 @@ impl<'a> CanTracer {
                         self.can_queue.clear();
                     }
                 } else if let Err(e) = self.server.as_mut().open_can_interface(500_000, false) {
-                        self.status_text = format!("Error opening CAN Interface {}",  e)
+                    self.status_text = format!("Error opening CAN Interface {}", e)
                 } else {
                     self.is_connected = true;
-                    if let Err(e) = self.server.as_mut().add_can_filter(FilterType::Pass, 0x0000, 0x0000) {
-                        self.status_text = format!("Error setting CAN Filter {}",  e)
-                    } else if let Err(e) = self.server.send_can_packets(&[CanFrame::new(0x07DF, &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 0) {
-                        self.status_text = format!("Error sending wake-up packet {}",  e)
+                    if let Err(e) =
+                        self.server
+                            .as_mut()
+                            .add_can_filter(FilterType::Pass, 0x0000, 0x0000)
+                    {
+                        self.status_text = format!("Error setting CAN Filter {}", e)
+                    } else if let Err(e) = self.server.send_can_packets(
+                        &[CanFrame::new(
+                            0x07DF,
+                            &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                        )],
+                        0,
+                    ) {
+                        self.status_text = format!("Error sending wake-up packet {}", e)
                     }
                 }
             }
-            TracerMessage::ToggleBinaryMode(b) => {
-                self.is_binary_fmt = *b
-            }
+            TracerMessage::ToggleBinaryMode(b) => self.is_binary_fmt = *b,
         }
         None
     }
@@ -88,45 +95,82 @@ impl<'a> CanTracer {
 
     pub fn view(&mut self) -> Element<TracerMessage> {
         let btn = match self.is_connected {
-            false =>button_coloured(&mut self.btn_state, "Connect", ButtonType::Info),
-            true => button_coloured(&mut self.btn_state, "Disconnect", ButtonType::Info)
-        }.on_press(TracerMessage::ToggleCan);
+            false => button_coloured(&mut self.btn_state, "Connect", ButtonType::Info),
+            true => button_coloured(&mut self.btn_state, "Disconnect", ButtonType::Info),
+        }
+        .on_press(TracerMessage::ToggleCan);
         let check = self.is_binary_fmt;
 
-       Column::new().padding(10).spacing(10)
-           .push(Text::new("CAN Tracer"))
-           .push(btn)
-           .push(Checkbox::new(check, "View CAN in Binary", TracerMessage::ToggleBinaryMode))
-           .push(
-               Scrollable::new(&mut self.scroll_state).height(Length::Fill).push(
-                Self::build_can_list(&self.is_binary_fmt, &self.can_queue, &mut self.can_prev))
+        Column::new()
+            .padding(10)
+            .spacing(10)
+            .push(Text::new("CAN Tracer"))
+            .push(btn)
+            .push(Checkbox::new(
+                check,
+                "View CAN in Binary",
+                TracerMessage::ToggleBinaryMode,
+            ))
+            .push(
+                Scrollable::new(&mut self.scroll_state)
+                    .height(Length::Fill)
+                    .push(Self::build_can_list(
+                        &self.is_binary_fmt,
+                        &self.can_queue,
+                        &mut self.can_prev,
+                    )),
             )
-           .into()
+            .into()
     }
 
-    pub fn build_can_list(binary: &bool, curr_data: &HashMap<u32, CanFrame>, old_data: &mut HashMap<u32, CanFrame>) -> Element<'a, TracerMessage> {
+    pub fn build_can_list(
+        binary: &bool,
+        curr_data: &HashMap<u32, CanFrame>,
+        old_data: &mut HashMap<u32, CanFrame>,
+    ) -> Element<'a, TracerMessage> {
         let mut col = Column::new();
-        let mut x : Vec<u32> = curr_data.keys().into_iter().copied().collect();
+        let mut x: Vec<u32> = curr_data.keys().into_iter().copied().collect();
         x.sort_by(|a, b| a.partial_cmp(b).unwrap());
         for cid in x {
             let i = curr_data.get(&cid).unwrap();
             let mut container = Row::new();
-            container = container.push(Row::new().push(Text::new(format!("CID: {:04X}", i.id))).width(Length::Units(100)));
+            container = container.push(
+                Row::new()
+                    .push(Text::new(format!("CID: {:04X}", i.id)))
+                    .width(Length::Units(100)),
+            );
             if let Some(old_frame) = old_data.get(&cid) {
                 // Old frame exists, try to work out what changed
                 let old_data = old_frame.get_data();
                 for (i, byte) in i.get_data().iter().enumerate() {
-                    container = if *byte == old_data[i] { // Same as old data
-                        match binary {
-                            true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
-                            false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).width(Length::Units(30))))
+                    container =
+                        if *byte == old_data[i] {
+                            // Same as old data
+                            match binary {
+                                true => container
+                                    .push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
+                                false => container.push(Row::new().push(
+                                    Text::new(format!("{:02X}", byte)).width(Length::Units(30)),
+                                )),
+                            }
+                        } else {
+                            // Different data at this index, colour the text red
+                            match binary {
+                                true => container.push(
+                                    Row::new().push(
+                                        Text::new(format!("{:08b}", byte))
+                                            .color(Color::from_rgb8(192, 0, 0)),
+                                    ),
+                                ), // Cram all binary bits together
+                                false => container.push(
+                                    Row::new().push(
+                                        Text::new(format!("{:02X}", byte))
+                                            .color(Color::from_rgb8(192, 0, 0))
+                                            .width(Length::Units(30)),
+                                    ),
+                                ),
+                            }
                         }
-                    } else { // Different data at this index, colour the text red
-                        match binary {
-                            true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)).color(Color::from_rgb8(192, 0, 0)))), // Cram all binary bits together
-                            false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).color(Color::from_rgb8(192, 0, 0)).width(Length::Units(30))))
-                        }
-                    }
                 }
                 col = col.push(container)
             } else {
@@ -134,12 +178,14 @@ impl<'a> CanTracer {
                 for byte in i.get_data() {
                     container = match binary {
                         true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
-                        false => container.push(Row::new().push(Text::new(format!("{:02X}", byte)).width(Length::Units(30))))
+                        false => container.push(
+                            Row::new()
+                                .push(Text::new(format!("{:02X}", byte)).width(Length::Units(30))),
+                        ),
                     }
                 }
             }
             old_data.insert(cid, *i); // Update the old table
-
         }
         col.into()
     }

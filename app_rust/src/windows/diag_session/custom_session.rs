@@ -1,12 +1,15 @@
 use iced::Subscription;
 
-use crate::{commapi::comm_api::{ComServer, ISO15765Config}, windows::diag_manual::DiagManualMessage};
+use crate::{
+    commapi::comm_api::{ComServer, ISO15765Config},
+    windows::diag_manual::DiagManualMessage,
+};
 
 use super::{DiagMessageTrait, SessionError, SessionMsg, SessionResult, SessionTrait};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CustomDiagSessionMsg {
-    Back
+    Back,
 }
 
 impl DiagMessageTrait for CustomDiagSessionMsg {
@@ -18,12 +21,14 @@ impl DiagMessageTrait for CustomDiagSessionMsg {
 #[derive(Debug, Clone)]
 pub struct CustomDiagSession {
     server: Box<dyn ComServer>,
-    ecu: ISO15765Config
+    ecu: ISO15765Config,
 }
 
 impl CustomDiagSession {
     pub fn new(comm_server: Box<dyn ComServer>, ecu: ISO15765Config) -> SessionResult<Self> {
-        Err(SessionError::Other("Custom Session is not yet implemented".into()))
+        Err(SessionError::Other(
+            "Custom Session is not yet implemented".into(),
+        ))
         //Ok(Self {
         //    ecu,
         //    server: comm_server

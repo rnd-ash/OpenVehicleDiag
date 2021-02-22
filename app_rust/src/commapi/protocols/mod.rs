@@ -6,17 +6,17 @@ use uds::UDSECU;
 
 use super::comm_api::{self, ComServer, ISO15765Data};
 
-pub mod uds;
-pub mod obd2;
-pub mod vin;
 pub mod kwp2000;
+pub mod obd2;
+pub mod uds;
+pub mod vin;
 
 #[derive(Debug)]
 pub enum ProtocolError {
     CommError(comm_api::ComServerError),
     ProtocolError(Box<dyn CommandError>),
     CustomError(String),
-    InvalidResponseSize{ expect: usize, actual: usize },
+    InvalidResponseSize { expect: usize, actual: usize },
     Timeout,
 }
 
@@ -38,8 +38,8 @@ impl From<ComServerError> for ProtocolError {
     }
 }
 
-unsafe impl Send for ProtocolError{}
-unsafe impl Sync for ProtocolError{}
+unsafe impl Send for ProtocolError {}
+unsafe impl Sync for ProtocolError {}
 
 impl ProtocolError {
     pub fn get_text(&self) -> String {
@@ -69,10 +69,10 @@ pub enum CautionLevel {
     // This might cause unpredictable behavior
     Warn = 1,
     // Danger Zone - Do not run this unless you know what you are doing!
-    Alert = 2
+    Alert = 2,
 }
 
-pub trait ECUCommand : Selectable {
+pub trait ECUCommand: Selectable {
     fn get_caution_level(&self) -> CautionLevel;
     fn get_cmd_list() -> Vec<Self>;
 }
@@ -80,7 +80,9 @@ pub trait ECUCommand : Selectable {
 pub trait CommandError {
     fn get_desc(&self) -> String;
     fn get_help(&self) -> Option<String>;
-    fn from_byte(b: u8) -> Self where Self: Sized;
+    fn from_byte(b: u8) -> Self
+    where
+        Self: Sized;
 }
 
 impl std::fmt::Debug for Box<dyn CommandError> {
@@ -90,32 +92,40 @@ impl std::fmt::Debug for Box<dyn CommandError> {
 }
 
 pub struct DTC {
-    pub (crate) error: String,
-    pub (crate) present: bool,
-    pub (crate) stored: bool,
-    pub (crate) check_engine_on: bool,
+    pub(crate) error: String,
+    pub(crate) present: bool,
+    pub(crate) stored: bool,
+    pub(crate) check_engine_on: bool,
 }
 
 impl Display for DTC {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} - Present?: {}, In memory?: {}, Check engine light on?: {}", self.error, self.present, self.stored, self.check_engine_on)
+        write!(
+            f,
+            "{} - Present?: {}, In memory?: {}, Check engine light on?: {}",
+            self.error, self.present, self.stored, self.check_engine_on
+        )
     }
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum DiagProtocol {
     KWP2000,
-    UDS
+    UDS,
 }
 
 #[derive(Debug, Clone)]
 pub enum DiagServer {
     KWP2000(KWP2000ECU),
-    UDS(UDSECU)
+    UDS(UDSECU),
 }
 
 impl DiagServer {
-    pub fn new(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config, protocol: DiagProtocol) -> ProtocolResult<Self> {
+    pub fn new(
+        comm_server: Box<dyn ComServer>,
+        cfg: &ISO15765Config,
+        protocol: DiagProtocol,
+    ) -> ProtocolResult<Self> {
         Ok(match protocol {
             KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(comm_server, cfg)?),
             UDS => Self::UDS(UDSECU::start_diag_session(comm_server, cfg)?),
@@ -125,28 +135,28 @@ impl DiagServer {
     pub fn get_name<'a>(&self) -> &'a str {
         match self {
             Self::KWP2000(_) => "KWP2000",
-            Self::UDS(_) => "UDS"
+            Self::UDS(_) => "UDS",
         }
     }
 
     pub fn kill_diag_server(&mut self) {
         match self {
             Self::KWP2000(s) => s.exit_diag_session(),
-            Self::UDS(s) => s.exit_diag_session()
+            Self::UDS(s) => s.exit_diag_session(),
         }
     }
 
     pub fn run_cmd(&mut self, cmd: u8, args: &[u8]) -> ProtocolResult<Vec<u8>> {
         match self {
             Self::KWP2000(s) => s.run_command(cmd, args),
-            Self::UDS(s) => s.run_command(cmd, args)
+            Self::UDS(s) => s.run_command(cmd, args),
         }
     }
 
     pub fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
         match self {
             Self::KWP2000(s) => s.read_errors(),
-            Self::UDS(s) => s.read_errors()
+            Self::UDS(s) => s.read_errors(),
         }
     }
 
@@ -168,14 +178,23 @@ impl Drop for DiagServer {
 pub trait ProtocolServer: Sized {
     type Command: Selectable + ECUCommand;
     type Error: CommandError + 'static;
-    fn start_diag_session(comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self>;
+    fn start_diag_session(
+        comm_server: Box<dyn ComServer>,
+        cfg: &ISO15765Config,
+    ) -> ProtocolResult<Self>;
     fn exit_diag_session(&mut self);
     fn run_command(&self, cmd: u8, args: &[u8]) -> ProtocolResult<Vec<u8>>;
     fn read_errors(&self) -> ProtocolResult<Vec<DTC>>;
     fn is_in_diag_session(&self) -> bool;
     fn get_last_error(&self) -> Option<String>;
 
-    fn run_command_iso_tp(server: &dyn ComServer, send_id: u32, cmd: u8, args: &[u8], receive_require: bool) -> std::result::Result<Vec<u8>, ProtocolError> {
+    fn run_command_iso_tp(
+        server: &dyn ComServer,
+        send_id: u32,
+        cmd: u8,
+        args: &[u8],
+        receive_require: bool,
+    ) -> std::result::Result<Vec<u8>, ProtocolError> {
         let mut data = ISO15765Data {
             id: send_id,
             data: vec![cmd],
@@ -184,15 +203,19 @@ pub trait ProtocolServer: Sized {
         };
         data.data.extend_from_slice(args);
         if !receive_require {
-            server.send_iso15765_data(&[data], 0).map(|_| vec![]).map_err(ProtocolError::CommError)
+            server
+                .send_iso15765_data(&[data], 0)
+                .map(|_| vec![])
+                .map_err(ProtocolError::CommError)
         } else {
             // Await max 1 second for response
             let res = server.send_receive_iso15765(data, 1000, 1)?;
             if res.is_empty() {
-                return Err(ProtocolError::Timeout)
+                return Err(ProtocolError::Timeout);
             }
             let mut tmp_res = res[0].data.clone();
-            if tmp_res[0] == 0x7F && tmp_res[2] == 0x78 { // ResponsePending
+            if tmp_res[0] == 0x7F && tmp_res[2] == 0x78 {
+                // ResponsePending
                 println!("KWP2000 - ECU is processing request - Waiting!");
                 let start = Instant::now();
                 while start.elapsed().as_millis() < 1000 {
@@ -204,11 +227,16 @@ pub trait ProtocolServer: Sized {
             }
             if tmp_res[0] == 0x7F {
                 // Still error :(
-                Err(ProtocolError::ProtocolError(Box::new(Self::Error::from_byte(tmp_res[2]))))
+                Err(ProtocolError::ProtocolError(Box::new(
+                    Self::Error::from_byte(tmp_res[2]),
+                )))
             } else if tmp_res[0] == (cmd + 0x40) {
                 Ok(tmp_res)
             } else {
-                eprintln!("KWP2000 - Command response did not match request? Send: {:02X} - Recv: {:02X}", cmd, tmp_res[0]);
+                eprintln!(
+                    "KWP2000 - Command response did not match request? Send: {:02X} - Recv: {:02X}",
+                    cmd, tmp_res[0]
+                );
                 Err(ProtocolError::Timeout)
             }
         }

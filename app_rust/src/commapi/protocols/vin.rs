@@ -1,16 +1,12 @@
-
-
-
 #[derive(Debug, Clone)]
 pub struct Vin {
     pub raw: String,
     pub year: u32,
     pub manufacture_location: String,
-    pub manufacture_name: String
+    pub manufacture_name: String,
 }
 
 impl Vin {
-
     fn get_year(id: char) -> u32 {
         match id {
             'Y' => 2000,
@@ -43,7 +39,7 @@ impl Vin {
             'V' => 2027,
             'W' => 2028,
             'X' => 2029,
-            _ => 0
+            _ => 0,
         }
     }
 
@@ -69,16 +65,12 @@ impl Vin {
             z if &z[0..2] == "JT" => ("Japan", "Toyota/Lexus"),
             z if &z[0..2] == "JY" => ("Japan", "Yamaha"),
 
-
-
-
             "WDB" => ("Germany", "Mercedes-Benz"),
             "WDC" | "WDD" | "WMX" => ("Germany", "Daimler AG"),
-            _ => ("Unknown", "Unknown")
+            _ => ("Unknown", "Unknown"),
         };
         (res.0.into(), res.1.into())
     }
-
 
     pub fn new(str: String) -> Option<Self> {
         return if str.len() != 17 {
@@ -90,8 +82,8 @@ impl Vin {
                 raw: str,
                 year: y,
                 manufacture_location: info.0,
-                manufacture_name: info.1
+                manufacture_name: info.1,
             })
-        }
+        };
     }
 }

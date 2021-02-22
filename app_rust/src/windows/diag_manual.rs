@@ -3,9 +3,18 @@ use std::{fs::File, io::Read, path::Path, todo};
 use common::schema::OvdECU;
 use iced::{Align, Column, Element, Length, Row, Subscription};
 
-use crate::{commapi::comm_api::{ComServer, ISO15765Config}, themes::{ButtonType, TextType, TitleSize, button_outlined, elements::TextInput, picklist, text, text_input, title_text}};
+use crate::{
+    commapi::comm_api::{ComServer, ISO15765Config},
+    themes::{
+        button_outlined, elements::TextInput, picklist, text, text_input, title_text, ButtonType,
+        TextType, TitleSize,
+    },
+};
 
-use super::{diag_home::{ECUDiagSettings, VehicleECUList}, diag_session::{DiagMessageTrait, DiagSession, SessionMsg, SessionType}};
+use super::{
+    diag_home::{ECUDiagSettings, VehicleECUList},
+    diag_session::{DiagMessageTrait, DiagSession, SessionMsg, SessionType},
+};
 
 #[derive(Debug, Clone)]
 pub enum DiagManualMessage {
@@ -28,7 +37,6 @@ pub enum DiagManualMessage {
     SepEnter(String),
     BsEnter(String),
 }
-
 
 #[derive(Debug, Clone)]
 pub struct DiagManual {
@@ -55,11 +63,9 @@ pub struct DiagManual {
     input_bs: iced::text_input::State,
     input_sep: iced::text_input::State,
 
-
     uds_btn_state_2: iced::button::State,
     kwp_btn_state_2: iced::button::State,
     custom_btn_state_2: iced::button::State,
-
 }
 
 impl DiagManual {
@@ -104,31 +110,30 @@ impl DiagManual {
             if let DiagManualMessage::Session(m) = msg {
                 if m.is_back() {
                     self.session.take();
-                    return None
+                    return None;
                 } else {
-                    return session.update(m).map(DiagManualMessage::Session)
+                    return session.update(m).map(DiagManualMessage::Session);
                 }
             }
         }
         match msg {
-            DiagManualMessage::Back => {
-                 
-            }
+            DiagManualMessage::Back => {}
             DiagManualMessage::LaunchFileBrowser => {
-                if let nfd::Response::Okay(f_path) = nfd::open_file_dialog(Some("ovdjson"), None).unwrap_or(nfd::Response::Cancel) {
+                if let nfd::Response::Okay(f_path) =
+                    nfd::open_file_dialog(Some("ovdjson"), None).unwrap_or(nfd::Response::Cancel)
+                {
                     let path = f_path.clone();
                     if let Ok(mut file) = File::open(f_path) {
                         let mut str = "".into();
                         if file.read_to_string(&mut str).is_ok() {
-                            let parse : serde_json::Result<VehicleECUList>  = serde_json::from_str(&str);
+                            let parse: serde_json::Result<VehicleECUList> =
+                                serde_json::from_str(&str);
                             match parse {
                                 Ok(car) => {
                                     self.curr_ecu = None;
                                     self.car = Some(car)
-                                },
-                                Err(e) => {
-                                    self.status = format!("Error processing {}: {}", path, e)
                                 }
+                                Err(e) => self.status = format!("Error processing {}: {}", path, e),
                             }
                         } else {
                             self.status = "Error reading save file".into()
@@ -144,16 +149,19 @@ impl DiagManual {
             DiagManualMessage::LaunchCustom => self.launch_diag_session(SessionType::Custom, false),
             DiagManualMessage::LaunchKWPCustom => self.launch_diag_session(SessionType::KWP, true),
             DiagManualMessage::LaunchUDSCustom => self.launch_diag_session(SessionType::UDS, true),
-            DiagManualMessage::LaunchCustomCustom => self.launch_diag_session(SessionType::Custom, true),
-
+            DiagManualMessage::LaunchCustomCustom => {
+                self.launch_diag_session(SessionType::Custom, true)
+            }
 
             DiagManualMessage::LaunchJSON => {
-                if let nfd::Response::Okay(f_path) = nfd::open_file_dialog(Some("json"), None).unwrap_or(nfd::Response::Cancel) {
+                if let nfd::Response::Okay(f_path) =
+                    nfd::open_file_dialog(Some("json"), None).unwrap_or(nfd::Response::Cancel)
+                {
                     let path = f_path.clone();
                     if let Ok(mut file) = File::open(f_path) {
                         let mut str = "".into();
                         if file.read_to_string(&mut str).is_ok() {
-                            let parse : serde_json::Result<OvdECU>  = serde_json::from_str(&str);
+                            let parse: serde_json::Result<OvdECU> = serde_json::from_str(&str);
                             match parse {
                                 Ok(ecu) => self.launch_diag_session(SessionType::JSON(ecu), false),
                                 Err(e) => self.status = format!("Error processing {}: {}", path, e),
@@ -175,13 +183,11 @@ impl DiagManual {
                         Ok(_) => {
                             self.status.clear();
                             self.str_bs = s.clone();
-                        },
-                        Err(_) => {
-                            self.status = format!("{} is not a number", s)
                         }
+                        Err(_) => self.status = format!("{} is not a number", s),
                     }
                 }
-            },
+            }
             DiagManualMessage::SendIDEnter(s) => {
                 if s.is_empty() {
                     self.status.clear();
@@ -192,17 +198,15 @@ impl DiagManual {
                             self.status.clear();
                             self.str_send_id = s.clone();
                             self.status = "Require even number of characters".into()
-                        },
+                        }
                         Ok(_) => {
                             self.status.clear();
                             self.str_send_id = s.clone();
-                        },
-                        Err(_) => {
-                            self.status = format!("{} is not a hex number", s)
                         }
+                        Err(_) => self.status = format!("{} is not a hex number", s),
                     }
                 }
-            },
+            }
             DiagManualMessage::RecvIDEnter(s) => {
                 if s.is_empty() {
                     self.status.clear();
@@ -213,17 +217,15 @@ impl DiagManual {
                             self.status.clear();
                             self.str_recv_id = s.clone();
                             self.status = "Require even number of characters".into()
-                        },
+                        }
                         Ok(_) => {
                             self.status.clear();
                             self.str_recv_id = s.clone();
                         }
-                        Err(_) => {
-                            self.status = format!("{} is not a hex number", s)
-                        }
+                        Err(_) => self.status = format!("{} is not a hex number", s),
                     }
                 }
-            },
+            }
             DiagManualMessage::SepEnter(s) => {
                 if s.is_empty() {
                     self.status.clear();
@@ -233,13 +235,11 @@ impl DiagManual {
                         Ok(_) => {
                             self.status.clear();
                             self.str_sep = s.clone();
-                        },
-                        Err(_) => {
-                            self.status = format!("{} is not a number", s)
                         }
+                        Err(_) => self.status = format!("{} is not a number", s),
                     }
                 }
-            },
+            }
             _ => {}
         }
         None
@@ -247,34 +247,41 @@ impl DiagManual {
 
     fn decode_string_hex(s: &str) -> Option<u32> {
         if s.is_empty() {
-            return None
+            return None;
         }
         match hex::decode(s) {
-            Ok(res) => 
-            if res.len() == 1 {
-                Some(res[0] as u32)
-            } else if res.len() == 2 {
-                Some(((res[0] as u16) << 8 | res[1] as u16) as u32)
-            } else if res.len() >= 4 { // 4 or more
-                Some((res[0] as u32) << 24 | (res[1] as u32) << 16 | (res[2] as u32) << 8 | (res[3] as u32))
-            } else {
-                None
-            },
-            Err(_) => None
+            Ok(res) => {
+                if res.len() == 1 {
+                    Some(res[0] as u32)
+                } else if res.len() == 2 {
+                    Some(((res[0] as u16) << 8 | res[1] as u16) as u32)
+                } else if res.len() >= 4 {
+                    // 4 or more
+                    Some(
+                        (res[0] as u32) << 24
+                            | (res[1] as u32) << 16
+                            | (res[2] as u32) << 8
+                            | (res[3] as u32),
+                    )
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
         }
     }
 
     fn decode_string_int(s: &str) -> Option<u32> {
         match s.parse::<u32>() {
             Ok(i) => Some(i),
-            Err(_) => None
+            Err(_) => None,
         }
     }
 
     pub fn launch_diag_session(&mut self, session_type: SessionType, use_custom: bool) {
         if self.session.is_some() {
             self.status = "Error. Diagnostic session already in progress??".into(); // How did this happen??
-            return
+            return;
         }
 
         if use_custom {
@@ -286,7 +293,7 @@ impl DiagManual {
             };
             match DiagSession::new(&session_type, self.server.clone(), cfg) {
                 Ok(session) => self.session = Some(session),
-                Err(e) => self.status = format!("Error init diag session: {}", e.get_description())
+                Err(e) => self.status = format!("Error init diag session: {}", e.get_description()),
             }
         } else if let Some(ecu) = &self.curr_ecu {
             let cfg = ISO15765Config {
@@ -297,7 +304,7 @@ impl DiagManual {
             };
             match DiagSession::new(&session_type, self.server.clone(), cfg) {
                 Ok(session) => self.session = Some(session),
-                Err(e) => self.status = format!("Error init diag session: {}", e.get_description())
+                Err(e) => self.status = format!("Error init diag session: {}", e.get_description()),
             }
         } else {
             self.status = "Error. No ECU selected?".into(); // How did this happen??
@@ -306,64 +313,146 @@ impl DiagManual {
 
     pub fn view(&mut self) -> Element<DiagManualMessage> {
         if let Some(ref mut session) = self.session {
-            return session.view().map(DiagManualMessage::Session)
+            return session.view().map(DiagManualMessage::Session);
         }
-        let mut view = Column::new().padding(20).spacing(20).align_items(Align::Center).width(Length::Fill)
-        .push(title_text("Load a save file to get started", TitleSize::P3));
+        let mut view = Column::new()
+            .padding(20)
+            .spacing(20)
+            .align_items(Align::Center)
+            .width(Length::Fill)
+            .push(title_text("Load a save file to get started", TitleSize::P3));
 
-        view = view.push(button_outlined(&mut self.btn_state,"Load save file", ButtonType::Success).on_press(DiagManualMessage::LaunchFileBrowser));
+        view = view.push(
+            button_outlined(&mut self.btn_state, "Load save file", ButtonType::Success)
+                .on_press(DiagManualMessage::LaunchFileBrowser),
+        );
 
         if let Some(car) = &self.car {
-            view = view.push(text(format!("Loaded car: {} {} ({})", car.vehicle_brand, car.vehicle_name, car.vehicle_year).as_str(), TextType::Normal));
+            view = view.push(text(
+                format!(
+                    "Loaded car: {} {} ({})",
+                    car.vehicle_brand, car.vehicle_name, car.vehicle_year
+                )
+                .as_str(),
+                TextType::Normal,
+            ));
 
-            view = view.push(picklist(&mut self.pick_state, car.ecu_list.clone(), self.curr_ecu.clone(), DiagManualMessage::PickECU));
+            view = view.push(picklist(
+                &mut self.pick_state,
+                car.ecu_list.clone(),
+                self.curr_ecu.clone(),
+                DiagManualMessage::PickECU,
+            ));
 
             if let Some(ecu) = &self.curr_ecu {
-
-                let kwp_text = if ecu.kwp_support { "Launch KWP2000 session" } else { "KWP2000 not supported" };
-                let mut kwp_btn = button_outlined(&mut self.kwp_btn_state, kwp_text, ButtonType::Primary).width(Length::Units(250));
+                let kwp_text = if ecu.kwp_support {
+                    "Launch KWP2000 session"
+                } else {
+                    "KWP2000 not supported"
+                };
+                let mut kwp_btn =
+                    button_outlined(&mut self.kwp_btn_state, kwp_text, ButtonType::Primary)
+                        .width(Length::Units(250));
                 if ecu.kwp_support {
                     kwp_btn = kwp_btn.on_press(DiagManualMessage::LaunchKWP);
                 }
 
-                let uds_text = if ecu.uds_support { "Launch UDS session" } else { "UDS not supported" };
-                let mut uds_btn = button_outlined(&mut self.uds_btn_state, uds_text, ButtonType::Primary).width(Length::Units(250));
+                let uds_text = if ecu.uds_support {
+                    "Launch UDS session"
+                } else {
+                    "UDS not supported"
+                };
+                let mut uds_btn =
+                    button_outlined(&mut self.uds_btn_state, uds_text, ButtonType::Primary)
+                        .width(Length::Units(250));
                 if ecu.uds_support {
                     uds_btn = uds_btn.on_press(DiagManualMessage::LaunchUDS);
                 }
 
-                let custom_btn = button_outlined(&mut self.custom_btn_state, "Launch Custom session", ButtonType::Warning).on_press(DiagManualMessage::LaunchCustom).width(Length::Units(250));
+                let custom_btn = button_outlined(
+                    &mut self.custom_btn_state,
+                    "Launch Custom session",
+                    ButtonType::Warning,
+                )
+                .on_press(DiagManualMessage::LaunchCustom)
+                .width(Length::Units(250));
 
                 view = view.push(
-                    Row::new().spacing(8).push(kwp_btn)
-                    .push(uds_btn)
-                    .push(custom_btn)
+                    Row::new()
+                        .spacing(8)
+                        .push(kwp_btn)
+                        .push(uds_btn)
+                        .push(custom_btn),
                 );
-                view = view.push(button_outlined(&mut self.json_btn_state, "Load JSON session (EXPERIMENTAL)", ButtonType::Danger).on_press(DiagManualMessage::LaunchJSON));
+                view = view.push(
+                    button_outlined(
+                        &mut self.json_btn_state,
+                        "Load JSON session (EXPERIMENTAL)",
+                        ButtonType::Danger,
+                    )
+                    .on_press(DiagManualMessage::LaunchJSON),
+                );
             }
-
         }
 
-        view = view.push(title_text("Or specify manual ISO-TP Settings", TitleSize::P3));
+        view = view.push(title_text(
+            "Or specify manual ISO-TP Settings",
+            TitleSize::P3,
+        ));
         view = view.push(
-        Row::new().padding(5).spacing(5).width(Length::Fill).align_items(Align::Center) // Row entry for user input
-            .push(
-                Column::new().spacing(2).width(Length::FillPortion(1)) // First input column
+            Row::new()
+                .padding(5)
+                .spacing(5)
+                .width(Length::Fill)
+                .align_items(Align::Center) // Row entry for user input
+                .push(
+                    Column::new()
+                        .spacing(2)
+                        .width(Length::FillPortion(1)) // First input column
                         .push(text("Send (FC) ID", TextType::Normal))
-                        .push(text_input(&mut self.input_send_id, "Enter send ID (Hex)", &self.str_send_id, DiagManualMessage::SendIDEnter))
-            ).push(
-                Column::new().spacing(2).width(Length::FillPortion(1)) // Second input column
+                        .push(text_input(
+                            &mut self.input_send_id,
+                            "Enter send ID (Hex)",
+                            &self.str_send_id,
+                            DiagManualMessage::SendIDEnter,
+                        )),
+                )
+                .push(
+                    Column::new()
+                        .spacing(2)
+                        .width(Length::FillPortion(1)) // Second input column
                         .push(text("Receive ID", TextType::Normal))
-                        .push(text_input(&mut self.input_recv_id, "Enter receive ID (Hex)", &self.str_recv_id, DiagManualMessage::RecvIDEnter))
-            ).push(
-                Column::new().spacing(2).width(Length::FillPortion(1)) // Third input column
+                        .push(text_input(
+                            &mut self.input_recv_id,
+                            "Enter receive ID (Hex)",
+                            &self.str_recv_id,
+                            DiagManualMessage::RecvIDEnter,
+                        )),
+                )
+                .push(
+                    Column::new()
+                        .spacing(2)
+                        .width(Length::FillPortion(1)) // Third input column
                         .push(text("Separation time (ms)", TextType::Normal))
-                        .push(text_input(&mut self.input_sep, "Enter separation time", &self.str_sep, DiagManualMessage::SepEnter))
-            ).push(
-                Column::new().spacing(2).width(Length::FillPortion(1)) // Fourth input column
+                        .push(text_input(
+                            &mut self.input_sep,
+                            "Enter separation time",
+                            &self.str_sep,
+                            DiagManualMessage::SepEnter,
+                        )),
+                )
+                .push(
+                    Column::new()
+                        .spacing(2)
+                        .width(Length::FillPortion(1)) // Fourth input column
                         .push(text("Block size", TextType::Normal))
-                        .push(text_input(&mut self.input_bs, "Enter block size", &self.str_bs, DiagManualMessage::BsEnter))
-            )
+                        .push(text_input(
+                            &mut self.input_bs,
+                            "Enter block size",
+                            &self.str_bs,
+                            DiagManualMessage::BsEnter,
+                        )),
+                ),
         );
 
         let send = Self::decode_string_hex(&self.str_send_id);
@@ -373,26 +462,43 @@ impl DiagManual {
 
         let can_launch = send.is_some() && recv.is_some() && bs.is_some() && sep.is_some();
 
-        let mut kwp_btn_2 = button_outlined(&mut self.kwp_btn_state_2, "Launch KWP2000 session", ButtonType::Primary).width(Length::Units(250));
+        let mut kwp_btn_2 = button_outlined(
+            &mut self.kwp_btn_state_2,
+            "Launch KWP2000 session",
+            ButtonType::Primary,
+        )
+        .width(Length::Units(250));
         if can_launch {
             kwp_btn_2 = kwp_btn_2.on_press(DiagManualMessage::LaunchKWPCustom);
         }
 
-        let mut uds_btn_2 = button_outlined(&mut self.uds_btn_state_2, "Launch UDS session", ButtonType::Primary).width(Length::Units(250));
+        let mut uds_btn_2 = button_outlined(
+            &mut self.uds_btn_state_2,
+            "Launch UDS session",
+            ButtonType::Primary,
+        )
+        .width(Length::Units(250));
         if can_launch {
             uds_btn_2 = uds_btn_2.on_press(DiagManualMessage::LaunchUDSCustom);
         }
 
-        let mut cust_btn_2 = button_outlined(&mut self.custom_btn_state_2, "Launch Custom session", ButtonType::Primary).width(Length::Units(250));
+        let mut cust_btn_2 = button_outlined(
+            &mut self.custom_btn_state_2,
+            "Launch Custom session",
+            ButtonType::Primary,
+        )
+        .width(Length::Units(250));
         if can_launch {
             cust_btn_2 = cust_btn_2.on_press(DiagManualMessage::LaunchCustomCustom);
         }
 
         view = view.push(
-            Row::new().padding(5).spacing(5)
-            .push(kwp_btn_2) 
-            .push(uds_btn_2)
-            .push(cust_btn_2)  
+            Row::new()
+                .padding(5)
+                .spacing(5)
+                .push(kwp_btn_2)
+                .push(uds_btn_2)
+                .push(cust_btn_2),
         );
 
         view = view.push(text(&self.status, TextType::Danger));

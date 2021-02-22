@@ -1,6 +1,8 @@
 use crate::commapi;
+use crate::commapi::comm_api::{
+    CanFrame, ComServerError, DeviceCapabilities, FilterType, ISO15765Data,
+};
 use commapi::comm_api::ComServer;
-use crate::commapi::comm_api::{ISO15765Data, CanFrame, FilterType, ComServerError, DeviceCapabilities};
 
 #[derive(Debug, Copy, Clone)]
 pub struct DpduAPI {
@@ -17,23 +19,43 @@ impl ComServer for DpduAPI {
         unimplemented!()
     }
 
-    fn send_can_packets(&self, data: &[CanFrame], timeout_ms: u32) -> Result<usize, ComServerError> {
+    fn send_can_packets(
+        &self,
+        data: &[CanFrame],
+        timeout_ms: u32,
+    ) -> Result<usize, ComServerError> {
         unimplemented!()
     }
 
-    fn read_can_packets(&self, timeout_ms: u32, max_msgs: usize) -> Result<Vec<CanFrame>, ComServerError> {
+    fn read_can_packets(
+        &self,
+        timeout_ms: u32,
+        max_msgs: usize,
+    ) -> Result<Vec<CanFrame>, ComServerError> {
         unimplemented!()
     }
 
-    fn send_iso15765_data(&self, data: &[ISO15765Data], timeout_ms: u32) -> Result<usize, ComServerError> {
+    fn send_iso15765_data(
+        &self,
+        data: &[ISO15765Data],
+        timeout_ms: u32,
+    ) -> Result<usize, ComServerError> {
         unimplemented!()
     }
 
-    fn read_iso15765_packets(&self, timeout_ms: u32, max_msgs: usize) -> Result<Vec<ISO15765Data>, ComServerError> {
+    fn read_iso15765_packets(
+        &self,
+        timeout_ms: u32,
+        max_msgs: usize,
+    ) -> Result<Vec<ISO15765Data>, ComServerError> {
         unimplemented!()
     }
 
-    fn open_can_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError> {
+    fn open_can_interface(
+        &mut self,
+        bus_speed: u32,
+        is_ext_can: bool,
+    ) -> Result<(), ComServerError> {
         unimplemented!()
     }
 
@@ -41,7 +63,12 @@ impl ComServer for DpduAPI {
         unimplemented!()
     }
 
-    fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool, ext_addressing: bool) -> Result<(), ComServerError> {
+    fn open_iso15765_interface(
+        &mut self,
+        bus_speed: u32,
+        is_ext_can: bool,
+        ext_addressing: bool,
+    ) -> Result<(), ComServerError> {
         unimplemented!()
     }
 
@@ -49,7 +76,12 @@ impl ComServer for DpduAPI {
         unimplemented!()
     }
 
-    fn add_can_filter(&self, filter: FilterType, id: u32, mask: u32) -> Result<u32, ComServerError> {
+    fn add_can_filter(
+        &self,
+        filter: FilterType,
+        id: u32,
+        mask: u32,
+    ) -> Result<u32, ComServerError> {
         unimplemented!()
     }
 
@@ -65,7 +97,11 @@ impl ComServer for DpduAPI {
         unimplemented!()
     }
 
-    fn set_iso15765_params(&self, separation_time_min: u32, block_size: u32) -> Result<(), ComServerError> {
+    fn set_iso15765_params(
+        &self,
+        separation_time_min: u32,
+        block_size: u32,
+    ) -> Result<(), ComServerError> {
         unimplemented!()
     }
 

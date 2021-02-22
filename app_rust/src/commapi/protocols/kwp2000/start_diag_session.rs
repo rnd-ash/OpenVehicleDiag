@@ -2,13 +2,10 @@ use crate::commapi::protocols::{ProtocolResult, ProtocolServer};
 
 use super::KWP2000ECU;
 
-
-
-// The service, Start Diagnostic Session ($10), is used by the diagnostic tool to enable 
-// different types of diagnostic sessions in an ECU.  In order to execute a diagnostic 
-// service the appropriate session has to be started first. See Table 3.2.1-1 on page 8 
-// for a complete list of which service ID’s are supported by each diagnostic session. 
-
+// The service, Start Diagnostic Session ($10), is used by the diagnostic tool to enable
+// different types of diagnostic sessions in an ECU.  In order to execute a diagnostic
+// service the appropriate session has to be started first. See Table 3.2.1-1 on page 8
+// for a complete list of which service ID’s are supported by each diagnostic session.
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum DiagSession {
