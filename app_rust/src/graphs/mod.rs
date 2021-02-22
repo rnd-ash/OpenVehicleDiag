@@ -15,7 +15,7 @@ pub struct LineTimeGraph<'a> {
     y_bounds: (f32, f32), // Min, Max
     x_label: String,
     y_label: String,
-    max_time_ms: u128
+    max_time_ms: u128,
 }
 
 impl<'a> LineTimeGraph<'a> {
@@ -26,7 +26,7 @@ impl<'a> LineTimeGraph<'a> {
             y_bounds: (0.0, 1.0),
             x_label,
             y_label,
-            max_time_ms: 30000 // 30 seconds
+            max_time_ms: 30000, // 30 seconds
         }
     }
 
@@ -43,10 +43,8 @@ impl<'a> LineTimeGraph<'a> {
     }
 }
 
-
 impl<'a> Graphable for LineTimeGraph<'a> {
     fn draw(&self) {
-
         let max_height = self.frame.height();
         let resolution_y = max_height / (self.y_bounds.1 + self.y_bounds.0); // y per px
 
@@ -54,17 +52,16 @@ impl<'a> Graphable for LineTimeGraph<'a> {
 
         let resolution_x = self.max_time_ms as f32 / self.frame.width(); // ms per px
 
-
-
-
         todo!()
     }
 }
 
-
-#[cfg_attr(not(feature="graph_tests"), ignore)]
+#[cfg_attr(not(feature = "graph_tests"), ignore)]
 pub mod graph_test {
-    use iced::{Application, Canvas, Column, Rectangle, Settings, canvas::{self, Cursor, Frame, Geometry}, executor};
+    use iced::{
+        canvas::{self, Cursor, Frame, Geometry},
+        executor, Application, Canvas, Column, Rectangle, Settings,
+    };
 
     use crate::themes::elements::Container;
 
@@ -80,10 +77,7 @@ pub mod graph_test {
     }
 
     #[derive(Debug, Clone, Copy)]
-    enum TestMsg {
-
-    }
-
+    enum TestMsg {}
 
     struct TestApp<'a> {
         frame: iced::canvas::Frame,
@@ -126,4 +120,3 @@ pub mod graph_test {
         }
     }
 }
-

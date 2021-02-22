@@ -1,11 +1,15 @@
 #[cfg(test)]
-pub mod draw_routine{
+pub mod draw_routine {
     use std::cmp::min;
 
     use image::{GenericImageView, ImageFormat};
 
-    use crate::{commapi::{comm_api::ComServer, passthru_api::PassthruApi, protocols::kwp2000::KWP2000ECU}, commapi::{comm_api::ISO15765Config, protocols::ProtocolServer}, passthru::{PassthruDevice, PassthruDrv}, themes::images::{TRAY_ICON, TRAY_ICON_DARK}};
-
+    use crate::{
+        commapi::{comm_api::ComServer, passthru_api::PassthruApi, protocols::kwp2000::KWP2000ECU},
+        commapi::{comm_api::ISO15765Config, protocols::ProtocolServer},
+        passthru::{PassthruDevice, PassthruDrv},
+        themes::images::{TRAY_ICON, TRAY_ICON_DARK},
+    };
 
     pub const test_img: &[u8] = include_bytes!("../../img/cat.png");
 
@@ -16,14 +20,14 @@ pub mod draw_routine{
         end_y: u8,
     }
 
-
     #[test]
     fn test_cmd() {
-
         const LCD_WIDTH: u32 = 60;
         const LCD_HEIGHT: u32 = 100;
 
-        let dev = PassthruDevice::find_all().expect("Couldn't find any passthru adapters for test")[0].clone();
+        let dev = PassthruDevice::find_all().expect("Couldn't find any passthru adapters for test")
+            [0]
+        .clone();
         let drv = PassthruDrv::load_lib(dev.drv_path.clone()).expect("Couldn't load library");
 
         // Open a Comm server link with my custom Passthru adapter
@@ -31,16 +35,20 @@ pub mod draw_routine{
         api.open_device().expect("Could not open device!");
 
         // Start ISO-TP KWP2000 session with IC
-        let server = KWP2000ECU::start_diag_session(api, &ISO15765Config {
-            send_id: 1460,
-            recv_id: 1268,
-            block_size: 8,
-            sep_time: 20,
-            
-        }).expect("Error opening connection with IC ECU");
+        let server = KWP2000ECU::start_diag_session(
+            api,
+            &ISO15765Config {
+                send_id: 1460,
+                recv_id: 1268,
+                block_size: 8,
+                sep_time: 20,
+            },
+        )
+        .expect("Error opening connection with IC ECU");
 
         // W203 IC is 56 pixels wide, ~100 tall for the top zone
-        let img = image::load_from_memory_with_format(test_img, ImageFormat::Png).expect("Error loading image");
+        let img = image::load_from_memory_with_format(test_img, ImageFormat::Png)
+            .expect("Error loading image");
 
         // get scale bounds for the image
         let sf = (img.width() as f32 / LCD_WIDTH as f32) as f32;
@@ -52,7 +60,6 @@ pub mod draw_routine{
             start_y: 0,
             end_x: 0,
             end_y: LCD_HEIGHT as u8,
-
         });
 
         for x in 0..LCD_WIDTH {
@@ -70,7 +77,6 @@ pub mod draw_routine{
                             start_y: y as u8,
                             end_x: x as u8,
                             end_y: y as u8,
-
                         });
                         new_line = false;
                     } else {
@@ -86,14 +92,13 @@ pub mod draw_routine{
             }
         }
 
-
         for l in lines {
             // Send draw line command to LCD
             server.run_command(0x31, &[0x03, 0x06, l.start_x, l.start_y, l.end_x, l.end_y]);
         }
 
         loop {
-            server.run_command(0x31, &[03,06,00,00,00,00]); // Keep the test active (Stops LCD from clearing after test)
+            server.run_command(0x31, &[03, 06, 00, 00, 00, 00]); // Keep the test active (Stops LCD from clearing after test)
         }
     }
 }

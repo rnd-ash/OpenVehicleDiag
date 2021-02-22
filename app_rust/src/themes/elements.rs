@@ -1,12 +1,11 @@
-use iced::widget::button::Style;
-use iced::{button, pick_list, Color, Vector};
 use crate::themes::*;
+use iced::widget::button::Style;
 use iced::widget::pick_list::Menu;
-
+use iced::{button, pick_list, Color, Vector};
 
 pub struct ButtonStyle {
     color: Color,
-    is_outlined: bool
+    is_outlined: bool,
 }
 
 impl ButtonStyle {
@@ -20,20 +19,36 @@ impl button::StyleSheet for ButtonStyle {
         match super::get_theme() {
             super::Style::Light => button::Style {
                 shadow_offset: Default::default(),
-                background: if self.is_outlined { WHITE.into() } else { self.color.into() },
+                background: if self.is_outlined {
+                    WHITE.into()
+                } else {
+                    self.color.into()
+                },
                 border_radius: BUTTON_RADIUS,
-                border_width: if self.is_outlined { BUTTON_BORDER_WIDTH } else { 0.0 },
+                border_width: if self.is_outlined {
+                    BUTTON_BORDER_WIDTH
+                } else {
+                    0.0
+                },
                 border_color: if self.is_outlined { self.color } else { WHITE },
                 text_color: if self.is_outlined { self.color } else { WHITE },
             },
             super::Style::Dark => button::Style {
                 shadow_offset: Default::default(),
-                background: if self.is_outlined { DARK_BG.into() } else { self.color.into() },
+                background: if self.is_outlined {
+                    DARK_BG.into()
+                } else {
+                    self.color.into()
+                },
                 border_radius: BUTTON_RADIUS,
-                border_width: if self.is_outlined { BUTTON_BORDER_WIDTH } else { 0.0 },
+                border_width: if self.is_outlined {
+                    BUTTON_BORDER_WIDTH
+                } else {
+                    0.0
+                },
                 border_color: if self.is_outlined { self.color } else { WHITE },
                 text_color: if self.is_outlined { self.color } else { WHITE },
-            }
+            },
         }
     }
 
@@ -51,17 +66,25 @@ impl button::StyleSheet for ButtonStyle {
     fn disabled(&self) -> Style {
         match super::get_theme() {
             super::Style::Light => button::Style {
-                background: if self.is_outlined { WHITE.into() } else { GREY.into() },
+                background: if self.is_outlined {
+                    WHITE.into()
+                } else {
+                    GREY.into()
+                },
                 text_color: if self.is_outlined { GREY } else { WHITE },
                 border_color: if self.is_outlined { GREY } else { WHITE },
                 ..self.active()
             },
             super::Style::Dark => button::Style {
-                background: if self.is_outlined { DARK_BG.into() } else { GREY.into() },
+                background: if self.is_outlined {
+                    DARK_BG.into()
+                } else {
+                    GREY.into()
+                },
                 text_color: if self.is_outlined { GREY } else { WHITE },
                 border_color: if self.is_outlined { GREY } else { WHITE },
                 ..self.active()
-            }
+            },
         }
     }
 }
@@ -77,7 +100,7 @@ impl pick_list::StyleSheet for DropDown {
                 border_width: 1.0,
                 border_color: DARK_BG,
                 selected_text_color: DARK_BG,
-                selected_background: GREY.into()
+                selected_background: GREY.into(),
             },
             super::Style::Dark => Menu {
                 text_color: WHITE,
@@ -85,8 +108,8 @@ impl pick_list::StyleSheet for DropDown {
                 border_width: 1.0,
                 border_color: WHITE,
                 selected_text_color: WHITE,
-                selected_background: GREY.into()
-            }
+                selected_background: GREY.into(),
+            },
         }
     }
 
@@ -98,7 +121,7 @@ impl pick_list::StyleSheet for DropDown {
                 border_radius: BUTTON_RADIUS,
                 border_width: 1.0,
                 border_color: DARK_BG,
-                icon_size: 0.5
+                icon_size: 0.5,
             },
             super::Style::Dark => pick_list::Style {
                 text_color: WHITE,
@@ -106,8 +129,8 @@ impl pick_list::StyleSheet for DropDown {
                 border_radius: BUTTON_RADIUS,
                 border_width: 1.0,
                 border_color: WHITE,
-                icon_size: 0.5
-            }
+                icon_size: 0.5,
+            },
         }
     }
 
@@ -118,7 +141,7 @@ impl pick_list::StyleSheet for DropDown {
             border_radius: BUTTON_RADIUS,
             border_width: 1.0,
             border_color: WHITE,
-            icon_size: 0.5
+            icon_size: 0.5,
         }
     }
 }
@@ -132,25 +155,27 @@ impl iced::container::StyleSheet for Container {
                 background: WHITE.into(),
                 border_radius: 0.0,
                 border_width: 0.0,
-                border_color: Default::default()
+                border_color: Default::default(),
             },
             super::Style::Dark => iced::container::Style {
                 text_color: WHITE.into(),
                 background: DARK_BG.into(),
                 border_radius: 0.0,
                 border_width: 0.0,
-                border_color: Default::default()
-            }
+                border_color: Default::default(),
+            },
         }
     }
 }
 
 pub struct RadioBtn {
-    c: Color
+    c: Color,
 }
 impl RadioBtn {
-    pub (crate) fn new(style: ButtonType) -> Self {
-        Self { c: style.get_colour() }
+    pub(crate) fn new(style: ButtonType) -> Self {
+        Self {
+            c: style.get_colour(),
+        }
     }
 }
 
@@ -161,14 +186,14 @@ impl iced::radio::StyleSheet for RadioBtn {
                 background: WHITE.into(),
                 dot_color: self.c,
                 border_width: 1.0,
-                border_color: DARK_BG
+                border_color: DARK_BG,
             },
             super::Style::Dark => iced::radio::Style {
                 background: DARK_BG.into(),
                 dot_color: self.c,
                 border_width: 1.0,
-                border_color: WHITE
-            }
+                border_color: WHITE,
+            },
         }
     }
 
@@ -178,24 +203,26 @@ impl iced::radio::StyleSheet for RadioBtn {
                 background: WHITE.into(),
                 dot_color: self.c,
                 border_width: 1.0,
-                border_color: WHITE
+                border_color: WHITE,
             },
             super::Style::Dark => iced::radio::Style {
                 background: DARK_BG.into(),
                 dot_color: WHITE,
                 border_width: 1.0,
-                border_color: WHITE
-            }
+                border_color: WHITE,
+            },
         }
     }
 }
 
 pub struct PBar {
-    c: Color
+    c: Color,
 }
 impl PBar {
     pub fn new(accent: ButtonType) -> Self {
-        Self { c: accent.get_colour() }
+        Self {
+            c: accent.get_colour(),
+        }
     }
 }
 
@@ -204,7 +231,7 @@ impl iced::progress_bar::StyleSheet for PBar {
         iced::progress_bar::Style {
             background: GREY.into(),
             bar: self.c.into(),
-            border_radius: BUTTON_RADIUS
+            border_radius: BUTTON_RADIUS,
         }
     }
 }
@@ -225,7 +252,7 @@ impl iced::text_input::StyleSheet for TextInput {
                 border_radius: BUTTON_RADIUS,
                 border_width: BUTTON_BORDER_WIDTH,
                 border_color: WHITE,
-            }
+            },
         }
     }
 
@@ -242,7 +269,7 @@ impl iced::text_input::StyleSheet for TextInput {
                 border_radius: BUTTON_RADIUS,
                 border_width: BUTTON_BORDER_WIDTH,
                 border_color: WHITE,
-            }
+            },
         }
     }
 

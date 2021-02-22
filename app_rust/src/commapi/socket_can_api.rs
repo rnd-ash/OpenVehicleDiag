@@ -1,16 +1,16 @@
 use std::sync::{Arc, RwLock};
 
 use crate::commapi;
+use crate::commapi::comm_api::{
+    CanFrame, ComServerError, DeviceCapabilities, FilterType, ISO15765Data,
+};
 use commapi::comm_api::ComServer;
 use socketcan::CANSocket;
-use crate::commapi::comm_api::{ISO15765Data, CanFrame, FilterType, ComServerError, DeviceCapabilities};
 
 use super::comm_api::Capability;
 
 #[derive(Debug, Copy, Clone)]
-pub enum SocketCanIfaceError {
-
-}
+pub enum SocketCanIfaceError {}
 
 #[derive(Debug, Clone)]
 pub struct SocketCanAPI {
@@ -23,7 +23,7 @@ impl SocketCanAPI {
     pub fn new(iface: String) -> Self {
         Self {
             iface,
-            sockcan_iface: Arc::new(RwLock::new(None))
+            sockcan_iface: Arc::new(RwLock::new(None)),
         }
     }
 }
@@ -38,7 +38,11 @@ impl ComServer for SocketCanAPI {
         Ok(())
     }
 
-    fn send_can_packets(&self, data: &[CanFrame], timeout_ms: u32) -> Result<usize, ComServerError> {
+    fn send_can_packets(
+        &self,
+        data: &[CanFrame],
+        timeout_ms: u32,
+    ) -> Result<usize, ComServerError> {
         if let Some(socket) = self.sockcan_iface.read().unwrap().as_ref() {
             if timeout_ms == 0 {
                 for x in data {
@@ -62,19 +66,35 @@ impl ComServer for SocketCanAPI {
         }
     }
 
-    fn read_can_packets(&self, timeout_ms: u32, max_msgs: usize) -> Result<Vec<CanFrame>, ComServerError> {
+    fn read_can_packets(
+        &self,
+        timeout_ms: u32,
+        max_msgs: usize,
+    ) -> Result<Vec<CanFrame>, ComServerError> {
         unimplemented!()
     }
 
-    fn send_iso15765_data(&self, data: &[ISO15765Data], _timeout_ms: u32) -> Result<usize, ComServerError> {
+    fn send_iso15765_data(
+        &self,
+        data: &[ISO15765Data],
+        _timeout_ms: u32,
+    ) -> Result<usize, ComServerError> {
         unimplemented!()
     }
 
-    fn read_iso15765_packets(&self, timeout_ms: u32, max_msgs: usize) -> Result<Vec<ISO15765Data>, ComServerError> {
+    fn read_iso15765_packets(
+        &self,
+        timeout_ms: u32,
+        max_msgs: usize,
+    ) -> Result<Vec<ISO15765Data>, ComServerError> {
         unimplemented!()
     }
 
-    fn open_can_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError> {
+    fn open_can_interface(
+        &mut self,
+        bus_speed: u32,
+        is_ext_can: bool,
+    ) -> Result<(), ComServerError> {
         if self.sockcan_iface.read().unwrap().is_some() {
             self.close_can_interface()?;
         }
@@ -83,31 +103,43 @@ impl ComServer for SocketCanAPI {
             err_code: 1,
             err_desc: x.to_string(),
         })?;
-        tp_socket.set_nonblocking(true).map_err(|x| ComServerError {
-            err_code: 1,
-            err_desc: x.to_string(),
-        })?; // Disable blocking
+        tp_socket
+            .set_nonblocking(true)
+            .map_err(|x| ComServerError {
+                err_code: 1,
+                err_desc: x.to_string(),
+            })?; // Disable blocking
         *self.sockcan_iface.write().unwrap() = Some(tp_socket);
         Ok(())
     }
 
     fn close_can_interface(&mut self) -> Result<(), ComServerError> {
         if self.sockcan_iface.read().unwrap().is_none() {
-            return Ok(()) // No socket to close
+            return Ok(()); // No socket to close
         }
         drop(self.sockcan_iface.write().unwrap()); // Dropping the socketCAN Iface closes it
         Ok(())
     }
 
-    fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool, ext_addressing: bool) -> Result<(), ComServerError> {
+    fn open_iso15765_interface(
+        &mut self,
+        bus_speed: u32,
+        is_ext_can: bool,
+        ext_addressing: bool,
+    ) -> Result<(), ComServerError> {
         Ok(())
     }
 
     fn close_iso15765_interface(&mut self) -> Result<(), ComServerError> {
-       Ok(())
+        Ok(())
     }
 
-    fn add_can_filter(&self, filter: FilterType, id: u32, mask: u32) -> Result<u32, ComServerError> {
+    fn add_can_filter(
+        &self,
+        filter: FilterType,
+        id: u32,
+        mask: u32,
+    ) -> Result<u32, ComServerError> {
         unimplemented!()
     }
 
@@ -123,7 +155,11 @@ impl ComServer for SocketCanAPI {
         unimplemented!()
     }
 
-    fn set_iso15765_params(&self, separation_time_min: u32, block_size: u32) -> Result<(), ComServerError> {
+    fn set_iso15765_params(
+        &self,
+        separation_time_min: u32,
+        block_size: u32,
+    ) -> Result<(), ComServerError> {
         unimplemented!()
     }
 
@@ -150,9 +186,7 @@ impl ComServer for SocketCanAPI {
     }
 
     fn clone_box(&self) -> Box<dyn ComServer> {
-        Box::new(
-            self.clone()
-        )
+        Box::new(self.clone())
     }
 
     fn get_capabilities(&self) -> DeviceCapabilities {
@@ -169,7 +203,7 @@ impl ComServer for SocketCanAPI {
             iso9141: Capability::NA,
             iso14230: Capability::NA,
             ip: Capability::NA,
-            battery_voltage: Capability::NA
+            battery_voltage: Capability::NA,
         }
     }
 

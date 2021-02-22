@@ -1,42 +1,38 @@
 pub mod elements;
 pub mod images;
-use iced::{button, Color, Button, Text, PickList, pick_list, Container, Element, Radio, ProgressBar};
 use crate::themes::elements::{ButtonStyle, DropDown, PBar};
-use std::{borrow::Cow, todo};
+use iced::{
+    button, pick_list, Button, Color, Container, Element, PickList, ProgressBar, Radio, Text,
+};
 use std::ops::RangeInclusive;
+use std::{borrow::Cow, todo};
 
 use self::elements::TextInput;
 
-
-
-
-
-const BUTTON_RADIUS : f32 = 5.0;
+const BUTTON_RADIUS: f32 = 5.0;
 const BUTTON_BORDER_WIDTH: f32 = 1.5;
 const GREY: Color = Color {
     r: 0x75 as f32 / 255.0,
     g: 0x75 as f32 / 255.0,
     b: 0x75 as f32 / 255.0,
-    a: 1.0
+    a: 1.0,
 };
 
 const DARK_BG: Color = Color {
     r: 0x12 as f32 / 255.0,
     g: 0x12 as f32 / 255.0,
     b: 0x12 as f32 / 255.0,
-    a: 1.0
+    a: 1.0,
 };
 
 const WHITE: Color = Color {
     r: 1.0,
     g: 1.0,
     b: 1.0,
-    a: 1.0
+    a: 1.0,
 };
 
-
 static mut CURR_THEME: Style = Style::Light;
-
 
 static mut DEBUG: bool = false;
 
@@ -45,14 +41,13 @@ pub fn setDebug(state: bool) {
 }
 
 pub fn is_debug() -> bool {
-    unsafe{ DEBUG }
+    unsafe { DEBUG }
 }
-
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum Style {
     Light,
-    Dark
+    Dark,
 }
 
 pub fn set_dark_theme() {
@@ -64,12 +59,16 @@ pub fn set_light_theme() {
 }
 
 pub fn toggle_theme() {
-    if *get_theme() == Style::Light { set_dark_theme() } else { set_light_theme() }
+    if *get_theme() == Style::Light {
+        set_dark_theme()
+    } else {
+        set_light_theme()
+    }
 }
 
-pub (crate) fn get_theme<'a>() -> &'a Style { unsafe { &CURR_THEME } }
-
-
+pub(crate) fn get_theme<'a>() -> &'a Style {
+    unsafe { &CURR_THEME }
+}
 
 pub enum ButtonType {
     Primary,
@@ -79,7 +78,7 @@ pub enum ButtonType {
     Warning,
     Info,
     Light,
-    Dark
+    Dark,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -92,19 +91,25 @@ pub enum TextType {
 }
 
 impl TextType {
-    pub (crate) fn get_colour(&self) -> Color {
+    pub(crate) fn get_colour(&self) -> Color {
         match &self {
             TextType::Success => ButtonType::Success.get_colour(),
             TextType::Warning => ButtonType::Warning.get_colour(),
             TextType::Danger => ButtonType::Danger.get_colour(),
             TextType::Disabled => GREY,
-            TextType::Normal => if *get_theme() == Style::Light { DARK_BG } else { WHITE }
+            TextType::Normal => {
+                if *get_theme() == Style::Light {
+                    DARK_BG
+                } else {
+                    WHITE
+                }
+            }
         }
     }
 }
 
 impl ButtonType {
-    pub (crate) fn get_colour(&self) -> Color {
+    pub(crate) fn get_colour(&self) -> Color {
         match &self {
             ButtonType::Primary => Color::from_rgb8(0x0d, 0x6e, 0xfd),
             ButtonType::Secondary => Color::from_rgb8(0x66, 0x10, 0xf2),
@@ -118,33 +123,60 @@ impl ButtonType {
     }
 }
 
-pub fn button_coloured<'a, T: Clone>(state: &'a mut button::State, text: &str, btn_type: ButtonType) -> Button<'a, T> {
+pub fn button_coloured<'a, T: Clone>(
+    state: &'a mut button::State,
+    text: &str,
+    btn_type: ButtonType,
+) -> Button<'a, T> {
     let color = btn_type.get_colour();
-    Button::new(state, Text::new(text)).style(ButtonStyle::new(color, false)).padding(8)
+    Button::new(state, Text::new(text))
+        .style(ButtonStyle::new(color, false))
+        .padding(8)
 }
 
-pub fn button_outlined<'a, T: Clone>(state: &'a mut button::State, text: &str, btn_type: ButtonType) -> Button<'a, T> {
+pub fn button_outlined<'a, T: Clone>(
+    state: &'a mut button::State,
+    text: &str,
+    btn_type: ButtonType,
+) -> Button<'a, T> {
     let color = btn_type.get_colour();
-    Button::new(state, Text::new(text)).style(ButtonStyle::new(color, true)).padding(8)
+    Button::new(state, Text::new(text))
+        .style(ButtonStyle::new(color, true))
+        .padding(8)
 }
 
-pub fn picklist<'a, T, Msg>(state: &'a mut pick_list::State<T>, options: impl Into<Cow<'a, [T]>>, selected: Option<T>, on_selected: impl Fn(T) -> Msg + 'static) -> PickList<'a, T, Msg>
+pub fn picklist<'a, T, Msg>(
+    state: &'a mut pick_list::State<T>,
+    options: impl Into<Cow<'a, [T]>>,
+    selected: Option<T>,
+    on_selected: impl Fn(T) -> Msg + 'static,
+) -> PickList<'a, T, Msg>
 where
     T: ToString + Eq,
     [T]: ToOwned<Owned = Vec<T>>,
 {
-    PickList::new(state, options, selected, on_selected).style(DropDown).padding(8)
+    PickList::new(state, options, selected, on_selected)
+        .style(DropDown)
+        .padding(8)
 }
 
 pub fn container<'a, Msg, T>(contents: T) -> Container<'a, Msg>
-where T : Into<Element<'a, Msg>> {
+where
+    T: Into<Element<'a, Msg>>,
+{
     Container::new(contents).style(elements::Container)
 }
 
-pub fn radio_btn<Msg: Clone, V, F>(value: V, label: impl Into<String>, selected: Option<V>, f: F, btn_t: ButtonType) -> Radio<Msg>
-    where
+pub fn radio_btn<Msg: Clone, V, F>(
+    value: V,
+    label: impl Into<String>,
+    selected: Option<V>,
+    f: F,
+    btn_t: ButtonType,
+) -> Radio<Msg>
+where
     V: Eq + Copy,
-    F: 'static + Fn(V) -> Msg
+    F: 'static + Fn(V) -> Msg,
 {
     Radio::new(value, label, selected, f).style(elements::RadioBtn::new(btn_t))
 }
@@ -153,7 +185,7 @@ pub enum TitleSize {
     P1,
     P2,
     P3,
-    P4
+    P4,
 }
 
 pub fn title_text(text: &str, size: TitleSize) -> iced::Text {
@@ -161,7 +193,7 @@ pub fn title_text(text: &str, size: TitleSize) -> iced::Text {
         TitleSize::P1 => 60,
         TitleSize::P2 => 50,
         TitleSize::P3 => 40,
-        TitleSize::P4 => 30
+        TitleSize::P4 => 30,
     })
 }
 
@@ -169,11 +201,24 @@ pub fn text(text: &str, txt_type: TextType) -> iced::Text {
     Text::new(text).color(txt_type.get_colour())
 }
 
-pub fn progress_bar(range: RangeInclusive<f32>, curr_value: f32, c_type: ButtonType) -> iced::ProgressBar {
+pub fn progress_bar(
+    range: RangeInclusive<f32>,
+    curr_value: f32,
+    c_type: ButtonType,
+) -> iced::ProgressBar {
     ProgressBar::new(range, curr_value).style(PBar::new(c_type))
 }
 
-pub fn text_input<'a, Msg: Clone, F>(state: &'a mut iced::text_input::State, placeholder: &str, value: &str, on_change: F) -> iced::text_input::TextInput<'a, Msg>
-where F: 'static + Fn(String) -> Msg {
-    iced::text_input::TextInput::new(state, placeholder, value, on_change).style(TextInput).padding(8)
+pub fn text_input<'a, Msg: Clone, F>(
+    state: &'a mut iced::text_input::State,
+    placeholder: &str,
+    value: &str,
+    on_change: F,
+) -> iced::text_input::TextInput<'a, Msg>
+where
+    F: 'static + Fn(String) -> Msg,
+{
+    iced::text_input::TextInput::new(state, placeholder, value, on_change)
+        .style(TextInput)
+        .padding(8)
 }

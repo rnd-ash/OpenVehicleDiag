@@ -1,14 +1,14 @@
-use std::{fmt::Formatter, result::Result};
 use std::cmp::min;
-use std::fmt::Debug;
 use std::fmt;
+use std::fmt::Debug;
 use std::time::Instant;
+use std::{fmt::Formatter, result::Result};
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct CanFrame {
     pub id: u32,
     pub dlc: u8,
-    data: [u8; 8]
+    data: [u8; 8],
 }
 
 impl CanFrame {
@@ -22,7 +22,7 @@ impl CanFrame {
         Self {
             id,
             dlc: dlc as u8,
-            data: can_data
+            data: can_data,
         }
     }
 }
@@ -39,7 +39,7 @@ impl From<socketcan::CANFrame> for CanFrame {
         let mut res = Self {
             id: s.id(),
             dlc: data.len() as u8,
-            data: [0,0,0,0,0,0,0,0],
+            data: [0, 0, 0, 0, 0, 0, 0, 0],
         };
         for x in 0..data.len() {
             res.data[x] = data[x];
@@ -48,16 +48,19 @@ impl From<socketcan::CANFrame> for CanFrame {
     }
 }
 
-unsafe impl Send for CanFrame{}
-unsafe impl Sync for CanFrame{}
+unsafe impl Send for CanFrame {}
+unsafe impl Sync for CanFrame {}
 
 impl std::fmt::Display for CanFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ID: 0x{:04X} Data: {:02X?}", self.id, &self.data[0..self.dlc as usize])
+        write!(
+            f,
+            "ID: 0x{:04X} Data: {:02X?}",
+            self.id,
+            &self.data[0..self.dlc as usize]
+        )
     }
 }
-
-
 
 #[derive(Clone, Debug)]
 pub struct ISO15765Data {
@@ -69,33 +72,37 @@ pub struct ISO15765Data {
 
 impl std::fmt::Display for ISO15765Data {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "ISO15765: ID: 0x{:04X}, Payload: {:02X?}", self.id, self.data)
+        write!(
+            f,
+            "ISO15765: ID: 0x{:04X}, Payload: {:02X?}",
+            self.id, self.data
+        )
     }
 }
 
-unsafe impl Send for ISO15765Data{}
-unsafe impl Sync for ISO15765Data{}
+unsafe impl Send for ISO15765Data {}
+unsafe impl Sync for ISO15765Data {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct ISO15765Config {
     pub send_id: u32,
     pub recv_id: u32,
     pub block_size: u32,
-    pub sep_time: u32
+    pub sep_time: u32,
 }
-unsafe impl Send for ISO15765Config{}
-unsafe impl Sync for ISO15765Config{}
+unsafe impl Send for ISO15765Config {}
+unsafe impl Sync for ISO15765Config {}
 
 #[derive(Debug, Copy, Clone)]
 pub enum FilterType {
     Pass,
-    Block
+    Block,
 }
 
 #[derive(Debug, Clone)]
 pub struct ComServerError {
     pub err_code: u32,
-    pub err_desc: String
+    pub err_desc: String,
 }
 
 impl std::fmt::Display for ComServerError {
@@ -111,62 +118,89 @@ pub enum Capability {
     // The device does not support the capability
     No,
     // The API the device uses does not support the capability
-    NA
+    NA,
 }
 
 impl Capability {
-    pub (crate) fn from_bool(b: bool) -> Self {
-        if b { Capability::Yes } else { Capability::No }
+    pub(crate) fn from_bool(b: bool) -> Self {
+        if b {
+            Capability::Yes
+        } else {
+            Capability::No
+        }
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct DeviceCapabilities {
-    pub (crate) name: String,
-    pub (crate) vendor: String,
-    pub (crate) library_path: String,
-    pub (crate) device_fw_version: String,
-    pub (crate) library_version: String,
+    pub(crate) name: String,
+    pub(crate) vendor: String,
+    pub(crate) library_path: String,
+    pub(crate) device_fw_version: String,
+    pub(crate) library_version: String,
 
     /// Supports J1850VPW
-    pub (crate) j1850vpw: Capability,
+    pub(crate) j1850vpw: Capability,
     /// Supports J1850PWM
-    pub (crate) j1850pwm: Capability,
+    pub(crate) j1850pwm: Capability,
     /// Supports regular CAN
-    pub (crate) can: Capability,
+    pub(crate) can: Capability,
     /// Supports ISO15765 (ISO-TP)
-    pub (crate) iso15765: Capability,
+    pub(crate) iso15765: Capability,
     /// Supports K-Line OBD ISO9141
-    pub (crate) iso9141: Capability,
+    pub(crate) iso9141: Capability,
     /// Supports K-Line KWP2000 ISO14230
-    pub (crate) iso14230: Capability,
+    pub(crate) iso14230: Capability,
     /// Supports Ethernet DoIP
-    pub (crate) ip: Capability,
+    pub(crate) ip: Capability,
     /// Supports reading the battery voltage
-    pub (crate) battery_voltage: Capability
+    pub(crate) battery_voltage: Capability,
 }
 
 impl DeviceCapabilities {
-    pub fn get_name(&self) -> String { self.name.clone() }
-    pub fn get_vendor(&self) -> String { self.vendor.clone() }
-    pub fn get_lib_path(&self) -> String { self.library_path.clone() }
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+    pub fn get_vendor(&self) -> String {
+        self.vendor.clone()
+    }
+    pub fn get_lib_path(&self) -> String {
+        self.library_path.clone()
+    }
 
-    pub fn support_can_fd(&self) -> Capability { self.can }
-    pub fn supports_iso15765(&self) -> Capability { self.iso15765 }
+    pub fn support_can_fd(&self) -> Capability {
+        self.can
+    }
+    pub fn supports_iso15765(&self) -> Capability {
+        self.iso15765
+    }
 
-    pub fn supports_j1850pwm(&self) -> Capability { self.j1850pwm }
-    pub fn supports_j1850vpw(&self) -> Capability { self.j1850vpw }
+    pub fn supports_j1850pwm(&self) -> Capability {
+        self.j1850pwm
+    }
+    pub fn supports_j1850vpw(&self) -> Capability {
+        self.j1850vpw
+    }
 
-    pub fn supports_iso9141(&self) -> Capability { self.iso9141 }
-    pub fn supports_iso14230(&self) -> Capability { self.iso14230 }
-    pub fn supports_doip(&self) -> Capability { self.ip }
+    pub fn supports_iso9141(&self) -> Capability {
+        self.iso9141
+    }
+    pub fn supports_iso14230(&self) -> Capability {
+        self.iso14230
+    }
+    pub fn supports_doip(&self) -> Capability {
+        self.ip
+    }
 
-    pub fn get_device_fw_version(&self) -> String { self.device_fw_version.clone() }
-    pub fn get_library_version(&self) -> String { self.library_version.clone() }
+    pub fn get_device_fw_version(&self) -> String {
+        self.device_fw_version.clone()
+    }
+    pub fn get_library_version(&self) -> String {
+        self.library_version.clone()
+    }
 }
 
-
-pub trait ComServer : Send + Sync + Debug {
+pub trait ComServer: Send + Sync + Debug {
     /// Attempts to open and connect to the device
     fn open_device(&mut self) -> Result<(), ComServerError>;
 
@@ -185,11 +219,11 @@ pub trait ComServer : Send + Sync + Debug {
     /// ## Returns
     /// The number of CAN Frames successfully written to the vehicle, if Timeout is 0, this
     /// number will always be equal to the number of frames that were provided.
-    fn send_can_packets(&self, data: &[CanFrame], timeout_ms: u32) -> Result<usize, ComServerError>;
+    fn send_can_packets(&self, data: &[CanFrame], timeout_ms: u32)
+        -> Result<usize, ComServerError>;
 
     /// Returns a boolean indicating if there is at least 1 channel communicating with the car
     fn is_connected(&self) -> bool;
-
 
     /// Attempts to read a list of [can frames](CanFrame) from the vehicle's can network.
     ///
@@ -200,7 +234,11 @@ pub trait ComServer : Send + Sync + Debug {
     /// to return whatever data it has in its Rx queue, and don't wait for any more
     ///
     /// * max_msgs - The maximum number of messages to read from the adapter.
-    fn read_can_packets(&self, timeout_ms: u32, max_msgs: usize) -> Result<Vec<CanFrame>, ComServerError>;
+    fn read_can_packets(
+        &self,
+        timeout_ms: u32,
+        max_msgs: usize,
+    ) -> Result<Vec<CanFrame>, ComServerError>;
 
     /// Sends a list of ISO-TP (ISO15765) payloads to a vehicles Canbus network
     ///
@@ -218,7 +256,11 @@ pub trait ComServer : Send + Sync + Debug {
     /// ## Returns
     /// The number of ISO-TP messages successfully written to the vehicle, if Timeout is 0, this
     /// number will always be equal to the number of frames that were provided.
-    fn send_iso15765_data(&self, data: &[ISO15765Data], timeout_ms: u32) -> Result<usize, ComServerError>;
+    fn send_iso15765_data(
+        &self,
+        data: &[ISO15765Data],
+        timeout_ms: u32,
+    ) -> Result<usize, ComServerError>;
 
     /// Attempts to read a list of [iso-tp messages](ISO15765Data) from the vehicle's can network.
     ///
@@ -229,14 +271,22 @@ pub trait ComServer : Send + Sync + Debug {
     /// to return whatever data it has in its Rx queue, and don't wait for any more
     ///
     /// * max_msgs - The maximum number of messages to read from the adapter.
-    fn read_iso15765_packets(&self, timeout_ms: u32, max_msgs: usize) -> Result<Vec<ISO15765Data>, ComServerError>;
+    fn read_iso15765_packets(
+        &self,
+        timeout_ms: u32,
+        max_msgs: usize,
+    ) -> Result<Vec<ISO15765Data>, ComServerError>;
 
     /// Attempts to open a CAN interface with the adapter to the vehicles OBD-II port
     ///
     /// ## Params
     /// * `bus_speed` - Speed of the vehicle Canbus in bps, typically for an OBD-II port it is 500000
     /// * `is_ext_can` - Tells the adapter to use extended CAN Addressing
-    fn open_can_interface(&mut self, bus_speed: u32, is_ext_can: bool) -> Result<(), ComServerError>;
+    fn open_can_interface(
+        &mut self,
+        bus_speed: u32,
+        is_ext_can: bool,
+    ) -> Result<(), ComServerError>;
 
     /// Attempts to destroy the CAN Interface on the adapter
     fn close_can_interface(&mut self) -> Result<(), ComServerError>;
@@ -248,7 +298,12 @@ pub trait ComServer : Send + Sync + Debug {
     /// * `is_ext_can` - Tells the adapter to use extended CAN Addressing (29bit CAN ID)
     /// * `ext_addressing` - Tells the adapter to use extended ISO-TP addressing, where first byte of CAN Frame
     /// is actually still part of the CAN ID rather than ISO-TP PCI
-    fn open_iso15765_interface(&mut self, bus_speed: u32, is_ext_can: bool, ext_addressing: bool) -> Result<(), ComServerError>;
+    fn open_iso15765_interface(
+        &mut self,
+        bus_speed: u32,
+        is_ext_can: bool,
+        ext_addressing: bool,
+    ) -> Result<(), ComServerError>;
 
     /// Attempts to destroy the ISO-TP Interface on the adapter
     fn close_iso15765_interface(&mut self) -> Result<(), ComServerError>;
@@ -266,7 +321,8 @@ pub trait ComServer : Send + Sync + Debug {
     ///
     /// ## Returns
     /// The filter ID provided by the adapter. Use this when destroying the filter
-    fn add_can_filter(&self, filter: FilterType, id: u32, mask: u32) -> Result<u32, ComServerError>;
+    fn add_can_filter(&self, filter: FilterType, id: u32, mask: u32)
+        -> Result<u32, ComServerError>;
 
     /// Tells the adapter to remove an active filter on an open CAN channel
     /// # Params
@@ -276,14 +332,15 @@ pub trait ComServer : Send + Sync + Debug {
     fn add_iso15765_filter(&self, id: u32, mask: u32, fc_id: u32) -> Result<u32, ComServerError>;
 
     fn configure_iso15765(&self, cfg: &ISO15765Config) -> Result<u32, ComServerError> {
-        self.add_iso15765_filter(cfg.recv_id, 0xFFFF, cfg.send_id).and_then(|idx| {
-            self.set_iso15765_params(cfg.sep_time, cfg.block_size).map(|_| idx).map_err(|e| {
-                match self.rem_iso15765_filter(idx){
-                    Ok(_) => e,
-                    Err(e1) => e1
-                }
+        self.add_iso15765_filter(cfg.recv_id, 0xFFFF, cfg.send_id)
+            .and_then(|idx| {
+                self.set_iso15765_params(cfg.sep_time, cfg.block_size)
+                    .map(|_| idx)
+                    .map_err(|e| match self.rem_iso15765_filter(idx) {
+                        Ok(_) => e,
+                        Err(e1) => e1,
+                    })
             })
-        })
     }
 
     /// Tells the adapter to remove an active filter on an open ISO15765 channel
@@ -301,11 +358,20 @@ pub trait ComServer : Send + Sync + Debug {
     /// * separation_time_min - The minimum separation time between sending frames to the ECU
     /// * block_size - The number of CAN frames to receive or send before waiting for another
     ///                 flow control message from the ECU
-    fn set_iso15765_params(&self, separation_time_min: u32, block_size: u32) -> Result<(), ComServerError>;
+    fn set_iso15765_params(
+        &self,
+        separation_time_min: u32,
+        block_size: u32,
+    ) -> Result<(), ComServerError>;
 
     /// Sends an ISOTP payload and attempts to read the ECUs response
     /// IMPORTANT - This function assumes the ISO15765 interface is ALREADY open
-    fn send_receive_iso15765(&self, p: ISO15765Data, max_timeout_ms: u128, max_resp: usize) -> Result<Vec<ISO15765Data>, ComServerError> {
+    fn send_receive_iso15765(
+        &self,
+        p: ISO15765Data,
+        max_timeout_ms: u128,
+        max_resp: usize,
+    ) -> Result<Vec<ISO15765Data>, ComServerError> {
         self.clear_iso15765_rx_buffer()?; // Clear the receive buffer
         self.send_iso15765_data(&[p], 0)?; // Send data
         let mut timeout = max_timeout_ms;
@@ -349,7 +415,7 @@ pub trait ComServer : Send + Sync + Debug {
     fn read_battery_voltage(&self) -> Result<f32, ComServerError>;
 
     /// Clones this in memory into a new Box
-    fn clone_box(&self) -> Box::<dyn ComServer>;
+    fn clone_box(&self) -> Box<dyn ComServer>;
 
     /// Retrieves the device's capabilities
     fn get_capabilities(&self) -> DeviceCapabilities;

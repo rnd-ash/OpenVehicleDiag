@@ -1,24 +1,36 @@
-use std::{sync::{Arc, Mutex, RwLock, atomic::AtomicBool, mpsc::{self, Receiver, Sender}}, time::Instant};
-use std::sync::atomic::Ordering::Relaxed;
 use commapi::comm_api::{ComServer, ISO15765Config, ISO15765Data};
 use read_ecu_identification::read_code_fingerprint;
+use std::sync::atomic::Ordering::Relaxed;
+use std::{
+    sync::{
+        atomic::AtomicBool,
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex, RwLock,
+    },
+    time::Instant,
+};
 
-use crate::{commapi::{self, comm_api::ComServerError}, windows::diag_session::kwp2000_session::{self, KWP2000DiagSession}};
 use self::start_diag_session::DiagSession;
+use crate::{
+    commapi::{self, comm_api::ComServerError},
+    windows::diag_session::kwp2000_session::{self, KWP2000DiagSession},
+};
 
-use super::{CautionLevel, CommandError, ECUCommand, DTC, ProtocolError, ProtocolResult, ProtocolServer, Selectable};
+use super::{
+    CautionLevel, CommandError, ECUCommand, ProtocolError, ProtocolResult, ProtocolServer,
+    Selectable, DTC,
+};
 
-pub mod start_diag_session;
-pub mod ecu_reset;
 pub mod clear_diag_information;
-pub mod read_status_dtc;
+pub mod ecu_reset;
 pub mod read_ecu_identification;
-
+pub mod read_status_dtc;
+pub mod start_diag_session;
 
 // Developed using Daimler's KWP2000 documentation
 // http://read.pudn.com/downloads554/ebook/2284613/KWP2000_release2_2.pdf
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, )]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Service {
     StartDiagSession,
     ECUReset,
@@ -84,8 +96,9 @@ impl Selectable for Service {
             Service::TesterPresent => "Tester present",
             Service::ControlDTCSettings => "Control DTC Settings",
             Service::ResponseOnEvent => "Response on event",
-            Service::SupplierCustom(x) => return format!("Custom({:02X})", x)
-        }.into()
+            Service::SupplierCustom(x) => return format!("Custom({:02X})", x),
+        }
+        .into()
     }
 }
 
@@ -125,7 +138,7 @@ impl Into<u8> for Service {
             Service::TesterPresent => 0x3E,
             Service::ControlDTCSettings => 0x85,
             Service::ResponseOnEvent => 0x86,
-            Service::SupplierCustom(sid) => sid
+            Service::SupplierCustom(sid) => sid,
         }
     }
 }
@@ -205,23 +218,23 @@ pub enum KwpNegativeCode {
     Busy,
     RequestSequenceError,
     RoutineNotComplete,
-    RequestOutOfRange, //0x31
-    InvalidKey, // 0x35,
-    ExceededAttempts, // 0x36,
-    TimeDelayNotExpired, // 0x37,
-    DownloadNotAccepted, // 0x40,
-    UploadNotAccepted, // 0x50,
-    TransferSuspended, // 0x71,
+    RequestOutOfRange,       //0x31
+    InvalidKey,              // 0x35,
+    ExceededAttempts,        // 0x36,
+    TimeDelayNotExpired,     // 0x37,
+    DownloadNotAccepted,     // 0x40,
+    UploadNotAccepted,       // 0x50,
+    TransferSuspended,       // 0x71,
     DataDecompressionFailed, // 0x9A
-    DataDecryptionFailed, // 0x9B,
-    ECUNotResponding, // 0xA0,
-    ECUAddressUnknown, //0xA1,
+    DataDecryptionFailed,    // 0x9B,
+    ECUNotResponding,        // 0xA0,
+    ECUAddressUnknown,       //0xA1,
     SecurityAccessDenied,
     ResponsePending,
     ServiceNotSupportedActiveSession,
     CustomDaimler(u8), // DCX
     Reserved(u8),
-    Unknown(u8)
+    Unknown(u8),
 }
 
 impl CommandError for KwpNegativeCode {
@@ -229,9 +242,13 @@ impl CommandError for KwpNegativeCode {
         match self {
             KwpNegativeCode::GeneralReject => "General reject",
             KwpNegativeCode::ServiceNotSupported => "Service is not supported",
-            KwpNegativeCode::SubFunctionNotSupported => "Sub function not supported / invalid format",
+            KwpNegativeCode::SubFunctionNotSupported => {
+                "Sub function not supported / invalid format"
+            }
             KwpNegativeCode::Busy => "ECU is currently busy performing another operation",
-            KwpNegativeCode::RequestSequenceError => "Conditions are not correct or Request sequence error",
+            KwpNegativeCode::RequestSequenceError => {
+                "Conditions are not correct or Request sequence error"
+            }
             KwpNegativeCode::RoutineNotComplete => "Routine is not yet completed",
             KwpNegativeCode::RequestOutOfRange => "The request is out of range",
             KwpNegativeCode::InvalidKey => "Invalid security key",
@@ -242,21 +259,30 @@ impl CommandError for KwpNegativeCode {
             KwpNegativeCode::TransferSuspended => "Data transfer suspended",
             KwpNegativeCode::DataDecompressionFailed => "Data decompression failed",
             KwpNegativeCode::DataDecryptionFailed => "Data decryption failed",
-            KwpNegativeCode::ECUNotResponding => "According to the gateway, the ECU is not responding",
-            KwpNegativeCode::ECUAddressUnknown => "The gateway does not know what ECU address this is",
+            KwpNegativeCode::ECUNotResponding => {
+                "According to the gateway, the ECU is not responding"
+            }
+            KwpNegativeCode::ECUAddressUnknown => {
+                "The gateway does not know what ECU address this is"
+            }
             KwpNegativeCode::SecurityAccessDenied => "Security access for this function was denied",
             KwpNegativeCode::ResponsePending => "Response pending...",
-            KwpNegativeCode::ServiceNotSupportedActiveSession => "This services is not supported in the current diagnostic session",
-            KwpNegativeCode::CustomDaimler(x) => return format!("Custom DaimlerChrysler DCX code 0x{:02X}", x),
+            KwpNegativeCode::ServiceNotSupportedActiveSession => {
+                "This services is not supported in the current diagnostic session"
+            }
+            KwpNegativeCode::CustomDaimler(x) => {
+                return format!("Custom DaimlerChrysler DCX code 0x{:02X}", x)
+            }
             KwpNegativeCode::Reserved(x) => return format!("ISO 14230 Reserved code 0x{:02X}", x),
-            KwpNegativeCode::Unknown(x) => return format!("Unknown error 0x{:02X}", x)
-        }.into()
+            KwpNegativeCode::Unknown(x) => return format!("Unknown error 0x{:02X}", x),
+        }
+        .into()
     }
 
     /// This displays a nice 'help message' for the user
-    /// 
     ///
-    /// 
+    ///
+    ///
     fn get_help(&self) -> Option<String> {
         match self {
             KwpNegativeCode::GeneralReject => None,
@@ -285,7 +311,6 @@ impl CommandError for KwpNegativeCode {
         }
     }
 
-
     fn from_byte(b: u8) -> Self {
         match b {
             0x10 => Self::GeneralReject,
@@ -312,7 +337,7 @@ impl CommandError for KwpNegativeCode {
             (0x90..=0x99) => Self::CustomDaimler(b),
             (0xA2..=0xF9) => Self::CustomDaimler(b),
             0xFF => Self::Reserved(0xFF),
-            _ => Self::Unknown(b)
+            _ => Self::Unknown(b),
         }
     }
 }
@@ -326,7 +351,7 @@ pub struct KWP2000ECU {
     cmd_rx: Arc<Receiver<ProtocolResult<Vec<u8>>>>,
     curr_session_type: Arc<RwLock<DiagSession>>,
     send_id: u32,
-    cmd_mutex: Arc<Mutex<()>>
+    cmd_mutex: Arc<Mutex<()>>,
 }
 
 #[derive(Debug, Clone)]
@@ -336,7 +361,6 @@ pub struct ECUIdentification {
     sw_version: String,
     is_boot_sw: bool,
     variant: u32,
-
 }
 
 impl std::default::Default for ECUIdentification {
@@ -364,18 +388,20 @@ fn bcd_decode_slice(input: &[u8]) -> String {
 }
 
 impl KWP2000ECU {
-
     pub fn clear_errors(&self) -> std::result::Result<(), ProtocolError> {
         self.run_command(Service::ClearDiagnosticInformation.into(), &[0xFF, 0x00])?;
         Ok(())
     }
 
-    fn set_diag_session_mode(&mut self, mode: DiagSession) -> std::result::Result<(), ProtocolError> {
+    fn set_diag_session_mode(
+        &mut self,
+        mode: DiagSession,
+    ) -> std::result::Result<(), ProtocolError> {
         match start_diag_session::set_diag_session(&self, mode) {
             Ok(_) => {
                 *self.curr_session_type.write().unwrap() = mode; // Switch diagnostic modes!
                 Ok(())
-            },
+            }
             Err(e) => {
                 *self.curr_session_type.write().unwrap() = DiagSession::Default; // Assume normal if something happens
                 Err(e)
@@ -388,14 +414,19 @@ impl KWP2000ECU {
     }
 }
 
-
-
 impl ProtocolServer for KWP2000ECU {
     type Command = Service;
     type Error = KwpNegativeCode;
-    fn start_diag_session(mut comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self> {
-        comm_server.open_iso15765_interface(500_000, false, false).map_err(ProtocolError::CommError)?;
-        comm_server.configure_iso15765(cfg).map_err(ProtocolError::CommError)?;
+    fn start_diag_session(
+        mut comm_server: Box<dyn ComServer>,
+        cfg: &ISO15765Config,
+    ) -> ProtocolResult<Self> {
+        comm_server
+            .open_iso15765_interface(500_000, false, false)
+            .map_err(ProtocolError::CommError)?;
+        comm_server
+            .configure_iso15765(cfg)
+            .map_err(ProtocolError::CommError)?;
 
         let should_run = Arc::new(AtomicBool::new(true));
         let should_run_t = should_run.clone();
@@ -403,8 +434,14 @@ impl ProtocolServer for KWP2000ECU {
         let last_error = Arc::new(RwLock::new(None));
         let last_error_t = last_error.clone();
 
-        let (channel_tx_sender, channel_tx_receiver): (Sender<(u8, Vec<u8>, bool)>, Receiver<(u8, Vec<u8>, bool)>) = mpsc::channel();
-        let (channel_rx_sender, channel_rx_receiver): (Sender<ProtocolResult<Vec<u8>>>, Receiver<ProtocolResult<Vec<u8>>>) = mpsc::channel();
+        let (channel_tx_sender, channel_tx_receiver): (
+            Sender<(u8, Vec<u8>, bool)>,
+            Receiver<(u8, Vec<u8>, bool)>,
+        ) = mpsc::channel();
+        let (channel_rx_sender, channel_rx_receiver): (
+            Sender<ProtocolResult<Vec<u8>>>,
+            Receiver<ProtocolResult<Vec<u8>>>,
+        ) = mpsc::channel();
 
         let session_type = Arc::new(RwLock::new(DiagSession::Default));
         let session_type_t = session_type.clone();
@@ -416,20 +453,43 @@ impl ProtocolServer for KWP2000ECU {
             let mut timer = Instant::now();
             while should_run_t.load(Relaxed) {
                 if let Ok(data) = channel_tx_receiver.try_recv() {
-                    let res = Self::run_command_iso_tp(comm_server.as_ref(), s_id, data.0, &data.1, data.2);
+                    let res = Self::run_command_iso_tp(
+                        comm_server.as_ref(),
+                        s_id,
+                        data.0,
+                        &data.1,
+                        data.2,
+                    );
                     if channel_rx_sender.send(res).is_err() {
-                        *last_error_t.write().unwrap() = Some(ProtocolError::CustomError("Sender channel died".into()));
-                        break
+                        *last_error_t.write().unwrap() =
+                            Some(ProtocolError::CustomError("Sender channel died".into()));
+                        break;
                     }
                 }
-                if timer.elapsed().as_millis() >= 2000 && *session_type_t.read().unwrap() != DiagSession::Default {
+                if timer.elapsed().as_millis() >= 2000
+                    && *session_type_t.read().unwrap() != DiagSession::Default
+                {
                     timer = Instant::now();
                     //if let Err(e) = Self::run_command_iso_tp(comm_server.as_ref(), 0x001C, Service::TesterPresent.into(), &[0x02], false) {
-                    if let Err(e) = Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], false) {
+                    if let Err(e) = Self::run_command_iso_tp(
+                        comm_server.as_ref(),
+                        s_id,
+                        Service::TesterPresent.into(),
+                        &[0x01],
+                        false,
+                    ) {
                         if e.is_timeout() {
                             println!("Lost connection with ECU! - {:?}", e);
                             // Try to regain connection
-                            if Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::StartDiagSession.into(), &[0x92], true).is_err() {
+                            if Self::run_command_iso_tp(
+                                comm_server.as_ref(),
+                                s_id,
+                                Service::StartDiagSession.into(),
+                                &[0x92],
+                                true,
+                            )
+                            .is_err()
+                            {
                                 println!("Cannot re-establish ECU connection!");
                                 should_run_t.store(false, Relaxed);
                             } else {
@@ -454,13 +514,13 @@ impl ProtocolServer for KWP2000ECU {
             cmd_rx: Arc::new(channel_rx_receiver),
             send_id: cfg.send_id,
             curr_session_type: session_type, // Assumed,
-            cmd_mutex: Arc::new(Mutex::new(()))
+            cmd_mutex: Arc::new(Mutex::new(())),
         };
 
         if let Err(e) = ecu.set_diag_session_mode(DiagSession::Extended) {
             println!("KWP2000 - Couldn't set the ECU in extended diag mode!");
             ecu.should_run.store(false, Relaxed);
-            return Err(e)
+            return Err(e);
         }
         Ok(ecu)
     }
@@ -472,7 +532,7 @@ impl ProtocolServer for KWP2000ECU {
     fn run_command(&self, cmd: u8, args: &[u8]) -> ProtocolResult<Vec<u8>> {
         let _guard = self.cmd_mutex.lock().unwrap(); // We are allowed to send / receive!
         if self.cmd_tx.send((cmd, Vec::from(args), true)).is_err() {
-            return Err(ProtocolError::CustomError("Channel Tx failed".into()))
+            return Err(ProtocolError::CustomError("Channel Tx failed".into()));
         }
         let resp = self.cmd_rx.recv().unwrap()?;
         if resp[0] == 0x7F {
@@ -504,7 +564,6 @@ impl ProtocolServer for KWP2000ECU {
                 present: flag,
                 stored: storage_state > 0,
                 check_engine_on: mil,
-
             });
             bytes.drain(0..3); // DTC is 3 bytes (1 for status, 2 for the ID)
         }
@@ -516,9 +575,9 @@ impl ProtocolServer for KWP2000ECU {
     }
 
     fn get_last_error(&self) -> Option<String> {
-       match self.last_error.read().unwrap().as_ref() {
-           Some(x) => Some(x.get_text()),
-           None => None
-       }
+        match self.last_error.read().unwrap().as_ref() {
+            Some(x) => Some(x.get_text()),
+            None => None,
+        }
     }
 }

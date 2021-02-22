@@ -3,9 +3,8 @@ use libloading::Library;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use std::{ffi::*, fmt};
-use J2534Common::*;
 use J2534Common::FilterType::FLOW_CONTROL_FILTER;
-
+use J2534Common::*;
 
 lazy_static! {
     pub static ref DRIVER: Arc<RwLock<Option<PassthruDrv>>> = Arc::new(RwLock::new(None));

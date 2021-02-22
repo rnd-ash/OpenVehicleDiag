@@ -1,27 +1,30 @@
-use crate::commapi::comm_api::{ComServer, Capability};
-use iced::{Align, Column, Element, Length, Row, Rule, Space, Subscription, Text, button};
+use super::{
+    diag_manual::{self, DiagManual, DiagManualMessage},
+    diag_scanner::{DiagScanner, DiagScannerMessage},
+};
+use crate::commapi::comm_api::{Capability, ComServer};
+use crate::themes::{button_outlined, text, title_text, ButtonType, TextType, TitleSize};
 use crate::windows::window::WindowMessage;
-use crate::themes::{title_text, text, TextType, button_outlined, ButtonType, TitleSize};
-use super::{diag_manual::{self, DiagManual, DiagManualMessage}, diag_scanner::{DiagScanner, DiagScannerMessage}};
-use serde::{Serialize, Deserialize};
+use iced::{button, Align, Column, Element, Length, Row, Rule, Space, Subscription, Text};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub (crate) struct VehicleECUList {
-    pub (crate) vehicle_name: String,
-    pub (crate) vehicle_year: u32,
-    pub (crate) vehicle_brand: String,
-    pub (crate) ecu_list: Vec<ECUDiagSettings>
+pub(crate) struct VehicleECUList {
+    pub(crate) vehicle_name: String,
+    pub(crate) vehicle_year: u32,
+    pub(crate) vehicle_brand: String,
+    pub(crate) ecu_list: Vec<ECUDiagSettings>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ECUDiagSettings {
-    pub (crate) name: String,
-    pub (crate) send_id: u32,
-    pub (crate) flow_control_id: u32,
-    pub (crate) block_size: u32,
-    pub (crate) sep_time_ms: u32,
-    pub (crate) uds_support: bool,
-    pub (crate) kwp_support: bool
+    pub(crate) name: String,
+    pub(crate) send_id: u32,
+    pub(crate) flow_control_id: u32,
+    pub(crate) block_size: u32,
+    pub(crate) sep_time_ms: u32,
+    pub(crate) uds_support: bool,
+    pub(crate) kwp_support: bool,
 }
 
 impl ToString for ECUDiagSettings {
@@ -38,15 +41,13 @@ pub enum DiagHomeMessage {
     LaunchManual,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct DiagHome {
     server: Box<dyn ComServer>,
     manual_btn_state: iced::button::State,
-    scan_btn_state: iced:: button::State,
+    scan_btn_state: iced::button::State,
     manual_mode: Option<DiagManual>,
     scan_mode: Option<DiagScanner>,
-
 }
 
 impl DiagHome {
@@ -67,25 +68,21 @@ impl DiagHome {
                     self.scan_mode = Some(DiagScanner::new(self.server.clone()));
                 }
                 None
-            },
+            }
             DiagHomeMessage::LaunchManual => {
                 if self.manual_mode.is_none() {
                     self.manual_mode = Some(DiagManual::new(self.server.clone()));
                 }
                 None
-            },
-            DiagHomeMessage::Scanner(s) => {
-                match self.scan_mode {
-                    Some(ref mut p) => p.update(s).map(DiagHomeMessage::Scanner),
-                    None => None
-                }
-            },
-            DiagHomeMessage::ManualSession(s) => {
-                match self.manual_mode {
-                    Some(ref mut p) => p.update(s).map(DiagHomeMessage::ManualSession),
-                    None => None
-                }
             }
+            DiagHomeMessage::Scanner(s) => match self.scan_mode {
+                Some(ref mut p) => p.update(s).map(DiagHomeMessage::Scanner),
+                None => None,
+            },
+            DiagHomeMessage::ManualSession(s) => match self.manual_mode {
+                Some(ref mut p) => p.update(s).map(DiagHomeMessage::ManualSession),
+                None => None,
+            },
         }
     }
 
@@ -134,7 +131,7 @@ impl DiagHome {
                 .push(button_outlined(&mut self.scan_btn_state, "Scan my car", ButtonType::Success).on_press(DiagHomeMessage::LaunchScan))
                 .push(Space::with_width(Length::Fill))
                 .push(button_outlined(&mut self.manual_btn_state, "Launch manual mode", ButtonType::Warning).on_press(DiagHomeMessage::LaunchManual))
-            )   
+            )
             .into()
         }
     }
