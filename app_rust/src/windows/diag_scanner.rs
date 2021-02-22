@@ -60,7 +60,7 @@ impl DiagScanner {
                     return None
                 }
                 // Try to setup CAN Iface with open filter
-                if let Err(e) = self.server.open_can_interface(500_000, true) {
+                if let Err(e) = self.server.open_can_interface(500_000, false) {
                     self.status = format!("Could open CAN Interface ({})", e)
                 } else { // Opening interface was OK
                     match self.server.add_can_filter(commapi::comm_api::FilterType::Pass, 0x00000000, 0x00000000) {
@@ -102,7 +102,7 @@ impl DiagScanner {
                 }
                 self.curr_stage += 1;
                 self.curr_scan_id = 0; // First entry in our array
-                if let Err(e) = self.server.open_can_interface(500_000, true) {
+                if let Err(e) = self.server.open_can_interface(500_000, false) {
                     self.status = "Error opening new CAN Interface!".into();
                     return None;
                 }
@@ -196,6 +196,7 @@ impl DiagScanner {
             }
             3 => {
                 if self.clock.elapsed().as_millis() > 100 {
+                    println!("REM FILTER");
                     self.server.rem_can_filter(self.filter_idx);
                     self.server.clear_can_rx_buffer();
                     if self.curr_scan_id as usize >= self.stage2_results.len() {
@@ -354,10 +355,12 @@ impl DiagScanner {
     fn draw_stage_0(&mut self) -> Element<DiagScannerMessage> {
         let mut c = Column::new().padding(10).spacing(10).align_items(Align::Start).width(Length::Fill)
             .push(title_text("IMPORTANT", crate::themes::TitleSize::P2))
-            .push(text("OpenVehicleDiag is going to brute force scan your car for \
-                KWP2000/UDS compatible ECUs. This will take some time. Before starting, please do the following:", TextType::Normal))
+            .push(text("OpenVehicleDiag is going to scan your car for \
+                KWP2000/UDS compatible ECUs that use ISO-TP. This will take some time. Before starting, please do the following:", TextType::Normal))
             .push(text("1. Ensure your battery is charged (Scan will terminate if battery voltage falls below 11.7V)", TextType::Normal))
             .push(text("2. Ensure your car is in the ignition position (Engine Off!)", TextType::Normal))
+            .push(Space::with_height(Length::Units(50)))
+            .push(text("If you see any warnings appear on your dashboard, do NOT panic!", TextType::Danger))
             .push(Space::with_height(Length::Units(50)))
             .push(button_coloured(&mut self.btn, "Start the scan", ButtonType::Warning).on_press(DiagScannerMessage::IncrementStage))
             .push(Space::with_height(Length::Units(50)));
@@ -424,17 +427,17 @@ impl DiagScanner {
 
     fn draw_stage_5(&mut self) -> Element<DiagScannerMessage> {
         Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
-        .push(title_text("Testing ECUs for KWP2000 Capabilities", crate::themes::TitleSize::P2))
+        .push(title_text("Testing ECUs for UDS Capabilities", crate::themes::TitleSize::P2))
         .push(progress_bar(0f32..=self.stage3_results.len() as f32, self.curr_scan_id as f32, ButtonType::Info))
-        .push(text(format!("Found {} existing can IDs", self.can_traffic_id_list.len()).as_str(), TextType::Normal))
+        .push(text(format!("Testing {}/{}", self.curr_scan_id, self.can_traffic_id_list.len()).as_str(), TextType::Normal))
         .into()
     }
 
     fn draw_stage_6(&mut self) -> Element<DiagScannerMessage> {
         Column::new().padding(10).spacing(10).align_items(Align::Center).width(Length::Fill)
-        .push(title_text("Testing ECUs for UDS Capability", crate::themes::TitleSize::P2))
+        .push(title_text("Testing ECUs for UDS Capabilities", crate::themes::TitleSize::P2))
         .push(progress_bar(0f32..=self.stage3_results.len() as f32, self.curr_scan_id as f32, ButtonType::Info))
-        .push(text(format!("Found {} existing can IDs", self.can_traffic_id_list.len()).as_str(), TextType::Normal))
+        .push(text(format!("Testing {}/{}", self.curr_scan_id, self.can_traffic_id_list.len()).as_str(), TextType::Normal))
         .into()
     }
 

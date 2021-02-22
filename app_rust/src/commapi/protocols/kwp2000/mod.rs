@@ -198,7 +198,7 @@ impl ECUCommand for Service {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum NegativeResponse {
+pub enum KwpNegativeCode {
     GeneralReject,
     ServiceNotSupported,
     SubFunctionNotSupported,
@@ -224,32 +224,32 @@ pub enum NegativeResponse {
     Unknown(u8)
 }
 
-impl CommandError for NegativeResponse {
-    fn get_text(&self) -> String {
+impl CommandError for KwpNegativeCode {
+    fn get_desc(&self) -> String {
         match self {
-            NegativeResponse::GeneralReject => "General reject",
-            NegativeResponse::ServiceNotSupported => "Service is not supported",
-            NegativeResponse::SubFunctionNotSupported => "Sub function not supported / invalid format",
-            NegativeResponse::Busy => "ECU is currently busy performing another operation",
-            NegativeResponse::RequestSequenceError => "Conditions are not correct or Request sequence error",
-            NegativeResponse::RoutineNotComplete => "Routine is not yet completed",
-            NegativeResponse::RequestOutOfRange => "The request is out of range",
-            NegativeResponse::InvalidKey => "Invalid security key",
-            NegativeResponse::ExceededAttempts => "Exceeded number of security access attempts",
-            NegativeResponse::TimeDelayNotExpired => "The required time day has not yet expired",
-            NegativeResponse::DownloadNotAccepted => "Download not accepted",
-            NegativeResponse::UploadNotAccepted => "Upload not accepted",
-            NegativeResponse::TransferSuspended => "Data transfer suspended",
-            NegativeResponse::DataDecompressionFailed => "Data decompression failed",
-            NegativeResponse::DataDecryptionFailed => "Data decryption failed",
-            NegativeResponse::ECUNotResponding => "According to the gateway, the ECU is not responding",
-            NegativeResponse::ECUAddressUnknown => "The gateway does not know what ECU address this is",
-            NegativeResponse::SecurityAccessDenied => "Security access for this function was denied",
-            NegativeResponse::ResponsePending => "Response pending...",
-            NegativeResponse::ServiceNotSupportedActiveSession => "This services is not supported in the current diagnostic session",
-            NegativeResponse::CustomDaimler(x) => return format!("Custom DaimlerChrysler DCX code 0x{:02X}", x),
-            NegativeResponse::Reserved(x) => return format!("ISO 14230 Reserved code 0x{:02X}", x),
-            NegativeResponse::Unknown(x) => return format!("Unknown error 0x{:02X}", x)
+            KwpNegativeCode::GeneralReject => "General reject",
+            KwpNegativeCode::ServiceNotSupported => "Service is not supported",
+            KwpNegativeCode::SubFunctionNotSupported => "Sub function not supported / invalid format",
+            KwpNegativeCode::Busy => "ECU is currently busy performing another operation",
+            KwpNegativeCode::RequestSequenceError => "Conditions are not correct or Request sequence error",
+            KwpNegativeCode::RoutineNotComplete => "Routine is not yet completed",
+            KwpNegativeCode::RequestOutOfRange => "The request is out of range",
+            KwpNegativeCode::InvalidKey => "Invalid security key",
+            KwpNegativeCode::ExceededAttempts => "Exceeded number of security access attempts",
+            KwpNegativeCode::TimeDelayNotExpired => "The required time day has not yet expired",
+            KwpNegativeCode::DownloadNotAccepted => "Download not accepted",
+            KwpNegativeCode::UploadNotAccepted => "Upload not accepted",
+            KwpNegativeCode::TransferSuspended => "Data transfer suspended",
+            KwpNegativeCode::DataDecompressionFailed => "Data decompression failed",
+            KwpNegativeCode::DataDecryptionFailed => "Data decryption failed",
+            KwpNegativeCode::ECUNotResponding => "According to the gateway, the ECU is not responding",
+            KwpNegativeCode::ECUAddressUnknown => "The gateway does not know what ECU address this is",
+            KwpNegativeCode::SecurityAccessDenied => "Security access for this function was denied",
+            KwpNegativeCode::ResponsePending => "Response pending...",
+            KwpNegativeCode::ServiceNotSupportedActiveSession => "This services is not supported in the current diagnostic session",
+            KwpNegativeCode::CustomDaimler(x) => return format!("Custom DaimlerChrysler DCX code 0x{:02X}", x),
+            KwpNegativeCode::Reserved(x) => return format!("ISO 14230 Reserved code 0x{:02X}", x),
+            KwpNegativeCode::Unknown(x) => return format!("Unknown error 0x{:02X}", x)
         }.into()
     }
 
@@ -259,29 +259,29 @@ impl CommandError for NegativeResponse {
     /// 
     fn get_help(&self) -> Option<String> {
         match self {
-            NegativeResponse::GeneralReject => None,
-            NegativeResponse::ServiceNotSupported => Some("This service is not supported by the ECU".into()),
-            NegativeResponse::SubFunctionNotSupported => Some("The arguments provided in the command may not be correct".into()),
-            NegativeResponse::Busy => Some("The ECU is currently performing another operation, please wait".into()),
-            NegativeResponse::RequestSequenceError => Some("The ECU requires something to be ran prior to running this command".into()),
-            NegativeResponse::RoutineNotComplete => Some("The diagnostic routine was not completed".into()),
-            NegativeResponse::RequestOutOfRange => Some("The data entered exceeded the maximum value that the ECU can read or store".into()),
-            NegativeResponse::InvalidKey => Some("The wrong seed-key was entered to gain a higher security clearance".into()),
-            NegativeResponse::ExceededAttempts => Some("You have exceeded the number of attempts to gain a higher security clearance".into()),
-            NegativeResponse::TimeDelayNotExpired => Some("You have entered a seed-key response too quickly. Please wait.".into()),
-            NegativeResponse::DownloadNotAccepted => None,
-            NegativeResponse::UploadNotAccepted => None,
-            NegativeResponse::TransferSuspended => Some("The data transfer was suspended due to an unknown fault".into()),
-            NegativeResponse::DataDecompressionFailed => None,
-            NegativeResponse::DataDecryptionFailed => None,
-            NegativeResponse::ECUNotResponding => Some("In your car, the gateway talks to the ECU directly and has detected that the ECU has stopped responding".into()),
-            NegativeResponse::ECUAddressUnknown => Some("In your car, the gateway is trying to talk to the ECU you requested, but you entered an unknown address".into()),
-            NegativeResponse::SecurityAccessDenied => Some("In order to execute this function, you need to obtain a higher security clearance.".into()),
-            NegativeResponse::ResponsePending => Some("The ECU is currently trying to send a response".into()),
-            NegativeResponse::ServiceNotSupportedActiveSession => Some("This function is not supported in the current diagnostic session. Try to switch diagnostic sessions".into()),
-            NegativeResponse::CustomDaimler(_) => Some("This error code is reserved by DaimlerChrysler. Therefore its meaning is unknown".into()),
-            NegativeResponse::Reserved(_) => None,
-            NegativeResponse::Unknown(_) => None,
+            KwpNegativeCode::GeneralReject => None,
+            KwpNegativeCode::ServiceNotSupported => Some("This service is not supported by the ECU".into()),
+            KwpNegativeCode::SubFunctionNotSupported => Some("The arguments provided in the command may not be correct".into()),
+            KwpNegativeCode::Busy => Some("The ECU is currently performing another operation, please wait".into()),
+            KwpNegativeCode::RequestSequenceError => Some("The ECU requires something to be ran prior to running this command".into()),
+            KwpNegativeCode::RoutineNotComplete => Some("The diagnostic routine was not completed".into()),
+            KwpNegativeCode::RequestOutOfRange => Some("The data entered exceeded the maximum value that the ECU can read or store".into()),
+            KwpNegativeCode::InvalidKey => Some("The wrong seed-key was entered to gain a higher security clearance".into()),
+            KwpNegativeCode::ExceededAttempts => Some("You have exceeded the number of attempts to gain a higher security clearance".into()),
+            KwpNegativeCode::TimeDelayNotExpired => Some("You have entered a seed-key response too quickly. Please wait.".into()),
+            KwpNegativeCode::DownloadNotAccepted => None,
+            KwpNegativeCode::UploadNotAccepted => None,
+            KwpNegativeCode::TransferSuspended => Some("The data transfer was suspended due to an unknown fault".into()),
+            KwpNegativeCode::DataDecompressionFailed => None,
+            KwpNegativeCode::DataDecryptionFailed => None,
+            KwpNegativeCode::ECUNotResponding => Some("In your car, the gateway talks to the ECU directly and has detected that the ECU has stopped responding".into()),
+            KwpNegativeCode::ECUAddressUnknown => Some("In your car, the gateway is trying to talk to the ECU you requested, but you entered an unknown address".into()),
+            KwpNegativeCode::SecurityAccessDenied => Some("In order to execute this function, you need to obtain a higher security clearance.".into()),
+            KwpNegativeCode::ResponsePending => Some("The ECU is currently trying to send a response".into()),
+            KwpNegativeCode::ServiceNotSupportedActiveSession => Some("This function is not supported in the current diagnostic session. Try to switch diagnostic sessions".into()),
+            KwpNegativeCode::CustomDaimler(_) => Some("This error code is reserved by DaimlerChrysler. Therefore its meaning is unknown".into()),
+            KwpNegativeCode::Reserved(_) => None,
+            KwpNegativeCode::Unknown(_) => None,
         }
     }
 
@@ -392,7 +392,7 @@ impl KWP2000ECU {
 
 impl ProtocolServer for KWP2000ECU {
     type Command = Service;
-    type Error = NegativeResponse;
+    type Error = KwpNegativeCode;
     fn start_diag_session(mut comm_server: Box<dyn ComServer>, cfg: &ISO15765Config) -> ProtocolResult<Self> {
         comm_server.open_iso15765_interface(500_000, false, false).map_err(ProtocolError::CommError)?;
         comm_server.configure_iso15765(cfg).map_err(ProtocolError::CommError)?;
@@ -423,10 +423,22 @@ impl ProtocolServer for KWP2000ECU {
                     }
                 }
                 if timer.elapsed().as_millis() >= 2000 && *session_type_t.read().unwrap() != DiagSession::Default {
-                    if Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], true).is_err() {
-                        println!("Lost connection with ECU!");
-                    }
                     timer = Instant::now();
+                    //if let Err(e) = Self::run_command_iso_tp(comm_server.as_ref(), 0x001C, Service::TesterPresent.into(), &[0x02], false) {
+                    if let Err(e) = Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], false) {
+                        if e.is_timeout() {
+                            println!("Lost connection with ECU! - {:?}", e);
+                            // Try to regain connection
+                            if Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::StartDiagSession.into(), &[0x92], true).is_err() {
+                                println!("Cannot re-establish ECU connection!");
+                                should_run_t.store(false, Relaxed);
+                            } else {
+                                println!("Regained connection to the ECU!");
+                            }
+                        } else {
+                            println!("Warning. ECU did not approve of tester present - {:?}", e);
+                        }
+                    }
                 }
                 std::thread::sleep(std::time::Duration::from_micros(100))
             }
@@ -446,6 +458,7 @@ impl ProtocolServer for KWP2000ECU {
         };
 
         if let Err(e) = ecu.set_diag_session_mode(DiagSession::Extended) {
+            println!("KWP2000 - Couldn't set the ECU in extended diag mode!");
             ecu.should_run.store(false, Relaxed);
             return Err(e)
         }
@@ -463,7 +476,7 @@ impl ProtocolServer for KWP2000ECU {
         }
         let resp = self.cmd_rx.recv().unwrap()?;
         if resp[0] == 0x7F {
-            let neg_code = NegativeResponse::from_byte(resp[2]);
+            let neg_code = KwpNegativeCode::from_byte(resp[2]);
             Err(ProtocolError::ProtocolError(Box::new(neg_code)))
         } else {
             Ok(resp)

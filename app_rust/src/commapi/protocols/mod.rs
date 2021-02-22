@@ -20,6 +20,18 @@ pub enum ProtocolError {
     Timeout,
 }
 
+impl ProtocolError {
+    pub fn is_timeout(&self) -> bool {
+        match &self {
+            ProtocolError::CommError(_) => false,
+            ProtocolError::ProtocolError(_) => false,
+            ProtocolError::CustomError(_) => false,
+            ProtocolError::InvalidResponseSize { expect, actual } => false,
+            ProtocolError::Timeout => true,
+        }
+    }
+}
+
 impl From<ComServerError> for ProtocolError {
     fn from(x: ComServerError) -> Self {
         ProtocolError::CommError(x)
@@ -33,7 +45,7 @@ impl ProtocolError {
     pub fn get_text(&self) -> String {
         match self {
             ProtocolError::CommError(e) => e.to_string(),
-            ProtocolError::ProtocolError(e) => e.get_text(),
+            ProtocolError::ProtocolError(e) => e.get_desc(),
             ProtocolError::Timeout => "Communication timeout".into(),
             ProtocolError::CustomError(s) => s.clone(),
             ProtocolError::InvalidResponseSize { expect, actual } => {
@@ -66,14 +78,14 @@ pub trait ECUCommand : Selectable {
 }
 
 pub trait CommandError {
-    fn get_text(&self) -> String;
+    fn get_desc(&self) -> String;
     fn get_help(&self) -> Option<String>;
-    fn from_byte<'a>(b: u8) -> Self where Self: Sized;
+    fn from_byte(b: u8) -> Self where Self: Sized;
 }
 
 impl std::fmt::Debug for Box<dyn CommandError> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CMDError {}", self.get_text())
+        write!(f, "CMDError {}", self.get_desc())
     }
 }
 

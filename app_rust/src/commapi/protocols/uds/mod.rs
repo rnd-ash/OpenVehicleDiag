@@ -218,7 +218,7 @@ pub enum UDSNegativeCode {
 }
 
 impl CommandError for UDSNegativeCode {
-    fn get_text(&self) -> String {
+    fn get_desc(&self) -> String {
         match &self {
             UDSNegativeCode::GeneralReject => "General reject",
             UDSNegativeCode::ServiceNotSupported => "Service is not supported",

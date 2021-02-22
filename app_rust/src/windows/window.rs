@@ -1,6 +1,6 @@
 use std::fmt::{Debug};
 use iced::{Align, Application, Column, Command, Container, Element, Length, Row, Rule, Space, Subscription, Text, button, executor, time};
-use crate::{commapi::comm_api::{Capability, ComServer, ComServerError}, themes};
+use crate::{WIN_HEIGHT, commapi::comm_api::{Capability, ComServer, ComServerError}, themes};
 use crate::windows::launcher::{Launcher, LauncherMessage};
 use crate::windows::home::{Home, HomeMessage};
 use std::time::Instant;
@@ -227,7 +227,7 @@ impl Application for MainWindow {
                 text("Not supported", TextType::Disabled)
             };
             let page_name = &self.state.get_name();
-            let view_contents = Container::new(self.state.view()).height(Length::Units(768-50)).width(Length::Fill);
+            let view_contents = Container::new(self.state.view()).height(Length::Units(WIN_HEIGHT as u16-50)).width(Length::Fill);
             let mut s_bar = Row::new().padding(5).spacing(5).height(Length::Shrink)
                     .push(Row::new().spacing(5)
                     .push(Text::new("Status: "))
