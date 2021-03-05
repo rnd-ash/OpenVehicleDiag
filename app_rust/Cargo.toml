@@ -33,7 +33,7 @@ hex = "0.4.2"
 image = "0.23.12"
 
 [target.'cfg(windows)'.dependencies]
-winreg = "0.7"
+winreg = "0.8"
 
 [target.'cfg(unix)'.dependencies]
 shellexpand = "2.0.0"
