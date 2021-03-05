@@ -5,9 +5,8 @@
 
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "app_rust/" # Location of package manifests
-    package_manager: "rust:cargo"
+  - package-ecosystem: "cargo" # See documentation for possible values
+    directory: "/app_rust/" # Location of package manifests
     target_branch: "main"
     schedule:
       interval: "daily"
