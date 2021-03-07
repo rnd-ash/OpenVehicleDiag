@@ -141,7 +141,7 @@ fn ret_res<T>(res: i32, ret: T) -> Result<T> {
 
 impl PassthruDrv {
     pub fn load_lib(path: String) -> std::result::Result<PassthruDrv, libloading::Error> {
-        let lib = Library::new(path)?;
+        let lib =  unsafe {Library::new(path)? };
         unsafe {
             let open_fn = *lib.get::<PassThruOpenFn>(b"PassThruOpen\0")?.into_raw();
             let close_fn = *lib.get::<PassThruCloseFn>(b"PassThruClose\0")?.into_raw();
