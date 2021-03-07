@@ -7,11 +7,13 @@ use crate::windows::launcher::LauncherMessage::LaunchRequested;
 use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::window::{ApplicationError, WindowMessage};
 use crate::{
-    commapi::socket_can_api::SocketCanAPI,
     passthru::{PassthruDevice, PassthruDrv},
     themes::images::{pix_to_iced_image, LAUNCHER_IMG},
 };
 use iced::{button, pick_list, Align, Column, Element, Image, Length, Row, Text};
+
+#[cfg(unix)]
+use crate::commapi::socket_can_api::SocketCanAPI;
 
 #[derive(Debug, Clone)]
 pub struct Launcher {
