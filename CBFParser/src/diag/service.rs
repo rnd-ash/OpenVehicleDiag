@@ -78,7 +78,7 @@ pub struct Service {
 
 impl Service {
     pub fn new(reader: &mut Raf, base_addr: usize, pool_idx: usize, lang: &CTFLanguage, parent: &ECU) -> std::result::Result<Self, CaesarError> {
-        println!("Processing Diagnostic service - Base address: 0x{:08X}", base_addr);
+        //println!("Processing Diagnostic service - Base address: 0x{:08X}", base_addr);
 
         reader.seek(base_addr);
         let mut bitflags = reader.read_u32()?;
@@ -183,7 +183,6 @@ impl Service {
             let cp_entry_base_address = com_param_base_address + cp_offset;
             res.com_params.push(ComParameter::new(reader, cp_entry_base_address, &parent.interfaces)?)
         }
-        
         // Sort input and outputs so that start_bit is correct
         Ok(res)
     }

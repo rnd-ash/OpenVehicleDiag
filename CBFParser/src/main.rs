@@ -7,10 +7,10 @@ use diag::{preparation::InferredDataType};
 use ecu::ECU;
 use std::io::Read;
 
-mod caesar;
-mod ctf;
-mod ecu;
-mod diag;
+pub mod caesar;
+pub mod ctf;
+pub mod ecu;
+pub mod diag;
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);

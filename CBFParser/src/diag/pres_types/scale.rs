@@ -20,7 +20,7 @@ pub struct Scale {
 
 impl Scale {
     pub fn new(reader: &mut Raf, base_addr: usize, lang: &CTFLanguage) -> std::result::Result<Self, CaesarError> {
-        println!("Processing Scale data format - Base address: 0x{:08X}", base_addr);
+        //println!("Processing Scale data format - Base address: 0x{:08X}", base_addr);
         reader.seek(base_addr);
 
         let mut bitflags = reader.read_u16()? as u32;

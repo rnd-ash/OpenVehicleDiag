@@ -49,7 +49,7 @@ pub struct Presentation {
 
 impl Presentation {
     pub fn new(reader: &mut Raf, base_addr: usize, presentation_idx: usize, lang: &CTFLanguage) -> std::result::Result<Self, CaesarError> {
-        println!("Processing Diagnostic presentation - Base address: 0x{:08X}", base_addr);
+        //println!("Processing Diagnostic presentation - Base address: 0x{:08X}", base_addr);
         reader.seek(base_addr);
 
         let mut bitflags = reader.read_u32()?;

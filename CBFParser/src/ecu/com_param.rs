@@ -50,6 +50,7 @@ impl ComParameter {
         } else {
             res.param_name = parent_iface.com_params[res.param_idx as usize].clone();
         }
+        println!("{:?}", res);
         Ok(res)
     }
 }
