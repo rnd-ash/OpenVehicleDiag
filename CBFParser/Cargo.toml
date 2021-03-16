@@ -4,6 +4,14 @@ version = "0.1.0"
 authors = ["Ashcon Mohseninia"]
 edition = "2018"
 
+[[bin]]
+name = "cbf_parser"
+path = "src/main.rs"
+
+[lib]
+name = "cbf_parser"
+path = "src/lib.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
