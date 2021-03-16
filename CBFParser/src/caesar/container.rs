@@ -5,7 +5,7 @@ use ecu::ECU;
 use crate::{ctf::{STUB_HEADER_SIZE, StubHeader, cff_header::CFFHeader, ctf_header}, ecu};
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Container {
+pub struct Container {
     cff_header: CFFHeader,
     ctf_header: CTFHeader,
     pub ecus: Vec<ECU>,
