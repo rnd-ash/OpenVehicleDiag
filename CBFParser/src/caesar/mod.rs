@@ -7,12 +7,19 @@ pub mod container;
 #[derive(Debug)]
 pub enum CaesarError {
     FileError(raf::RafError),
-    ProcessException(String)
+    ProcessException(String),
+    IOError(std::io::Error)
 }
 
 impl From<raf::RafError> for CaesarError {
     fn from(x: raf::RafError) -> Self {
         Self::FileError(x)
+    }
+}
+
+impl From<std::io::Error> for CaesarError {
+    fn from(x: std::io::Error) -> Self {
+        Self::IOError(x)
     }
 }
 
