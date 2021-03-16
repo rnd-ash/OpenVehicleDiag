@@ -51,7 +51,7 @@ pub struct Preparation {
 
 impl Preparation {
     pub fn new(reader: &mut Raf, lang: &CTFLanguage, base_addr: usize, bit_pos: usize, mode_cfg: u16, parent_ecu: &ECU, parent_service: &Service) -> std::result::Result<Self, CaesarError> {
-        println!("Processing Diagnostic preparation - Base address: 0x{:08X}", base_addr);
+        //println!("Processing Diagnostic preparation - Base address: 0x{:08X}", base_addr);
 
         reader.seek(base_addr);
 

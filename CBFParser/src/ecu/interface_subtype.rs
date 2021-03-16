@@ -91,6 +91,7 @@ impl InterfaceSubType {
             unk10: creader::read_primitive(&mut bitflags, reader, 0i8)? as i32,
             ..Default::default()
         };
+        println!("{:?}", res);
         Ok(res)
 
     }
