@@ -294,3 +294,44 @@ impl iced::text_input::StyleSheet for TextInput {
         }
     }
 }
+
+pub struct CheckBox;
+impl iced::checkbox::StyleSheet for CheckBox {
+    fn active(&self, is_checked: bool) -> iced::checkbox::Style {
+        match super::get_theme() {
+            super::Style::Light => iced::checkbox::Style {
+                background: super::WHITE.into(),
+                checkmark_color: super::DARK_BG,
+                border_radius: BUTTON_RADIUS,
+                border_width: BUTTON_BORDER_WIDTH,
+                border_color: super::DARK_BG,
+            },
+            super::Style::Dark => iced::checkbox::Style {
+                background: super::DARK_BG.into(),
+                checkmark_color: super::WHITE,
+                border_radius: BUTTON_RADIUS,
+                border_width: BUTTON_BORDER_WIDTH,
+                border_color: super::WHITE,
+            }
+        }
+    }
+
+    fn hovered(&self, is_checked: bool) -> iced::checkbox::Style {
+        match super::get_theme() {
+            super::Style::Light => iced::checkbox::Style {
+                background: super::WHITE.into(),
+                checkmark_color: super::DARK_BG,
+                border_radius: BUTTON_RADIUS,
+                border_width: BUTTON_BORDER_WIDTH,
+                border_color: super::DARK_BG,
+            },
+            super::Style::Dark => iced::checkbox::Style {
+                background: super::DARK_BG.into(),
+                checkmark_color: super::WHITE,
+                border_radius: BUTTON_RADIUS,
+                border_width: BUTTON_BORDER_WIDTH,
+                border_color: super::WHITE,
+            }
+        }
+    }
+}
