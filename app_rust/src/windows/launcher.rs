@@ -222,7 +222,7 @@ impl Launcher {
         } else {
             let mut c = Column::new()
                 .push(
-                    Image::new("img/logo.png")
+                    pix_to_iced_image(LAUNCHER_IMG)
                         .width(Length::Units(300))
                         .height(Length::Units(300)),
                 )

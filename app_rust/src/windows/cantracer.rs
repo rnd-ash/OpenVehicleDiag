@@ -1,4 +1,4 @@
-use crate::commapi::comm_api::{CanFrame, ComServer, FilterType};
+use crate::{commapi::comm_api::{CanFrame, ComServer, FilterType}, themes::checkbox};
 use crate::themes::{button_coloured, ButtonType};
 use crate::windows::window::WindowMessage;
 use iced::time;
@@ -106,7 +106,7 @@ impl<'a> CanTracer {
             .spacing(10)
             .push(Text::new("CAN Tracer"))
             .push(btn)
-            .push(Checkbox::new(
+            .push(checkbox(
                 check,
                 "View CAN in Binary",
                 TracerMessage::ToggleBinaryMode,
