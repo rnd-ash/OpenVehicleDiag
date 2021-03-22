@@ -1,13 +1,11 @@
 pub mod elements;
 pub mod images;
 use crate::themes::elements::{ButtonStyle, DropDown, PBar};
-use iced::{
-    button, pick_list, Button, Color, Container, Element, PickList, ProgressBar, Radio, Text,
-};
+use iced::{Button, Checkbox, Color, Container, Element, PickList, ProgressBar, Radio, Text, button, pick_list};
 use std::ops::RangeInclusive;
 use std::{borrow::Cow, todo};
 
-use self::elements::TextInput;
+use self::elements::{CheckBox, TextInput};
 
 const BUTTON_RADIUS: f32 = 5.0;
 const BUTTON_BORDER_WIDTH: f32 = 1.5;
@@ -143,6 +141,20 @@ pub fn button_outlined<'a, T: Clone>(
     Button::new(state, Text::new(text))
         .style(ButtonStyle::new(color, true))
         .padding(8)
+}
+
+/**
+ */
+
+pub fn checkbox<T:Clone, F>(
+    is_checked: bool,
+    label: &str,
+    on_click: F
+) -> Checkbox<T> 
+where
+F: 'static + Fn(bool) -> T {
+    Checkbox::new(is_checked, label, on_click)
+        .style(CheckBox)
 }
 
 pub fn picklist<'a, T, Msg>(
