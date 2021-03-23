@@ -30,26 +30,26 @@ pub struct DcsEcuId {
 
 #[derive(Debug, Clone)]
 pub struct DcxMmcECUId {
-    ecu_origin: u8,
-    supplier_id: u8,
-    diag_information: u16,
-    hardware_version: String,
-    software_version: String,
-    part_number: String,
+    pub ecu_origin: u8,
+    pub supplier_id: u8,
+    pub diag_information: u16,
+    pub hardware_version: String,
+    pub software_version: String,
+    pub part_number: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct ToolSupplier {
-    id: String,
-    programming_date: String,
-    serial_number: String,
+    pub id: String,
+    pub programming_date: String,
+    pub serial_number: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct CodeFingerprint {
-    num_modules: u32,
-    active_logical_block: String,
-    suppliers: Vec<ToolSupplier>,
+    pub num_modules: u32,
+    pub active_logical_block: String,
+    pub suppliers: Vec<ToolSupplier>,
 }
 
 pub fn read_dcs_id(ecu: &KWP2000ECU) -> ProtocolResult<DcsEcuId> {

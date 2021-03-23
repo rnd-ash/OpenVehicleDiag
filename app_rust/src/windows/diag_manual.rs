@@ -27,7 +27,6 @@ pub enum DiagManualMessage {
     LaunchUDSCustom,
     LaunchCustom,
     LaunchCustomCustom,
-    LaunchJSON,
     Back,
     Session(SessionMsg),
 
@@ -120,23 +119,29 @@ impl DiagManual {
             DiagManualMessage::Back => {}
             DiagManualMessage::LaunchFileBrowser => {
                 if let nfd::Response::Okay(f_path) =
-                    nfd::open_file_dialog(Some("ovdjson"), None).unwrap_or(nfd::Response::Cancel)
+                    nfd::open_file_dialog(Some("json"), None).unwrap_or(nfd::Response::Cancel)
                 {
-                    let path = f_path.clone();
                     if let Ok(mut file) = File::open(f_path) {
                         let mut str = "".into();
                         if file.read_to_string(&mut str).is_ok() {
-                            let parse: serde_json::Result<VehicleECUList> =
-                                serde_json::from_str(&str);
-                            match parse {
-                                Ok(car) => {
-                                    self.curr_ecu = None;
-                                    self.car = Some(car)
+
+                            if let Ok(car) = serde_json::from_str::<VehicleECUList>(&str) {
+                                println!("Car save opened!");
+                                self.curr_ecu = None;
+                                self.car = Some(car)
+                            } else if let Ok(ecu) = serde_json::from_str::<OvdECU>(&str) {
+                                self.car = None;
+                                if ecu.connections.len() == 1 {
+                                    let con = ecu.connections[0].clone();
+                                    self.launch_diag_session(SessionType::JSON(ecu, con), false)
+                                } else {
+                                    self.status = format!("TODO - Multiple connection dialog!")
                                 }
-                                Err(e) => self.status = format!("Error processing {}: {}", path, e),
+                            } else {
+                                self.status = format!("Error processing input file!")
                             }
                         } else {
-                            self.status = "Error reading save file".into()
+                            self.status = format!("Error reading input file!")
                         }
                     } else {
                         self.status = "Error loading save file".into()
@@ -151,28 +156,6 @@ impl DiagManual {
             DiagManualMessage::LaunchUDSCustom => self.launch_diag_session(SessionType::UDS, true),
             DiagManualMessage::LaunchCustomCustom => {
                 self.launch_diag_session(SessionType::Custom, true)
-            }
-
-            DiagManualMessage::LaunchJSON => {
-                if let nfd::Response::Okay(f_path) =
-                    nfd::open_file_dialog(Some("json"), None).unwrap_or(nfd::Response::Cancel)
-                {
-                    let path = f_path.clone();
-                    if let Ok(mut file) = File::open(f_path) {
-                        let mut str = "".into();
-                        if file.read_to_string(&mut str).is_ok() {
-                            let parse: serde_json::Result<OvdECU> = serde_json::from_str(&str);
-                            match parse {
-                                Ok(ecu) => self.launch_diag_session(SessionType::JSON(ecu), false),
-                                Err(e) => self.status = format!("Error processing {}: {}", path, e),
-                            }
-                        } else {
-                            self.status = "Error reading file to string".into()
-                        }
-                    } else {
-                        self.status = "Error loading session JSON file".into()
-                    }
-                }
             }
             DiagManualMessage::BsEnter(s) => {
                 if s.is_empty() {
@@ -284,25 +267,32 @@ impl DiagManual {
             return;
         }
 
-        if use_custom {
+        if let SessionType::JSON(ecu, connection) = &session_type {
+            match DiagSession::new(&session_type, self.server.clone(), None) {
+                Ok(session) => self.session = Some(session),
+                Err(e) => self.status = format!("Error init diag session: {}", e.get_description()),
+            }
+        } else if use_custom {
             let cfg = ISO15765Config {
+                baud: 500000,
                 send_id: Self::decode_string_hex(&self.str_send_id).unwrap(),
                 recv_id: Self::decode_string_hex(&self.str_recv_id).unwrap(),
                 block_size: Self::decode_string_int(&self.str_bs).unwrap(),
                 sep_time: Self::decode_string_int(&self.str_sep).unwrap(),
             };
-            match DiagSession::new(&session_type, self.server.clone(), cfg) {
+            match DiagSession::new(&session_type, self.server.clone(), Some(cfg)) {
                 Ok(session) => self.session = Some(session),
                 Err(e) => self.status = format!("Error init diag session: {}", e.get_description()),
             }
         } else if let Some(ecu) = &self.curr_ecu {
             let cfg = ISO15765Config {
+                baud: 500000,
                 send_id: ecu.send_id,
                 recv_id: ecu.flow_control_id,
                 block_size: ecu.block_size,
                 sep_time: ecu.sep_time_ms,
             };
-            match DiagSession::new(&session_type, self.server.clone(), cfg) {
+            match DiagSession::new(&session_type, self.server.clone(), Some(cfg)) {
                 Ok(session) => self.session = Some(session),
                 Err(e) => self.status = format!("Error init diag session: {}", e.get_description()),
             }
@@ -320,10 +310,10 @@ impl DiagManual {
             .spacing(20)
             .align_items(Align::Center)
             .width(Length::Fill)
-            .push(title_text("Load a save file to get started", TitleSize::P3));
+            .push(title_text("Load a save file or ECU JSON file to get started", TitleSize::P3));
 
         view = view.push(
-            button_outlined(&mut self.btn_state, "Load save file", ButtonType::Success)
+            button_outlined(&mut self.btn_state, "Load save / ECU JSON file", ButtonType::Success)
                 .on_press(DiagManualMessage::LaunchFileBrowser),
         );
 
@@ -383,14 +373,6 @@ impl DiagManual {
                         .push(kwp_btn)
                         .push(uds_btn)
                         .push(custom_btn),
-                );
-                view = view.push(
-                    button_outlined(
-                        &mut self.json_btn_state,
-                        "Load JSON session (EXPERIMENTAL)",
-                        ButtonType::Danger,
-                    )
-                    .on_press(DiagManualMessage::LaunchJSON),
                 );
             }
         }

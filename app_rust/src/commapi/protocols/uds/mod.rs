@@ -437,9 +437,10 @@ impl ProtocolServer for UDSECU {
     fn start_diag_session(
         mut comm_server: Box<dyn ComServer>,
         cfg: &ISO15765Config,
+        global_test_present_addr: Option<u32>,
     ) -> ProtocolResult<Self> {
         comm_server
-            .open_iso15765_interface(500_000, false, false)
+            .open_iso15765_interface(cfg.baud, false, false)
             .map_err(ProtocolError::CommError)?;
         comm_server
             .configure_iso15765(cfg)
@@ -465,6 +466,9 @@ impl ProtocolServer for UDSECU {
 
         // Enter extended diagnostic session (Full features)
         let s_id = cfg.send_id;
+        let tp_id = global_test_present_addr.unwrap_or(s_id);
+        
+
         std::thread::spawn(move || {
             println!("Diag server start!");
             let mut timer = Instant::now();

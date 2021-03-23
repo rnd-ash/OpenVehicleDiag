@@ -3,11 +3,7 @@ use std::{
 };
 
 use commapi::protocols;
-use common::schema::{
-    diag::service::{ParamDecodeError, Service},
-    variant::{ECUVariantDefinition, ECUVariantPattern},
-    OvdECU,
-};
+use common::schema::{ConType, Connection, OvdECU, diag::service::{ParamDecodeError, Service}, variant::{ECUVariantDefinition, ECUVariantPattern}};
 use iced::{time, Align, Column, Container, Length, Row, Subscription};
 use protocols::{ECUCommand, Selectable};
 use serde_json::de::Read;
@@ -60,8 +56,9 @@ impl DiagMessageTrait for JsonDiagSessionMsg {
 
 #[derive(Debug, Clone)]
 pub struct JsonDiagSession {
+    unknown_variant: bool,
+    connection_settings: Connection,
     server: DiagServer,
-    ecu: ISO15765Config,
     ecu_text: (String, String),
     ecu_data: ECUVariantDefinition,
     pattern: ECUVariantPattern,
@@ -81,90 +78,86 @@ pub struct JsonDiagSession {
 impl JsonDiagSession {
     pub fn new(
         comm_server: Box<dyn ComServer>,
-        ecu: ISO15765Config,
         ecu_data: OvdECU,
+        connection_settings: Connection
     ) -> SessionResult<Self> {
-        match DiagServer::new(comm_server, &ecu, DiagProtocol::KWP2000) {
-            Ok(mut server) => {
+        let diag_server_type = match connection_settings.server_type {
+            common::schema::ServerType::UDS => DiagProtocol::UDS,
+            common::schema::ServerType::KWP2000 => DiagProtocol::KWP2000
+        };
+
+        // TODO K-Line KWP2000
+        // For now, Diag server ONLY supports ISO-TP, not LIN!
+        let create_server = match connection_settings.connection_type {
+            ConType::ISOTP { blocksize, st_min } => {
+                let cfg = ISO15765Config {
+                    baud: connection_settings.baud,
+                    send_id: connection_settings.send_id,
+                    recv_id: connection_settings.recv_id,
+                    block_size: blocksize,
+                    sep_time: st_min,
+                };
+                DiagServer::new(comm_server, &cfg, connection_settings.global_send_id, diag_server_type)
+            },
+            ConType::LIN { .. } => return Err(SessionError::Other("K-Line is not implemented at this time".into()))
+        };
+
+
+        match create_server {
+            Ok(server) => {
                 println!("Server started");
-                let res = server.run_cmd(DiagService::ReadECUID.into(), &[0x87])?;
-                let variant = (res[4] as u32) << 8 | (res[5] as u32);
-                let mut ecu_variant = ecu_data.variants.clone().into_iter().find(|x| {
+                let variant = server.get_variant_id()? as u32;
+                let mut unknown_variant = false;
+                let mut ecu_varient = ecu_data.variants.clone().into_iter().find(|x| {
                     x.clone()
                         .patterns
                         .into_iter()
                         .any(|p| p.vendor_id == variant)
+                }).unwrap_or_else(|| {
+                    eprintln!("WARNING. Unknown ECU Variant!");
+                    unknown_variant = true;
+                    ecu_data.variants[0].clone()
                 });
+                let pattern = &ecu_varient
+                    .patterns
+                    .iter()
+                    .find(|x| x.vendor_id == variant)
+                    .unwrap()
+                    .clone();
+                println!("ECU Variant: {} (Vendor: {})", ecu_varient.name, pattern.vendor);
 
-                if ecu_variant.is_none() {
-                    ecu_variant = Some(ecu_data.variants[0].clone());
-                }
-
-                if let Some(v) = ecu_variant {
-                    let pattern = v
-                        .clone()
-                        .patterns
-                        .into_iter()
-                        .find(|x| x.vendor_id == variant)
-                        .unwrap();
-                    println!("ECU Variant: {} (Vendor: {})", v.name, pattern.vendor);
-
-                    let read_functions: Vec<ServiceRef> = v
-                        .services
-                        .iter()
-                        .filter(|x| x.input_params.is_empty() && !x.output_params.is_empty())
-                        .cloned()
-                        .map(|service| ServiceRef {
-                            inner: RefCell::new(service),
-                        })
-                        .collect();
-
-                    let write_functions: Vec<ServiceRef> = v
-                        .services
-                        .iter()
-                        .filter(|x| !x.input_params.is_empty() && x.output_params.is_empty())
-                        .cloned()
-                        .map(|service| ServiceRef {
-                            inner: RefCell::new(service),
-                        })
-                        .collect();
-
-                    let actuation_functions: Vec<ServiceRef> = v
-                        .services
-                        .iter()
-                        .filter(|x| !x.input_params.is_empty() && !x.output_params.is_empty())
-                        .cloned() // Maybe - Functions that only return yes/no?
-                        .map(|service| ServiceRef {
-                            inner: RefCell::new(service),
-                        })
-                        .collect();
-
-                    Ok(Self {
-                        ecu,
-                        ecu_text: (ecu_data.name, ecu_data.description),
-                        server,
-                        ecu_data: v,
-                        pattern,
-                        service_selector: ServiceSelector::new(
-                            read_functions,
-                            write_functions,
-                            actuation_functions,
-                        ),
-                        can_clear: false,
-                        log_view: LogView::new(),
-                        read_errors: Default::default(),
-                        clear_errors: Default::default(),
-                        execute_service: Default::default(),
-                        clear_log_btn: Default::default(),
-                        looping_service: None,
-                        looping_text: String::new(),
+                let read_functions: Vec<ServiceRef> = ecu_varient.downloads
+                    .iter()
+                    .clone()
+                    .map(|s| ServiceRef {
+                        inner: RefCell::new(s.clone())
                     })
-                } else {
-                    Err(SessionError::Other(format!(
-                        "Could not locate ECU variant in JSON - Its variant: {}",
-                        variant
-                    )))
-                }
+                    .collect();
+
+                let write_functions: Vec<ServiceRef> = Vec::new();
+                let actuation_functions: Vec<ServiceRef> = Vec::new();
+
+                Ok(Self {
+                    unknown_variant,
+                    connection_settings: connection_settings,
+                    ecu_text: (ecu_data.name, ecu_data.description),
+                    server,
+                    ecu_data: ecu_varient,
+                    pattern: pattern.clone(),
+                    service_selector: ServiceSelector::new(
+                        read_functions,
+                        write_functions,
+                        actuation_functions,
+                    ),
+                    can_clear: false,
+                    log_view: LogView::new(),
+                    read_errors: Default::default(),
+                    clear_errors: Default::default(),
+                    execute_service: Default::default(),
+                    clear_log_btn: Default::default(),
+                    looping_service: None,
+                    looping_text: String::new(),
+                })
             }
             Err(e) => {
                 eprintln!("Could not setup diag server");
@@ -211,6 +204,14 @@ impl SessionTrait for JsonDiagSession {
                 )
                 .as_str(),
                 crate::themes::TitleSize::P4,
+            ))
+            .push(text(
+                format!("Automatic connection method!: Using {:?} at {}bps with {:?} a diagnostic server", 
+                    &self.connection_settings.connection_type,
+                    &self.connection_settings.baud,
+                    &self.connection_settings.server_type,
+                ).as_str(),
+                TextType::Disabled,
             ))
             .push(
                 Row::new().spacing(8).padding(8).push(btn_view).push(

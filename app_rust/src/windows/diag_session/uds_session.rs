@@ -163,7 +163,7 @@ impl SessionTrait for UDSDiagSession {
     fn update(&mut self, msg: &Self::msg) -> Option<Self::msg> {
         match msg {
             UDSDiagSessionMsg::ConnectECU => {
-                match UDSECU::start_diag_session(self.server.clone(), &self.ecu) {
+                match UDSECU::start_diag_session(self.server.clone(), &self.ecu, None) {
                     Ok(server) => {
                         window::disable_home();
                         self.diag_server = Some(server);
