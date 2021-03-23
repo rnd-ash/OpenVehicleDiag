@@ -3,8 +3,8 @@ use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 
 #[derive(Debug, Clone, Default)]
 pub struct Scale {
-    pub (crate) index: i32,
-    pub (crate) unk2: i32,
+    pub (crate) enum_lower_bound: i32,
+    pub (crate) enum_upper_bound: i32,
     pub (crate) prep_lower_bound: i32,
     pub (crate) prep_upper_bound: i32,
     pub (crate) multiply_factor: f32,
@@ -26,8 +26,8 @@ impl Scale {
         let mut bitflags = reader.read_u16()? as u32;
         Ok(Self {
             base_addr,
-            index: creader::read_primitive(&mut bitflags, reader, 0i32)?,
-            unk2: creader::read_primitive(&mut bitflags, reader, 0i32)?,
+            enum_lower_bound: creader::read_primitive(&mut bitflags, reader, 0i32)?,
+            enum_upper_bound: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             prep_lower_bound: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             prep_upper_bound: creader::read_primitive(&mut bitflags, reader, 0i32)?,
             multiply_factor: creader::read_primitive(&mut bitflags, reader, 0f32)?,

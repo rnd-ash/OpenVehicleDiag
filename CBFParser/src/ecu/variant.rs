@@ -1,7 +1,7 @@
 use std::vec;
 use common::raf::Raf;
 use crate::{caesar::{CaesarError, PoolTuple, creader}, ctf::ctf_header::CTFLanguage, diag::{dtc::DTC, service::Service}};
-use super::{ECU, variant_pattern::{VariantPattern}};
+use super::{ECU, variant_pattern::{VariantPattern}, com_param::ComParameter};
 
 #[derive(Debug, Copy, Clone, Default)]
 struct DTCPoolBounds {
@@ -47,7 +47,7 @@ pub struct ECUVariant {
 }
 
 impl ECUVariant {
-    pub fn new(reader: &mut Raf, parent_ecu: &ECU, lang: &CTFLanguage, base_addr: usize, block_size: usize) -> std::result::Result<Self, CaesarError> {
+    pub fn new(reader: &mut Raf, parent_ecu: &mut ECU, lang: &CTFLanguage, base_addr: usize, block_size: usize) -> std::result::Result<Self, CaesarError> {
         println!("Processing ECU Variant - Base address: 0x{:08X}", base_addr);
         reader.seek(base_addr);
 
@@ -105,6 +105,7 @@ impl ECUVariant {
         res.services = res.create_diag_services(diag_services_pool_offsets, parent_ecu)?;
         res.variant_patterns = res.create_variant_patterns(reader)?;
         res.dtcs = res.create_dtcs(res.dtc.count, dtc_pool_bounds, parent_ecu)?;
+        res.create_com_params(reader, parent_ecu)?;
         Ok(res)
     }
 
@@ -118,6 +119,29 @@ impl ECUVariant {
             }
         });
         Ok(res)
+    }
+
+    fn create_com_params(&self, reader: &mut Raf, parent: &mut ECU) -> std::result::Result<(), CaesarError> {
+        let base_addr = self.base_addr + self.com_params.offset;
+        reader.seek(base_addr);
+
+        let mut idxs: Vec<usize> = Vec::new();
+        for _ in 0..self.com_params.count {
+            idxs.push(reader.read_i32()? as usize + base_addr);
+        }
+        for offset in &idxs {
+            let param = ComParameter::new(reader, *offset, &parent.interfaces)?;
+            let parent_idx = if param.parent_iface_idx > 0 {
+                param.parent_iface_idx
+            } else {
+                param.sub_iface_idx
+            } as usize;
+
+            if parent_idx < parent.interface_sub_types.len() {
+                parent.interface_sub_types[parent_idx].comm_params.push(param);
+            }
+        }
+        Ok(())
     }
 
     fn create_variant_patterns(&self, reader: &mut Raf) -> std::result::Result<Vec<VariantPattern>, CaesarError> {

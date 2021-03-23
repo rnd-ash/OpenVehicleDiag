@@ -16,6 +16,26 @@ pub enum ServiceType {
     Unknown
 }
 
+impl ServiceType {
+    pub fn from_raw(x: u16) -> ServiceType {
+        match x {
+            5 => Self::Data,
+            7 => Self::Download,
+            10 => Self::DiagnosticFunction,
+            19 => Self::DiagnosticJob,
+            21 => Self::Session,
+            22 => Self::StoredData,
+            23 => Self::Routine,
+            24 => Self::IoControl,
+            26 | 27 => Self::Unknown,
+            _ => {
+                eprintln!("Unknown service type {:02X}", x);
+                Self::Unknown
+            }
+        }
+    }
+}
+
 impl Default for ServiceType {
     fn default() -> Self {
         Self::Unknown
@@ -31,6 +51,7 @@ pub struct Service {
 
     data_class_service_type: u16,
     pub data_class_service_type_shifted: i32,
+    pub service_type: ServiceType,
 
     is_executable: bool,
     client_access_level: i32,
@@ -79,7 +100,6 @@ pub struct Service {
 impl Service {
     pub fn new(reader: &mut Raf, base_addr: usize, pool_idx: usize, lang: &CTFLanguage, parent: &ECU) -> std::result::Result<Self, CaesarError> {
         //println!("Processing Diagnostic service - Base address: 0x{:08X}", base_addr);
-
         reader.seek(base_addr);
         let mut bitflags = reader.read_u32()?;
         let bitflags_ext = reader.read_u32()?;
@@ -127,6 +147,7 @@ impl Service {
             s: PoolTuple::new_default(reader, &mut bitflags, 0i16, 0i32)?,
             ..Default::default()
         };
+        res.service_type = ServiceType::from_raw(res.data_class_service_type);
 
         bitflags = bitflags_ext;
 
@@ -183,7 +204,12 @@ impl Service {
             let cp_entry_base_address = com_param_base_address + cp_offset;
             res.com_params.push(ComParameter::new(reader, cp_entry_base_address, &parent.interfaces)?)
         }
-        // Sort input and outputs so that start_bit is correct
+
+
+        //if &res.name.clone().unwrap_or_default() == "Active Diagnostic Information: Active Diagnostic Variant" {
+        //    println!("{:#?}", res);
+        //    panic!("")
+        //}
         Ok(res)
     }
 
