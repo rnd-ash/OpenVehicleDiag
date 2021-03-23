@@ -170,7 +170,7 @@ impl SessionTrait for KWP2000DiagSession {
     fn update(&mut self, msg: &Self::msg) -> Option<Self::msg> {
         match msg {
             KWP2000DiagSessionMsg::ConnectECU => {
-                match KWP2000ECU::start_diag_session(self.server.clone(), &self.ecu) {
+                match KWP2000ECU::start_diag_session(self.server.clone(), &self.ecu, None) {
                     Ok(server) => {
                         window::disable_home();
                         self.diag_server = Some(server);

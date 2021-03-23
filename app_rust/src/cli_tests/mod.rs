@@ -38,11 +38,13 @@ pub mod draw_routine {
         let server = KWP2000ECU::start_diag_session(
             api,
             &ISO15765Config {
+                baud: 500_000,
                 send_id: 1460,
                 recv_id: 1268,
                 block_size: 8,
                 sep_time: 20,
             },
+            None,
         )
         .expect("Error opening connection with IC ECU");
 

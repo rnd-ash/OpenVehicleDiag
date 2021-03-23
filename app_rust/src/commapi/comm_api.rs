@@ -87,6 +87,7 @@ unsafe impl Sync for ISO15765Data {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct ISO15765Config {
+    pub baud: u32,
     pub send_id: u32,
     pub recv_id: u32,
     pub block_size: u32,

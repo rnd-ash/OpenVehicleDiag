@@ -20,6 +20,7 @@ fn read_write_payload_isotp(
     };
 
     let cfg = ISO15765Config {
+        baud: 500_000,
         send_id: 0x07DF,
         recv_id: 0x07E8,
         block_size: 8, // Sensible decision

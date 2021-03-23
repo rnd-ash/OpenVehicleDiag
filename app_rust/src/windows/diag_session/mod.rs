@@ -1,4 +1,4 @@
-use common::schema::OvdECU;
+use common::schema::{Connection, OvdECU};
 use custom_session::{CustomDiagSession, CustomDiagSessionMsg};
 use iced::{Element, Subscription};
 use json_session::JsonDiagSession;
@@ -24,7 +24,7 @@ pub enum SessionType {
     UDS,
     KWP,
     Custom,
-    JSON(OvdECU),
+    JSON(OvdECU, Connection),
 }
 
 #[derive(Debug, Clone)]
@@ -83,15 +83,21 @@ impl DiagSession {
     pub fn new(
         session_type: &SessionType,
         comm_server: Box<dyn ComServer>,
-        ecu: ISO15765Config,
+        ecu: Option<ISO15765Config>,
     ) -> SessionResult<Self> {
         Ok(match session_type {
-            SessionType::UDS => Self::UDS(UDSDiagSession::new(comm_server, ecu)?),
-            SessionType::KWP => Self::KWP(KWP2000DiagSession::new(comm_server, ecu)?),
-            SessionType::JSON(ecu_data) => {
-                Self::JSON(JsonDiagSession::new(comm_server, ecu, ecu_data.clone())?)
+            SessionType::UDS => {
+                Self::UDS(UDSDiagSession::new(comm_server, ecu.ok_or(SessionError::Other("Null ECU configuration!?".into()))?)?)
+            },
+            SessionType::KWP => {
+                Self::KWP(KWP2000DiagSession::new(comm_server, ecu.ok_or(SessionError::Other("Null ECU configuration!?".into()))?)?)
+            },
+            SessionType::Custom => {
+                Self::Custom(CustomDiagSession::new(comm_server, ecu.ok_or(SessionError::Other("Null ECU configuration!?".into()))?)?)
+            },
+            SessionType::JSON(ecu_data, settings) => {
+                Self::JSON(JsonDiagSession::new(comm_server, ecu_data.clone(), settings.clone())?)
             }
-            SessionType::Custom => Self::Custom(CustomDiagSession::new(comm_server, ecu)?),
         })
     }
 

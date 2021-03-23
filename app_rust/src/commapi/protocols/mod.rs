@@ -4,6 +4,8 @@ use comm_api::{ComServerError, ISO15765Config};
 use kwp2000::KWP2000ECU;
 use uds::UDSECU;
 
+use self::kwp2000::read_ecu_identification;
+
 use super::comm_api::{self, ComServer, ISO15765Data};
 
 pub mod kwp2000;
@@ -124,11 +126,12 @@ impl DiagServer {
     pub fn new(
         comm_server: Box<dyn ComServer>,
         cfg: &ISO15765Config,
+        global_test_present_addr: Option<u32>,
         protocol: DiagProtocol,
     ) -> ProtocolResult<Self> {
         Ok(match protocol {
-            KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(comm_server, cfg)?),
-            UDS => Self::UDS(UDSECU::start_diag_session(comm_server, cfg)?),
+            KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(comm_server, cfg, global_test_present_addr)?),
+            UDS => Self::UDS(UDSECU::start_diag_session(comm_server, cfg, global_test_present_addr)?),
         })
     }
 
@@ -166,6 +169,13 @@ impl DiagServer {
             Self::UDS(s) => s.clear_errors(),
         }
     }
+
+    pub fn get_variant_id(&self) -> ProtocolResult<u16> {
+        match self {
+            Self::KWP2000(s) => read_ecu_identification::read_dcx_mmc_id(&s).map(|x| x.diag_information),
+            Self::UDS(s) => Err(ProtocolError::CustomError("Not implemented".into())), // TODO
+        }
+    }
 }
 
 impl Drop for DiagServer {
@@ -181,6 +191,7 @@ pub trait ProtocolServer: Sized {
     fn start_diag_session(
         comm_server: Box<dyn ComServer>,
         cfg: &ISO15765Config,
+        global_tester_present_addr: Option<u32>,
     ) -> ProtocolResult<Self>;
     fn exit_diag_session(&mut self);
     fn run_command(&self, cmd: u8, args: &[u8]) -> ProtocolResult<Vec<u8>>;

@@ -420,9 +420,10 @@ impl ProtocolServer for KWP2000ECU {
     fn start_diag_session(
         mut comm_server: Box<dyn ComServer>,
         cfg: &ISO15765Config,
+        global_tester_present_addr: Option<u32>,
     ) -> ProtocolResult<Self> {
         comm_server
-            .open_iso15765_interface(500_000, false, false)
+            .open_iso15765_interface(cfg.baud, false, false)
             .map_err(ProtocolError::CommError)?;
         comm_server
             .configure_iso15765(cfg)
@@ -471,13 +472,13 @@ impl ProtocolServer for KWP2000ECU {
                 {
                     timer = Instant::now();
                     //if let Err(e) = Self::run_command_iso_tp(comm_server.as_ref(), 0x001C, Service::TesterPresent.into(), &[0x02], false) {
-                    if let Err(e) = Self::run_command_iso_tp(
-                        comm_server.as_ref(),
-                        s_id,
-                        Service::TesterPresent.into(),
-                        &[0x01],
-                        false,
-                    ) {
+                    
+                    let tp_cmd = match global_tester_present_addr {
+                        // Global tester present - No response from ECU
+                        Some(x) => Self::run_command_iso_tp(comm_server.as_ref(), x, Service::TesterPresent.into(), &[0x02], false),
+                        None => Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], false)
+                    };
+                    if let Err(e) = tp_cmd {
                         if e.is_timeout() {
                             println!("Lost connection with ECU! - {:?}", e);
                             // Try to regain connection

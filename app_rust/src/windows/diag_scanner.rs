@@ -263,6 +263,7 @@ impl DiagScanner {
                         if payload[0] == 0x30 && payload.len() == 8 {
                             // Not a false positive! We can add the Config to list!
                             self.stage3_results.push(ISO15765Config {
+                                baud: 500000,
                                 send_id: *keys.get((self.curr_scan_id - 1) as usize).unwrap(), // -1 is current scan ID whilst in this loop
                                 recv_id: frame.id,
                                 block_size: payload[1] as u32,
@@ -298,7 +299,7 @@ impl DiagScanner {
                 };
 
                 // Interrogate the ECU with extended diagnostic session
-                match KWP2000ECU::start_diag_session(self.server.clone(), &ecu) {
+                match KWP2000ECU::start_diag_session(self.server.clone(), &ecu, None) {
                     Ok(mut s) => {
                         if s.run_command(0x1A, &[0x87]).is_ok() {
                             // Compulsory ECU identification command for KWP2000
@@ -323,7 +324,7 @@ impl DiagScanner {
                 }
                 let ecu = self.stage3_results[self.curr_scan_id as usize];
                 // Interrogate the ECU with extended diagnostic session
-                match UDSECU::start_diag_session(self.server.clone(), &ecu) {
+                match UDSECU::start_diag_session(self.server.clone(), &ecu, None) {
                     Ok(mut s) => {
                         // TODO find a UDS only CMD to test with
                         println!("ECU 0x{:04X} supports UDS!", ecu.send_id);
