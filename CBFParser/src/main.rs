@@ -1,8 +1,10 @@
-use std::{env, io::Write};
+use std::{collections::HashMap, env, io::Write};
 use std::fs::File;
 use caesar::container;
-use common::{raf::Raf, schema::diag::{DataFormat, StringEncoding, TableData}};
-use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::{dtc::ECUDTC, service::{Service, Parameter}}};
+use cbf_parser::diag::service::Service;
+use diag::service::{ServiceType};
+use common::{raf::Raf, schema::{Connection, diag::{DataFormat, StringEncoding, TableData}}};
+use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::{dtc::ECUDTC, service::{Parameter}}};
 use diag::{preparation::InferredDataType};
 use ecu::ECU;
 use std::io::Read;
@@ -11,6 +13,8 @@ pub mod caesar;
 pub mod ctf;
 pub mod ecu;
 pub mod diag;
+
+type CService = common::schema::diag::service::Service;
 
 fn help(err: String) -> ! {
     println!("Error: {}", err);
@@ -74,9 +78,46 @@ fn decode_ecu(e: &ECU) {
     let mut ecu = OvdECU {
         name: e.qualifier.clone(),
         description: e.name.clone().unwrap_or("".into()),
-        variants: Vec::new()
+        variants: Vec::new(),
+        connections: Vec::new()
     };
 
+    let mut connections = Vec::new();
+    for x in e.interface_sub_types.iter() {
+        println!("{:?}\n\n", x);
+        let connection = if x.comm_params.iter().any(|x| x.param_name == "CP_REQUEST_CANIDENTIFIER") { // Its CAN (ISOTP)
+            Connection {
+                baud: x.get_cp_by_name("CP_BAUDRATE").expect("No CAN Baudrate on interface!?"),
+                send_id:  x.get_cp_by_name("CP_REQUEST_CANIDENTIFIER").expect("No CAN Request ID on interface!?"),
+                recv_id:  x.get_cp_by_name("CP_RESPONSE_CANIDENTIFIER").expect("No CAN Response ID on interface!?"),
+                global_send_id: x.get_cp_by_name("CP_GLOBAL_REQUEST_CANIDENTIFIER"),
+                connection_type: common::schema::ConType::ISOTP {
+                    blocksize: 8, // Some reason MB always uses 8
+                    st_min: x.get_cp_by_name("CP_STMIN_SUG").unwrap_or(20) // Seems default for MB
+                },
+                server_type: if x.qualifier.contains("UDS") { // Interface type is in qualifier name for ISO-TP
+                    common::schema::ServerType::UDS
+                } else {
+                     common::schema::ServerType::KWP2000
+                }
+            }
+        } else {
+            // Assume LIN
+            Connection {
+                baud: 10400, // Always for MB's LIN
+                send_id: x.get_cp_by_name("CP_REQTARGETBYTE").expect("No LIN Request ID on interface!?"),
+                recv_id: x.get_cp_by_name("CP_RESPONSEMASTER").expect("No LIN Response ID on interface!?"),
+                global_send_id: x.get_cp_by_name("CP_TESTERPRESENTADDRESS"),
+                connection_type: common::schema::ConType::LIN {
+                    max_segment_size: x.get_cp_by_name("CP_SEGMENTSIZE").unwrap_or(254), // Default for ISO14230
+                    wake_up_method: common::schema::LinWakeUpType::FiveBaudInit, // MB always uses this with KWP2000 LIN
+                },
+                server_type: common::schema::ServerType::KWP2000 // Always with LIN
+            }
+        };
+        connections.push(connection);
+    }
+    ecu.connections = connections;
     for variant in e.variants.iter() {
         if variant.qualifier == e.qualifier {
             continue
@@ -87,7 +128,10 @@ fn decode_ecu(e: &ECU) {
             description: variant.name.clone().unwrap_or("".into()),
             patterns: Vec::new(),
             errors: Vec::new(),
-            services: Vec::new()
+            adjustments: Vec::new(),
+            actuations: Vec::new(),
+            functions: Vec::new(),
+            downloads: Vec::new(),
         };
         
         variant.variant_patterns.iter().for_each(|p| {
@@ -110,12 +154,8 @@ fn decode_ecu(e: &ECU) {
             //}
         });
 
-
         variant.services.iter().for_each(|s| {
-            if s.qualifier == "ACT_IO10_Idle_Speed" {
-                println!("{:#?}", s)
-            }
-            let mut service = Service {
+            let mut service = CService {
                 name: s.qualifier.clone(),
                 description: s.name.clone().unwrap_or("".into()),
                 //input_type: DataType::None,
@@ -135,7 +175,7 @@ fn decode_ecu(e: &ECU) {
                             length_bits: p.size_in_bits as usize,
                             byte_order: common::schema::diag::service::ParamByteOrder::BigEndian,
                             data_format: data_fmt,
-                            limits: None,
+                            valid_bounds: None,
 
                         };
                         if let Some(name) = pres.description.clone() {
@@ -157,7 +197,7 @@ fn decode_ecu(e: &ECU) {
                             length_bits: p.size_in_bits as usize,
                             byte_order: common::schema::diag::service::ParamByteOrder::BigEndian,
                             data_format: data_fmt,
-                            limits: None,
+                            valid_bounds: None,
 
                         };
                         if let Some(name) = pres.description.clone() {
@@ -171,18 +211,78 @@ fn decode_ecu(e: &ECU) {
 
             // For CBF, it appears input params are repeated in the payload.
             // Delete them
-            //delete_input_params(&service.payload, &mut service.input_params, tmp);
+            delete_input_params(&service.payload, &mut service.input_params, tmp);
 
             // Only add if we have a valid payload (Functions like {{INITIALIZATION}} are ignored)
             if !service.payload.is_empty() {
-                ecu_variant.services.push(service);
+                match s.service_type {
+                    ServiceType::Data | ServiceType::StoredData => ecu_variant.downloads.push(service),
+                    ServiceType::DiagnosticFunction => ecu_variant.functions.push(service),
+                    ServiceType::Routine => ecu_variant.functions.push(service),
+                    _ => {
+                        
+                    }
+                }
             }
         });
+        println!("Data: {}, Diag Func: {}, Routine: {}", ecu_variant.downloads.len(), ecu_variant.functions.len(), ecu_variant.functions.len());
 
+        // We need to cleanup the data functions. Seems MB has multiple functions that all use the same payload
+        // Except output params differ
+        //
+        // OVD does this in bulk. So 1 function -> List all output params
+        let unsorted = ecu_variant.downloads.clone();
+        let mut map: HashMap<Vec<u8>,Vec<CService>> = HashMap::new();
+        for s in &unsorted {
+            if let Some(t) = map.get_mut(&s.payload) {
+                t.push(s.clone())
+            } else {
+                map.insert(s.payload.clone(), vec![s.clone()]);
+            }
+        }
+        ecu_variant.downloads.clear();
+
+        // Now add our newly sorted data!
+        for (_, mut service_list) in map {
+            if service_list.len() == 1 {
+                ecu_variant.downloads.push(service_list[0].clone()) // Easy
+            } else {
+                // Create a new service with all the output params!
+                let mut root = service_list[0].clone();
+                root.output_params[0].name = root.description.clone();
+                root.name = format!("DT_{:02X}_{:02X}", root.payload[0], root.payload[1]);
+                root.description = format!("Data download {:02X} {:02X}", root.payload[0], root.payload[1]);
+                for s in service_list[1..].iter_mut() {
+                    if s.output_params.len() == 1 {
+                        let mut p = s.output_params[0].clone();
+                        p.name = s.description.clone();
+                        root.output_params.push(p);
+                    } else {
+                        ecu_variant.downloads.push(s.clone());
+                    }
+                }
+                // Sort these
+                root.output_params.sort_by(|x, y| x.start_bit.cmp(&y.start_bit));
+                ecu_variant.downloads.push(root);
+            }
+        }
         ecu.variants.push(ecu_variant);
     }
     let mut f = File::create(format!("{}.json", ecu.name)).expect("Cannot open output file");
     f.write_all(serde_json::to_string_pretty(&ecu).unwrap().as_bytes()).expect("Error writing output");
+
+    // Uncomment for SPLIT Json
+    //for v in &ecu.variants {
+    //    let new_ecu = OvdECU {
+    //        name: format!("{}_{}", ecu.name, v.name),
+    //        description: format!("{}. Variant {}", ecu.description, v.name),
+    //        variants: vec![v.clone()],
+    //        connections: ecu.connections.clone(),
+    //    };
+    //    let mut f = File::create(format!("{}.json", new_ecu.name)).expect("Cannot open output file");
+    //    f.write_all(serde_json::to_string_pretty(&new_ecu).unwrap().as_bytes()).expect("Error writing output");
+    //}
+
     println!("ECU decoding complete. Output file is {}.json. Have a nice day!", ecu.name)
 }
 

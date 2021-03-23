@@ -63,7 +63,7 @@ pub struct Parameter {
     pub data_format: DataFormat,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default = "Option::default")]
-    pub limits: Option<Limit>,
+    pub valid_bounds: Option<Limit>,
 }
 
 impl Parameter {
@@ -78,10 +78,7 @@ impl Parameter {
             DataFormat::String(_s) => { // TODO take into account encoding of string
                 let start_byte = self.start_bit/8;
                 let end_byte = (self.start_bit+self.length_bits)/8;
-                return match String::from_utf8(Vec::from(&input[start_byte..end_byte])) {
-                    Ok(s) => Ok(s),
-                    Err(e) => Err(ParamDecodeError::StringDecodeFailure(e)),
-                }
+                return Ok(String::from_utf8_lossy(&input[start_byte..end_byte]).to_string())
             }
             DataFormat::Bool { pos_name, neg_name } => {
                 return match self.get_number(input)? {
@@ -171,7 +168,6 @@ impl Parameter {
                     let mut start = self.start_bit;
                     while start < self.length_bits + self.start_bit {
                         let max_read = min(self.start_bit + self.length_bits, start + 8);
-                        println!("{} {}", start, max_read);
                         buf.push(resp.get_bits(start..max_read));
                         start += 8;
                     }

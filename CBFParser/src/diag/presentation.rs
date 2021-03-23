@@ -124,7 +124,7 @@ impl Presentation {
     pub fn get_data_type(&self) -> i32 {
         let mut res: i32 = -1;
         if self.unk14 != -1 {
-            return 20
+            return 17 // ASCII?
         }
         if self.scale_table_offset != -1 {
             return 20
@@ -142,7 +142,7 @@ impl Presentation {
                 }
             } else {
                 if self.type_length_1a == -1 || self.type_1c != -1 {
-                    eprintln!("Typelength and type must be valid")
+                    eprintln!("Type length and type must be valid")
                 }
                 if self.enumtype_1e == 1 || self.enumtype_1e == 2 {
                     res = 5;
@@ -168,15 +168,14 @@ impl Presentation {
         }
         if is_enum && self.scale_count >= 1 {
             let mut res: Vec<TableData> = Vec::new();
-            for (pos, s) in self.scale_list.iter().enumerate() {
+            for (_, s) in self.scale_list.iter().enumerate() {
                 res.push(TableData {
                     name: s.enum_description.clone().unwrap_or("MISSING ENUM".into()),
-                    start: pos as f32,
-                    end: pos as f32,
+                    start: s.enum_lower_bound as f32,
+                    end: s.enum_upper_bound as f32,
 
                 })
             }
-            println!("Table {}", self.qualifier);
             return Some(DataFormat::Table(res))
         }
 

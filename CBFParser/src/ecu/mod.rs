@@ -74,7 +74,7 @@ pub struct ECU {
     base_addr: usize,
 
     pub interfaces: Vec<ECUInterface>,
-    interface_sub_types: Vec<InterfaceSubType>,
+    pub interface_sub_types: Vec<InterfaceSubType>,
 
     pub global_dtcs: Vec<DTC>,
     pub global_presentations: Vec<Presentation>,
@@ -166,8 +166,9 @@ impl ECU {
         res.global_dtcs = Self::create_dtcs(reader, lang, &res.dtc)?;
 
         // Create variants
-        res.variants = res.create_ecu_variants(reader, lang, &res.ecu_variant)?;
-
+        let tmp = &res.ecu_variant.clone();
+        let variants = res.create_ecu_variants(reader, lang, tmp)?;
+        res.variants = variants;
 
         // Done building our ECU varients, we can destroy our working arrays
         res.global_services.clear();
@@ -249,7 +250,7 @@ impl ECU {
         Ok(res)
     }
 
-    fn create_ecu_variants(&self, reader: &mut Raf, lang: &CTFLanguage, var_blk: &Block) -> std::result::Result<Vec<ECUVariant>, CaesarError> {
+    fn create_ecu_variants(&mut self, reader: &mut Raf, lang: &CTFLanguage, var_blk: &Block) -> std::result::Result<Vec<ECUVariant>, CaesarError> {
         let pool = Self::read_pool(reader, var_blk)?;
         let mut res = vec![ECUVariant::default(); var_blk.entry_count];
         let mut tmp_reader = Raf::from_bytes(&pool, common::raf::RafByteOrder::LE);

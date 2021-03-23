@@ -5,16 +5,16 @@ use super::interface::ECUInterface;
 
 #[derive(Debug, Clone, Default)]
 pub struct ComParameter {
-    param_idx: i32,
-    parent_iface_idx: i32,
-    sub_iface_idx: i32,
+    pub param_idx: i32,
+    pub parent_iface_idx: i32,
+    pub sub_iface_idx: i32,
     unk5: i32,
     unk_ctf: i32,
     phrase: i32,
     dump_size: i32,
     dump: Vec<u8>,
-    param_value: i32,
-    param_name: String,
+    pub param_value: i32,
+    pub param_name: String,
 
     base_addr: usize
 }
@@ -41,7 +41,6 @@ impl ComParameter {
         if res.dump_size == 4 {
             res.param_value = (res.dump[3] as i32) << 24 | (res.dump[2] as i32) << 16 | (res.dump[1] as i32) << 8 | res.dump[0] as i32;
         }
-
         let parent_iface = &parents[res.parent_iface_idx as usize];
 
         if res.param_idx as usize >= parent_iface.com_params.len() {

@@ -47,7 +47,7 @@ impl Default for ParamName {
 
 #[derive(Debug, Clone, Default)]
 pub struct InterfaceSubType {
-    qualifier: String,
+    pub qualifier: String,
     name: Option<String>,
     description: Option<String>,
 
@@ -65,7 +65,7 @@ pub struct InterfaceSubType {
     base_addr: usize,
     idx: usize,
 
-    comm_params: Vec<ComParameter>
+    pub (crate) comm_params: Vec<ComParameter>
 }
 
 impl InterfaceSubType {
@@ -94,6 +94,10 @@ impl InterfaceSubType {
         println!("{:?}", res);
         Ok(res)
 
+    }
+
+    pub fn get_cp_by_name(&self, name: &str) -> Option<u32> {
+        self.comm_params.iter().find(|x| x.param_name == name).map(|x| x.param_value as u32)
     }
 }
 
