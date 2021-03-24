@@ -3,7 +3,7 @@ pub mod images;
 use crate::themes::elements::{ButtonStyle, DropDown, PBar};
 use iced::{Button, Checkbox, Color, Container, Element, PickList, ProgressBar, Radio, Text, button, pick_list};
 use std::ops::RangeInclusive;
-use std::{borrow::Cow, todo};
+use std::borrow::Cow;
 
 use self::elements::{CheckBox, TextInput};
 
@@ -34,7 +34,7 @@ static mut CURR_THEME: Style = Style::Light;
 
 static mut DEBUG: bool = false;
 
-pub fn setDebug(state: bool) {
+pub fn set_debug(state: bool) {
     unsafe { DEBUG = state }
 }
 

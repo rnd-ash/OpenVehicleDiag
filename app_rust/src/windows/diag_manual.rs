@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::Path, todo};
+use std::{fs::File, io::Read};
 
 use common::schema::OvdECU;
 use iced::{Align, Column, Element, Length, Row, Subscription};
@@ -6,7 +6,7 @@ use iced::{Align, Column, Element, Length, Row, Subscription};
 use crate::{
     commapi::comm_api::{ComServer, ISO15765Config},
     themes::{
-        button_outlined, elements::TextInput, picklist, text, text_input, title_text, ButtonType,
+        button_outlined, picklist, text, text_input, title_text, ButtonType,
         TextType, TitleSize,
     },
 };

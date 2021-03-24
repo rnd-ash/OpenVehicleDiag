@@ -1,11 +1,10 @@
 use super::{
-    diag_manual::{self, DiagManual, DiagManualMessage},
+    diag_manual::{DiagManual, DiagManualMessage},
     diag_scanner::{DiagScanner, DiagScannerMessage},
 };
-use crate::commapi::comm_api::{Capability, ComServer};
+use crate::commapi::comm_api::{ComServer};
 use crate::themes::{button_outlined, text, title_text, ButtonType, TextType, TitleSize};
-use crate::windows::window::WindowMessage;
-use iced::{button, Align, Column, Element, Length, Row, Rule, Space, Subscription, Text};
+use iced::{Align, Column, Element, Length, Row, Space, Subscription};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

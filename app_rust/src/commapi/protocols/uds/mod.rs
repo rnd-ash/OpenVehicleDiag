@@ -466,9 +466,6 @@ impl ProtocolServer for UDSECU {
 
         // Enter extended diagnostic session (Full features)
         let s_id = cfg.send_id;
-        let tp_id = global_test_present_addr.unwrap_or(s_id);
-        
-
         std::thread::spawn(move || {
             println!("Diag server start!");
             let mut timer = Instant::now();

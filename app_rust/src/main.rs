@@ -28,7 +28,7 @@ fn main() -> iced::Result {
     let args = std::env::args();
     for a in args {
         if a == "-debug_ui" {
-            themes::setDebug(true)
+            themes::set_debug(true)
         }
     }
     MainWindow::run(launcher_settings)

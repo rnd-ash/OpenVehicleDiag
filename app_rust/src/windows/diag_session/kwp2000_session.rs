@@ -1,8 +1,5 @@
 use std::{
     borrow::BorrowMut,
-    cell::RefCell,
-    sync::{atomic::AtomicBool, Arc},
-    thread::JoinHandle,
     time::Instant,
 };
 
@@ -15,10 +12,10 @@ use crate::{
         protocols::{kwp2000::KWP2000ECU, ProtocolServer},
     },
     themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize},
-    windows::{diag_manual::DiagManualMessage, window},
+    windows::window,
 };
 
-use super::{log_view, DiagMessageTrait, SessionMsg, SessionResult, SessionTrait};
+use super::{log_view, DiagMessageTrait, SessionResult, SessionTrait};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum KWP2000DiagSessionMsg {
