@@ -44,7 +44,7 @@ impl ComServer for PassthruApi {
     }
 
     fn send_can_packets(
-        &self,
+        &mut self,
         data: &[CanFrame],
         timeout_ms: u32,
     ) -> Result<usize, ComServerError> {
@@ -242,7 +242,7 @@ impl ComServer for PassthruApi {
     }
 
     fn add_can_filter(
-        &self,
+        &mut self,
         filter: FilterType,
         id: u32,
         mask: u32,
@@ -277,7 +277,7 @@ impl ComServer for PassthruApi {
         }
     }
 
-    fn rem_can_filter(&self, filter_idx: u32) -> Result<(), ComServerError> {
+    fn rem_can_filter(&mut self, filter_idx: u32) -> Result<(), ComServerError> {
         match *self.can_channel_idx.read().unwrap() {
             None => Ok(()), // OK as filter has already been deleted when channel was destroyed
             Some(id) => self
@@ -290,7 +290,7 @@ impl ComServer for PassthruApi {
     }
 
     fn add_iso15765_filter(
-        &self,
+        &mut self,
         id: u32,
         mask: u32,
         flow_control_id: u32,
@@ -327,7 +327,7 @@ impl ComServer for PassthruApi {
         }
     }
 
-    fn rem_iso15765_filter(&self, filter_idx: u32) -> Result<(), ComServerError> {
+    fn rem_iso15765_filter(&mut self, filter_idx: u32) -> Result<(), ComServerError> {
         match *self.iso15765_channel_idx.read().unwrap() {
             None => Ok(()), // Return OK if the channel no longer exists since the filter has already been removed
             Some(idx) => self
@@ -340,7 +340,7 @@ impl ComServer for PassthruApi {
     }
 
     fn set_iso15765_params(
-        &self,
+        &mut self,
         separation_time_min: u32,
         block_size: u32,
     ) -> Result<(), ComServerError> {

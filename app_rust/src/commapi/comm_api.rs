@@ -222,7 +222,7 @@ pub trait ComServer: Send + Sync + Debug {
     /// ## Returns
     /// The number of CAN Frames successfully written to the vehicle, if Timeout is 0, this
     /// number will always be equal to the number of frames that were provided.
-    fn send_can_packets(&self, data: &[CanFrame], timeout_ms: u32)
+    fn send_can_packets(&mut self, data: &[CanFrame], timeout_ms: u32)
         -> Result<usize, ComServerError>;
 
     /// Returns a boolean indicating if there is at least 1 channel communicating with the car
@@ -324,17 +324,17 @@ pub trait ComServer: Send + Sync + Debug {
     ///
     /// ## Returns
     /// The filter ID provided by the adapter. Use this when destroying the filter
-    fn add_can_filter(&self, filter: FilterType, id: u32, mask: u32)
+    fn add_can_filter(&mut self, filter: FilterType, id: u32, mask: u32)
         -> Result<u32, ComServerError>;
 
     /// Tells the adapter to remove an active filter on an open CAN channel
     /// # Params
     /// * filter_idx - Filter ID to remove, this should be the value given by [`add_can_filter`](fn@add_can_filter)
-    fn rem_can_filter(&self, filter_idx: u32) -> Result<(), ComServerError>;
+    fn rem_can_filter(&mut self, filter_idx: u32) -> Result<(), ComServerError>;
 
-    fn add_iso15765_filter(&self, id: u32, mask: u32, fc_id: u32) -> Result<u32, ComServerError>;
+    fn add_iso15765_filter(&mut self, id: u32, mask: u32, fc_id: u32) -> Result<u32, ComServerError>;
 
-    fn configure_iso15765(&self, cfg: &ISO15765Config) -> Result<u32, ComServerError> {
+    fn configure_iso15765(&mut self, cfg: &ISO15765Config) -> Result<u32, ComServerError> {
         self.add_iso15765_filter(cfg.recv_id, 0xFFFF, cfg.send_id)
             .and_then(|idx| {
                 self.set_iso15765_params(cfg.sep_time, cfg.block_size)
@@ -349,7 +349,7 @@ pub trait ComServer: Send + Sync + Debug {
     /// Tells the adapter to remove an active filter on an open ISO15765 channel
     /// # Params
     /// * filter_idx - Filter ID to remove, this should be the value given by [`add_iso15765_filter`](fn@add_iso15765_filter)
-    fn rem_iso15765_filter(&self, filter_idx: u32) -> Result<(), ComServerError>;
+    fn rem_iso15765_filter(&mut self, filter_idx: u32) -> Result<(), ComServerError>;
 
     /// Tells the adapter to set the block size and separation time on an active
     /// ISO15765 channel
@@ -362,7 +362,7 @@ pub trait ComServer: Send + Sync + Debug {
     /// * block_size - The number of CAN frames to receive or send before waiting for another
     ///                 flow control message from the ECU
     fn set_iso15765_params(
-        &self,
+        &mut self,
         separation_time_min: u32,
         block_size: u32,
     ) -> Result<(), ComServerError>;
