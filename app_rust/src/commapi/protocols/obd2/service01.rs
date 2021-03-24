@@ -159,10 +159,10 @@ impl PidList {
         res.add_func_num(0x53, "Absolute Evap system vapor pressure", "kPa", (0.0, 327.675), &|a, b, _, _|{ ((256.0 * a) + b) / 200.0 });
         res.add_func_num(0x54, "Evap system vapor pressure", "Pa", (-32767.0, 32768.0), &|a, b, _, _|{ ((256.0 * a) + b) - 32767.0 });
 
-        res.add_func_mult(0x55, &["Short term secondary oxygen trim bank 1", "Short term secondary oxygen trim bank 3"], &["%", "%"], &[(-100.0, 99.2), (-100.0, 99.2)], &|a, b, _, _| { vec![(a * 1.28)-100.0] });
-        res.add_func_mult(0x56, &["Long term secondary oxygen trim bank 1", "Long term secondary oxygen trim bank 3"], &["%", "%"], &[(-100.0, 99.2), (-100.0, 99.2)], &|a, b, _, _| { vec![(a * 1.28)-100.0] });
-        res.add_func_mult(0x57, &["Short term secondary oxygen trim bank 2", "Short term secondary oxygen trim bank 4"], &["%", "%"], &[(-100.0, 99.2), (-100.0, 99.2)], &|a, b, _, _| { vec![(a * 1.28)-100.0] });
-        res.add_func_mult(0x58, &["Long term secondary oxygen trim bank 2", "Long term secondary oxygen trim bank 4"], &["%", "%"], &[(-100.0, 99.2), (-100.0, 99.2)], &|a, b, _, _| { vec![(a * 1.28)-100.0] });
+        res.add_func_mult(0x55, &["Short term secondary oxygen trim bank 1", "Short term secondary oxygen trim bank 3"], &["%", "%"], &[(-100.0, 99.2), (-100.0, 99.2)], &|a, b, _, _| { vec![(a * 1.28)-100.0, (b * 1.28)-100.0] });
+        res.add_func_mult(0x56, &["Long term secondary oxygen trim bank 1", "Long term secondary oxygen trim bank 3"], &["%", "%"], &[(-100.0, 99.2), (-100.0, 99.2)], &|a, b, _, _| { vec![(a * 1.28)-100.0, (b * 1.28)-100.0] });
+        res.add_func_mult(0x57, &["Short term secondary oxygen trim bank 2", "Short term secondary oxygen trim bank 4"], &["%", "%"], &[(-100.0, 99.2), (-100.0, 99.2)], &|a, b, _, _| { vec![(a * 1.28)-100.0, (b * 1.28)-100.0] });
+        res.add_func_mult(0x58, &["Long term secondary oxygen trim bank 2", "Long term secondary oxygen trim bank 4"], &["%", "%"], &[(-100.0, 99.2), (-100.0, 99.2)], &|a, b, _, _| { vec![(a * 1.28)-100.0, (b * 1.28)-100.0] });
         res.add_func_num(0x59, "Fuel rail absolute pressure", "kPa", (0.0, 655350.0), &|a, b, _, _|{ 10.0*(a*256.0 + b) });
         res.add_func_num(0x5A, "Relative accelerator pedal position", "%", (0.0, 100.0), &|a, _, _, _|{ a / 2.55 });
         res.add_func_num(0x5B, "Hybrid battery pack remaining life", "%", (0.0, 100.0), &|a, _, _, _|{ a / 2.55 });
