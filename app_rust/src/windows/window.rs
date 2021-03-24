@@ -20,17 +20,17 @@ use super::diag_home::DiagHome;
 // This can be modified by diagnostic sessions in order to disable going
 // home option in case a sensitive operation is in progress!
 // True by default unless a diagnostic session requests it to be disabled
-static mut show_home: bool = true;
+static mut SHOW_HOME: bool = true;
 
 pub fn enable_home() {
-    unsafe { show_home = true }
+    unsafe { SHOW_HOME = true }
 }
 pub fn disable_home() {
-    unsafe { show_home = false }
+    unsafe { SHOW_HOME = false }
 }
 
 fn get_home() -> bool {
-    unsafe { show_home }
+    unsafe { SHOW_HOME }
 }
 
 #[derive(Debug, Clone)]

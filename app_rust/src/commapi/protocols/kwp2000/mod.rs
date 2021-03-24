@@ -1,5 +1,4 @@
-use commapi::comm_api::{ComServer, ISO15765Config, ISO15765Data};
-use read_ecu_identification::read_code_fingerprint;
+use commapi::comm_api::{ComServer, ISO15765Config};
 use std::sync::atomic::Ordering::Relaxed;
 use std::{
     sync::{
@@ -12,8 +11,7 @@ use std::{
 
 use self::start_diag_session::DiagSession;
 use crate::{
-    commapi::{self, comm_api::ComServerError},
-    windows::diag_session::kwp2000_session::{self, KWP2000DiagSession},
+    commapi::{self},
 };
 
 use super::{

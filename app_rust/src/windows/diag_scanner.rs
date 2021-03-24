@@ -1,11 +1,10 @@
-use std::{collections::HashMap, fs::File, io::Write, ops::Index, time::Instant, todo};
+use std::{collections::HashMap, fs::File, io::Write, time::Instant};
 
 use commapi::{
     comm_api::ISO15765Config,
-    protocols::{kwp2000::KWP2000ECU, uds::UDSECU, DiagServer, ProtocolServer},
+    protocols::{kwp2000::KWP2000ECU, uds::UDSECU, ProtocolServer},
 };
-use iced::{Align, Column, Container, Element, Length, Row, Space};
-use J2534Common::FilterType;
+use iced::{Align, Column, Element, Length, Row, Space};
 
 use crate::{
     commapi::{
@@ -120,13 +119,13 @@ impl DiagScanner {
             }
             2 => {
                 if let Err(e) = self.server.close_can_interface() {
-                    self.status = "Error closing old CAN Interface!".into();
+                    self.status = format!("Error closing old CAN Interface!: {}", e.err_desc);
                     return None;
                 }
                 self.curr_stage += 1;
                 self.curr_scan_id = 0; // First entry in our array
                 if let Err(e) = self.server.open_can_interface(500_000, false) {
-                    self.status = "Error opening new CAN Interface!".into();
+                    self.status = format!("Error opening new CAN Interface!: {}", e.err_desc);
                     return None;
                 }
                 return Some(DiagScannerMessage::ScanPoll); // Begin the CAN interrogation (Stage 2)
@@ -134,7 +133,7 @@ impl DiagScanner {
             3 => {
                 // network cool down
                 if let Err(e) = self.server.close_can_interface() {
-                    self.status = "Error closing old CAN Interface!".into();
+                    self.status = format!("Error closing old CAN Interface!: {}", e.err_desc);
                     return None;
                 }
                 self.curr_stage += 1;
@@ -174,6 +173,7 @@ impl DiagScanner {
         }
     }
 
+    #[allow(unused_must_use)]
     fn poll(&mut self) -> Option<DiagScannerMessage> {
         match self.curr_stage {
             0 => None,

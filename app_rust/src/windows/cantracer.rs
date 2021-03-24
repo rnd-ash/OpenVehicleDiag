@@ -2,7 +2,7 @@ use crate::{commapi::comm_api::{CanFrame, ComServer, FilterType}, themes::checkb
 use crate::themes::{button_coloured, ButtonType};
 use crate::windows::window::WindowMessage;
 use iced::time;
-use iced::{button, Checkbox, Color, Column, Element, Length, Row, Scrollable, Subscription, Text};
+use iced::{button, Color, Column, Element, Length, Row, Scrollable, Subscription, Text};
 use std::collections::HashMap;
 use std::time::Instant;
 
