@@ -205,6 +205,10 @@ impl ProtocolServer for ObdServer {
             if let Ok(s) = r.get_chartable_pid(&server, 0x05) {
                 println!("Coolant temp: {:?}", s);
             }
+
+            if let Ok(s) = r.get_chartable_pid(&server, 0x1C) {
+                println!("OBD standard: {:?}", s);
+            }
         }
 
         Ok(server)
