@@ -20,7 +20,7 @@ impl ComServer for DpduAPI {
     }
 
     fn send_can_packets(
-        &self,
+        &mut self,
         data: &[CanFrame],
         timeout_ms: u32,
     ) -> Result<usize, ComServerError> {
@@ -77,7 +77,7 @@ impl ComServer for DpduAPI {
     }
 
     fn add_can_filter(
-        &self,
+        &mut self,
         filter: FilterType,
         id: u32,
         mask: u32,
@@ -85,20 +85,20 @@ impl ComServer for DpduAPI {
         unimplemented!()
     }
 
-    fn rem_can_filter(&self, filter_idx: u32) -> Result<(), ComServerError> {
+    fn rem_can_filter(&mut self, filter_idx: u32) -> Result<(), ComServerError> {
         unimplemented!()
     }
 
-    fn add_iso15765_filter(&self, id: u32, mask: u32, resp_id: u32) -> Result<u32, ComServerError> {
+    fn add_iso15765_filter(&mut self, id: u32, mask: u32, resp_id: u32) -> Result<u32, ComServerError> {
         unimplemented!()
     }
 
-    fn rem_iso15765_filter(&self, filter_idx: u32) -> Result<(), ComServerError> {
+    fn rem_iso15765_filter(&mut self, filter_idx: u32) -> Result<(), ComServerError> {
         unimplemented!()
     }
 
     fn set_iso15765_params(
-        &self,
+        &mut self,
         separation_time_min: u32,
         block_size: u32,
     ) -> Result<(), ComServerError> {
