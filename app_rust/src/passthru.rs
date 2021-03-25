@@ -3,8 +3,8 @@ use libloading::Library;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use std::{ffi::*, fmt};
-use J2534Common::FilterType::FLOW_CONTROL_FILTER;
-use J2534Common::*;
+use j2534_rust::FilterType::FLOW_CONTROL_FILTER;
+use j2534_rust::*;
 
 lazy_static! {
     pub static ref DRIVER: Arc<RwLock<Option<PassthruDrv>>> = Arc::new(RwLock::new(None));
@@ -17,7 +17,7 @@ use winreg::enums::*;
 use winreg::{RegKey, RegValue};
 
 /// Result which contains a PASSTHRU_ERROR in it's Err() variant
-pub type Result<T> = std::result::Result<T, J2534Common::PassthruError>;
+pub type Result<T> = std::result::Result<T, j2534_rust::PassthruError>;
 
 type PassThruOpenFn =
     unsafe extern "stdcall" fn(name: *const libc::c_void, device_id: *mut u32) -> i32;
