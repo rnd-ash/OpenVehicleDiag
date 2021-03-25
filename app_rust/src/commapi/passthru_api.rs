@@ -4,10 +4,10 @@ use crate::commapi::comm_api::{
 use crate::passthru::{self, DrvVersion, PassthruDevice, PassthruDrv};
 use std::sync::{Arc, Mutex, RwLock};
 use std::{os::raw::c_void, time::Instant};
-use J2534Common::FilterType::{BLOCK_FILTER, FLOW_CONTROL_FILTER, PASS_FILTER};
-use J2534Common::IoctlID::READ_VBATT;
-use J2534Common::PassthruError::{ERR_FAILED, ERR_INVALID_CHANNEL_ID};
-use J2534Common::{
+use j2534_rust::FilterType::{BLOCK_FILTER, FLOW_CONTROL_FILTER, PASS_FILTER};
+use j2534_rust::IoctlID::READ_VBATT;
+use j2534_rust::PassthruError::{ERR_FAILED, ERR_INVALID_CHANNEL_ID};
+use j2534_rust::{
     ConnectFlags, IoctlID, IoctlParam, Loggable, PassthruError, Protocol, SConfig, SConfigList,
     TxFlag, PASSTHRU_MSG,
 };
@@ -540,7 +540,7 @@ impl PassthruApi {
             id: PassthruApi::msg_id_to_u32(msg),
             data: Vec::from(&msg.data[4..msg.data_size as usize]),
             pad_frame: false,
-            ext_addressing: msg.tx_flags & J2534Common::TxFlag::ISO15765_ADDR_TYPE.bits() > 0,
+            ext_addressing: msg.tx_flags & j2534_rust::TxFlag::ISO15765_ADDR_TYPE.bits() > 0,
         })
     }
 

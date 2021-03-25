@@ -474,7 +474,7 @@ impl ProtocolServer for KWP2000ECU {
                     let tp_cmd = match global_tester_present_addr {
                         // Global tester present - No response from ECU
                         Some(x) => Self::run_command_iso_tp(comm_server.as_ref(), x, Service::TesterPresent.into(), &[0x02], false),
-                        None => Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], false)
+                        None => Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], true)
                     };
                     if let Err(e) = tp_cmd {
                         if e.is_timeout() {
