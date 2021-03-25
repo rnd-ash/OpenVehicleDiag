@@ -1,10 +1,10 @@
 [package]
 name = "openvehiclediag"
-version = "0.5.0"
+version = "0.6.0"
 description = "pen Vehicle Diagnostics (OVD) is a Rust-based open source vehicle ECU diagnostic platform."
 edition = "2018"
 [package.metadata.bundle]
-version = "0.5.0"
+version = "0.6.0"
 authors = ["ashcon"]
 edition = "2018"
 description = """
@@ -16,7 +16,6 @@ The idea is to make diagnosing and exploring your cars diagnostics functions pos
 
 [dependencies]
 iced = { version = "0.2.0", features = ["tokio", "image", "canvas"] }
-
 serde_json = "1.0"
 libloading = "0.7.0"
 libc = "0.2.79"
@@ -24,7 +23,7 @@ serde_derive = "1.0.80"
 lazy_static="1.4.0"
 serde = {version = "1.0.80", features = ["derive"]}
 common = { path = "../common" }
-J2534Common = { path = "../MacchinaM2-J2534-Rust/J2534Common/"}
+j2534_rust = {git = "https://github.com/rnd-ash/J2534-Rust", branch="main" }
 bitfield = "0.13.2"
 nfd = "0.0.4"
 hex-serde = "0.1.0"
