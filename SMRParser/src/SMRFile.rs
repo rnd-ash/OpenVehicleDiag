@@ -1,5 +1,6 @@
-use std::io::Read;
+use std::{fmt::Write, io::{Cursor, Read}};
 use byteorder::{LittleEndian, ByteOrder};
+use zip::read::read_zipfile_from_stream;
 use std::num::Wrapping;
 use nettle::cipher::Blowfish;
 use nettle::cipher::Cipher;
@@ -28,7 +29,7 @@ pub struct SMRFile {
     hash_block: Vec<u8>,
     odb_binary: Vec<u8>,
     string_table: Vec<String>,
-    meta_info: String
+    meta_info: String,
 }
 
 impl SMRD {
@@ -115,7 +116,7 @@ impl SMRD {
             hash_block : hash_block,
             odb_binary: binary_block,
             string_table: strs,
-            meta_info: metaInfo
+            meta_info: metaInfo,
         }
     }
 
@@ -205,41 +206,86 @@ impl SMRD {
 }
 
 
+pub struct WriteFile {
+    pub bytes: Vec<u8>,
+    pub name: String,
+}
+
 impl SMRFile {
-    pub fn extract_dlls(&mut self) {
-        let fpos = 0;
+    pub fn extract_zips(&mut self) -> Vec<WriteFile> {
+        let mut files : Vec<Vec<u8>> = Vec::new();
+        let mut fpos = 0;
 
         while fpos < self.odb_binary.len() {
-            let next_zip = SMRFile::search_bytes(&self.odb_binary, &ZIP_SIG, fpos);
-            if next_zip == -1 {
-                break;
-            } else {
-                println!("Found ZIP file")
+            let next_zip = match SMRFile::search_bytes(&self.odb_binary, &ZIP_SIG, fpos) {
+                -1 => break,
+                x => x as usize
+            };
+            let next_end_zip = match SMRFile::search_bytes(&self.odb_binary, &ZIP_EOCD_SIG, fpos){
+                -1 => break,
+                x => x as usize
+            };
+
+            let x1 = self.odb_binary[(next_end_zip + 0x15) as usize] as u16;
+            let x2 = self.odb_binary[(next_end_zip + 0x14)] as u16;
+
+            let zip_comment_length = ((x1 << 8) | x2) as usize;
+            let zip_final_length = ((next_end_zip + 0x16 + zip_comment_length) - next_zip) as usize;
+
+            let arr = &self.odb_binary[next_zip..(next_zip + zip_final_length)];
+            println!("Zip file found - Size: {}", zip_final_length);
+            files.push(Vec::from(arr));
+            fpos = next_zip + zip_final_length;
+        }
+        println!("{} zip file(s) found", files.len());
+        // Extract files from SMR-D!
+
+        let mut res = Vec::new();
+
+        for (idx, stream) in files.iter().enumerate() {
+            match zip::read::ZipArchive::new(Cursor::new(stream)) {
+                Ok(extracted) => {
+                    // Manifest, therefore JAR file!
+                    if extracted.file_names().into_iter().find(|x| *x == "META-INF/MANIFEST.MF" ).is_some() {
+                        println!("JAR File found");
+                        // TODO GET JAR name
+                        res.push(WriteFile {
+                            bytes: stream.clone(),
+                            name: format!("{}.jar", idx)
+                        })
+                    } 
+                    // No manifest, assume ZIP
+                    else {
+                        println!("ZIP File found");
+                        res.push(WriteFile {
+                            bytes: stream.clone(),
+                            name: format!("{}.zip", idx)
+                        })
+                    }
+                },
+                Err(e) => {
+                    println!("Error: {}", e);
+                }
             }
         }
+        return res;
     }
 
 
     fn search_bytes(src: &Vec<u8>, search: &[u8], offset: usize) -> i32 {
         let lim = src.len() - search.len();
-
-        let mut res: i32 = -1;
-        (offset..=lim).for_each(|i| {
+        for i in offset..=lim {
             let mut k = 0;
-            loop {
+            while k < search.len() {
                 if search[k] != src[i+k] {
                     break;
                 }
                 k += 1;
-                if k >= search.len() {
-                    break;
-                }
             }
             if k == search.len() {
-                res = i as i32;
-                return;
+                return i as i32;
             }
-        });
-        res
+        }
+        return -1;
     }
 }
