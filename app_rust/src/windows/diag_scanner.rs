@@ -6,15 +6,9 @@ use commapi::{
 };
 use iced::{Align, Column, Element, Length, Row, Space};
 
-use crate::{
-    commapi::{
-        self,
-        comm_api::{CanFrame, ComServer},
-    },
-    themes::{
+use crate::{commapi::{self, comm_api::{CanFrame, ComServer}, protocols::kwp2000::read_ecu_identification::read_dcx_mmc_id}, themes::{
         button_coloured, button_outlined, progress_bar, text, title_text, ButtonType, TextType,
-    },
-};
+    }};
 
 use super::diag_home::{ECUDiagSettings, VehicleECUList};
 
@@ -301,9 +295,8 @@ impl DiagScanner {
                 // Interrogate the ECU with extended diagnostic session
                 match KWP2000ECU::start_diag_session(self.server.clone(), &ecu, None) {
                     Ok(mut s) => {
-                        if s.run_command(0x1A, &[0x87]).is_ok() {
-                            // Compulsory ECU identification command for KWP2000
-                            // TODO maybe replace the ECU name with the Part number?
+                        if let Ok(id) = read_dcx_mmc_id(&s) {
+                            ecu_res.name = format!("ECU Part number: {}",id.part_number);
                             println!("ECU 0x{:04X} supports KWP2000!", ecu.send_id);
                             ecu_res.kwp_support = true;
                         }
@@ -365,7 +358,7 @@ impl DiagScanner {
                 let time = chrono::Utc::now();
                 let path = std::env::current_dir()
                     .unwrap()
-                    .join(format!("scan-{}.ovdjson", time.format("%F-%H_%M_%S")));
+                    .join(format!("car_scan-{}.json", time.format("%F-%H_%M_%S")));
                 let mut file = match File::create(&path) {
                     Ok(j) => j,
                     Err(e) => {
