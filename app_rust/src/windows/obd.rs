@@ -146,7 +146,7 @@ impl OBDHome {
         }
 
 
-        let mut c = Column::new()
+        let c = Column::new()
             .padding(10)
             .spacing(10)
             .push(title_text("OBD Diagnostics", TitleSize::P2))

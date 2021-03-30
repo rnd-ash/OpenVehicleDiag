@@ -93,10 +93,17 @@ impl std::fmt::Debug for Box<dyn CommandError> {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DTCState {
+    None,
+    Stored,
+    Pending,
+    Permanent
+}
+
 pub struct DTC {
     pub(crate) error: String,
-    pub(crate) present: bool,
-    pub(crate) stored: bool,
+    pub(crate) state: DTCState,
     pub(crate) check_engine_on: bool,
 }
 
@@ -104,8 +111,8 @@ impl Display for DTC {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} - Present?: {}, In memory?: {}, Check engine light on?: {}",
-            self.error, self.present, self.stored, self.check_engine_on
+            "{} - State: {:?}, Check engine light on?: {}",
+            self.error, self.state, self.check_engine_on
         )
     }
 }

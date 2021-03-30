@@ -107,7 +107,7 @@ impl DiagScanner {
                 // Accumulate scan results here
                 self.can_traffic_id_list.insert(0x07DF, false); // Add OBD-II CAN ID so we don't scan that
                 self.curr_stage += 1; // We can progress to the next stage!
-                self.curr_scan_id = 0x060F; // Set start ID to 0
+                self.curr_scan_id = 0x070F; // Set start ID to 0
                 self.server.clear_can_rx_buffer();
                 return Some(DiagScannerMessage::ScanPoll); // Begin the CAN interrogation (Stage 1)
             }
@@ -602,8 +602,21 @@ impl DiagScanner {
             .width(Length::Fill)
             .push(title_text("Scan completed", crate::themes::TitleSize::P2));
 
+        let mut row = Row::new();
+        let mut list = Column::new().width(Length::Units(600));
+        list = if self.stage4_results.is_empty() {
+            list.push(text(
+                "Unfortunately, no ISO-TP capable ECUs were found in your vehicle",
+                TextType::Normal,
+            ))
+        } else {
+            list.push(text(
+                format!("Located {} ECUs", self.stage4_results.len()).as_str(),
+                TextType::Normal,
+            ))
+        };
         for ecu in &self.stage4_results {
-            c = c.push(text(
+            list = list.push(text(
                 format!(
                     "ECU 0x{:04X} - KWP2000?: {}, UDS?: {}",
                     ecu.send_id, ecu.kwp_support, ecu.uds_support
@@ -612,34 +625,32 @@ impl DiagScanner {
                 TextType::Normal,
             ));
         }
+        row = row.push(list);
 
         // Allow the user to save the results to file
-        if self.stage4_results.is_empty() {
-            c = c.push(text(
-                "Unfortunately, no ISO-TP capable ECUs were found in your vehicle",
-                TextType::Normal,
-            ));
-        } else {
-            c = c.push(text("Save results to file:", TextType::Normal));
-            c = c.push(
+        let mut row2 = Column::new().width(Length::Fill);
+        if !self.stage4_results.is_empty() {
+            row2 = row2.push(text("Save results to file:", TextType::Normal));
+            row2 = row2.push(
                 button_outlined(&mut self.btn, "Save results to file", ButtonType::Info)
                     .on_press(DiagScannerMessage::SaveResults),
             );
             if self.save_attempted && !self.save_path.is_empty() {
-                c = c.push(text(
+                row2 = row2.push(text(
                     format!("Success, results saved to {}", self.save_path).as_str(),
                     TextType::Success,
                 ));
-                c = c.push(text("You may now return home", TextType::Normal))
+                row2 = row2.push(text("You may now return home", TextType::Normal))
             } else if self.save_attempted && self.save_path.is_empty() && !self.status.is_empty() {
                 // Error saving
-                c = c.push(text(
+                row2 = row2.push(text(
                     format!("Error saving results: {}", self.status).as_str(),
                     TextType::Warning,
                 ));
             }
         }
-        c.into()
+        row = row.push(row2);
+        c.push(row).into()
     }
 
     fn draw_stage_unk(&mut self) -> Element<DiagScannerMessage> {

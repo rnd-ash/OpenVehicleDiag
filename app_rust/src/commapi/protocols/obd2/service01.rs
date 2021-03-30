@@ -314,6 +314,7 @@ impl PidList {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Service01 {
     supported_pids: Vec<bool>
 }
