@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use crate::commapi::comm_api::{ComServer, ComServerError};
+use crate::{commapi::comm_api::{ComServer, ComServerError}, themes::images::get_launcher_image};
 use crate::commapi::passthru_api::PassthruApi;
 use crate::themes::{button_coloured, container, picklist, radio_btn, text, ButtonType, TextType};
 use crate::windows::launcher::LauncherMessage::LaunchRequested;
@@ -8,7 +8,7 @@ use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::window::{ApplicationError, WindowMessage};
 use crate::{
     passthru::{PassthruDevice, PassthruDrv},
-    themes::images::{pix_to_iced_image, LAUNCHER_IMG},
+    themes::images::{pix_to_iced_image},
 };
 use iced::{button, pick_list, Align, Column, Element, Image, Length, Row, Text};
 
@@ -173,7 +173,7 @@ impl Launcher {
         let mut contents = if self.api_selection == API::DPdu {
             Column::new()
                 .push(
-                    pix_to_iced_image(LAUNCHER_IMG)
+                    get_launcher_image()
                         .width(Length::Units(300))
                         .height(Length::Units(300)),
                 )
@@ -185,7 +185,7 @@ impl Launcher {
         } else if self.api_selection == API::SocketCAN {
             let mut c = Column::new()
                 .push(
-                    pix_to_iced_image(LAUNCHER_IMG)
+                    get_launcher_image()
                         .width(Length::Units(300))
                         .height(Length::Units(300)),
                 )
@@ -222,7 +222,7 @@ impl Launcher {
         } else {
             let mut c = Column::new()
                 .push(
-                    pix_to_iced_image(LAUNCHER_IMG)
+                    get_launcher_image()
                         .width(Length::Units(300))
                         .height(Length::Units(300)),
                 )

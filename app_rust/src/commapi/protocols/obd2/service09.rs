@@ -3,8 +3,17 @@ use crate::commapi::protocols::{ProtocolError, ProtocolServer};
 use super::{OBDError, ObdError, ObdServer, ObdService, get_obd_bits};
 
 
+#[derive(Debug, Clone)]
 pub struct Service09{
-    supported_pids: Vec<bool>   
+    supported_pids: Vec<bool> 
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Service09Data {
+    pub vin: String,
+    pub calibration_id: String,
+    pub cvns: Vec<String>,
+    pub ecu_name: String
 }
 
 impl ObdService for Service09 {
@@ -16,17 +25,6 @@ impl ObdService for Service09 {
         let s09 = Service09{
             supported_pids: bits
         };
-        if let Ok(vin) = s09.get_vin(s) {
-            println!("VIN: {}", vin);
-        }
-        if let Ok(vin) = s09.get_calibration_id(s) {
-            println!("CID: {}", vin);
-        }
-
-        if let Ok(cvn) = s09.get_calibration_verification_numbers(s) {
-            println!("CVN's: {:?}", cvn);
-        }
-
         Some(s09)
     }
 }
@@ -44,6 +42,16 @@ impl Service09 {
         }
     }
 
+    pub fn get_everything(&self, s: &ObdServer) -> Service09Data {
+        Service09Data {
+            vin: self.get_vin(s).unwrap_or("Not Supported".into()),
+            calibration_id: self.get_calibration_id(s).unwrap_or("Not Supported".into()),
+            cvns: self.get_calibration_verification_numbers(s).unwrap_or_default(),
+            ecu_name: self.get_ecu_name(s).unwrap_or("Not Supported".into()),
+
+        }
+    }
+
 
     pub fn get_vin_msg_count(&self, s: &ObdServer) -> OBDError<u8> {
         self.check_service_supported(0x01)?;
@@ -53,6 +61,11 @@ impl Service09 {
     pub fn get_vin(&self, s: &ObdServer) -> OBDError<String> {
         self.check_service_supported(0x02)?;
         s.run_command(0x09, &[0x02]).map(|s| String::from_utf8_lossy(&s[2..]).to_string())
+    }
+
+    pub fn get_ecu_name(&self, s: &ObdServer) -> OBDError<String> {
+        self.check_service_supported(0x0A)?;
+        s.run_command(0x09, &[0x0A]).map(|s| String::from_utf8_lossy(&s[2..]).to_string())
     }
 
     pub fn get_calibration_id(&self, s: &ObdServer) -> OBDError<String> {

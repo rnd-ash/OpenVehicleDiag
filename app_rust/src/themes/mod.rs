@@ -30,7 +30,9 @@ const WHITE: Color = Color {
     a: 1.0,
 };
 
-static mut CURR_THEME: Style = Style::Light;
+static mut CURR_THEME: Style = Style::Dark;
+
+
 
 static mut DEBUG: bool = false;
 

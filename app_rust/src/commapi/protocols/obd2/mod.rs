@@ -4,7 +4,7 @@ use commapi::protocols::ProtocolError;
 
 use crate::commapi;
 
-use self::{service01::Service01, service03::Service03, service09::Service09};
+use self::{service01::Service01, service02::Service02, service03::Service03, service04::Service04, service05::Service05, service06::Service06, service07::Service07, service08::Service08, service09::Service09, service10::Service0A};
 
 use super::{CommandError, ECUCommand, ProtocolResult, ProtocolServer, Selectable};
 
@@ -12,7 +12,12 @@ pub mod service01;
 pub mod service02;
 pub mod service03;
 pub mod service04;
+pub mod service05;
+pub mod service06;
+pub mod service07;
+pub mod service08;
 pub mod service09;
+pub mod service10;
 
 pub type OBDError<T> = ProtocolResult<T>;
 
@@ -129,12 +134,51 @@ impl ECUCommand for OBDCmd {
     }
 }
 
-#[deny(Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct ObdServer {
     should_run: Arc<AtomicBool>,
     cmd_tx: Sender<(u8, Vec<u8>, bool)>,
     cmd_rx: Arc<Receiver<ProtocolResult<Vec<u8>>>>,
     cmd_mutex: Arc<Mutex<()>>,
+    s01: Option<Service01>,
+    s02: Option<Service02>,
+    s03: Option<Service03>,
+    s04: Option<Service04>,
+    s05: Option<Service05>,
+    s06: Option<Service06>,
+    s07: Option<Service07>,
+    s08: Option<Service08>,
+    s09: Option<Service09>,
+    s0A: Option<Service0A>,
+}
+
+impl ObdServer {
+    pub fn req_service09<T, F: Fn(&Service09) -> ProtocolResult<T>>(&self, func: F) -> ProtocolResult<T> {
+        if let Some(s) = &self.s09 {
+            func(s)
+        } else {
+            Err(ProtocolError::CustomError("Service not supported by ECU".into()))
+        }
+    }
+
+    /// Return type
+    /// .0 - SID supported?
+    /// .1 - SID ID
+    /// .2 - SID Name
+    pub fn get_supported_services(&self) -> Vec<(bool, usize, String)> {
+        let mut res = Vec::new();
+        res.push((self.s01.is_some(), 0x01, "Sensor data".into()));
+        res.push((self.s02.is_some(), 0x02, "Freeze frame data".into()));
+        res.push((self.s03.is_some(), 0x03, "Read DTCs".into()));
+        res.push((self.s04.is_some(), 0x04, "Clear DTCs".into()));
+        res.push((self.s05.is_some(), 0x05, "O2 monitoring test results".into()));
+        res.push((self.s06.is_some(), 0x06, "test results (other)".into()));
+        res.push((self.s07.is_some(), 0x07, "Show pending DTCs".into()));
+        res.push((self.s08.is_some(), 0x08, "Control operation".into()));
+        res.push((self.s09.is_some(), 0x09, "Vehicle Info".into()));
+        res.push((self.s0A.is_some(), 0x0A, "Permanent DTCs".into()));
+        return res;
+    }
 }
 
 impl ProtocolServer for ObdServer {
@@ -194,23 +238,29 @@ impl ProtocolServer for ObdServer {
             should_run,
             cmd_mutex: Arc::new(Mutex::new(())),
             cmd_rx: Arc::new(channel_rx_receiver),
-            cmd_tx: channel_tx_sender
+            cmd_tx: channel_tx_sender,
+            s01: None,
+            s02: None,
+            s03: None,
+            s04: None,
+            s05: None,
+            s06: None,
+            s07: None,
+            s08: None,
+            s09: None,
+            s0A: None,
         };
         std::thread::sleep(std::time::Duration::from_millis(100)); // Wait for diag server to start
 
         if let Some(r) = Service01::init(&server) {
-            if let Ok(s) = r.get_chartable_pid(&server, 0x04) {
-                println!("Engine load: {:?}", s);
-            }
-            if let Ok(s) = r.get_chartable_pid(&server, 0x05) {
-                println!("Coolant temp: {:?}", s);
-            }
-
-            if let Ok(s) = r.get_chartable_pid(&server, 0x1C) {
-                println!("OBD standard: {:?}", s);
-            }
+            server.s01 = Some(r)
         }
+        server.s03 = Some(service03::Service03);
+        service03::Service03::read_dtcs(&server).unwrap();
 
+        if let Some(r) = Service09::init(&server) {
+            server.s09 = Some(r)
+        }
         Ok(server)
     }
 

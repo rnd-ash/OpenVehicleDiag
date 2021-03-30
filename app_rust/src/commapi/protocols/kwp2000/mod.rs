@@ -1,4 +1,4 @@
-use commapi::comm_api::{ComServer, ISO15765Config};
+use commapi::{comm_api::{ComServer, ISO15765Config}, protocols::DTCState};
 use std::sync::atomic::Ordering::Relaxed;
 use std::{
     sync::{
@@ -554,14 +554,22 @@ impl ProtocolServer for KWP2000ECU {
         for _ in 0..count {
             let name = format!("{:02X}{:02X}", bytes[0], bytes[1]);
             let status = bytes[2];
-            let flag = (status >> 4 & 0b00000001) > 0;
-            let storage_state = (status >> 6) & 0b0000011;
+            //let flag = (status >> 4 & 0b00000001) > 0;
+            //0b011
+            let storage_state = (status >> 5) & 0b0000011;
+            
+            let state = match storage_state {
+                1 => DTCState::Stored,
+                2 => DTCState::Pending,
+                3 => DTCState::Permanent,
+                _ => DTCState::None
+            };
+
             let mil = (status >> 7 & 0b00000001) > 0;
 
             res.push(DTC {
                 error: name,
-                present: flag,
-                stored: storage_state > 0,
+                state,
                 check_engine_on: mil,
             });
             bytes.drain(0..3); // DTC is 3 bytes (1 for status, 2 for the ID)

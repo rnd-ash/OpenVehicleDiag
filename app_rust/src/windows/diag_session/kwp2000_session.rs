@@ -9,7 +9,7 @@ use log_view::{LogType, LogView};
 use crate::{
     commapi::{
         comm_api::{ComServer, ISO15765Config},
-        protocols::{kwp2000::KWP2000ECU, ProtocolServer},
+        protocols::{kwp2000::KWP2000ECU, ProtocolServer, DTCState},
     },
     themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize},
     windows::window,
@@ -237,7 +237,27 @@ impl SessionTrait for KWP2000DiagSession {
                                 );
                                 self.can_clear_codes = true;
                                 for x in &errors {
-                                    self.logview.add_msg(x.error.as_str(), LogType::Warn);
+                                    let status = if !x.check_engine_on {
+                                        " MIL ON "
+                                    } else {
+                                        "  "
+                                    };
+                                    match &x.state {
+                                        &DTCState::Permanent => {
+                                            self.logview.add_msg(format!("{} {} - Permanent DTC", x.error, status).as_str(), LogType::Error);
+                                        },
+                                        &DTCState::Stored => {
+                                            self.logview.add_msg(format!("{} {} - Stored DTC", x.error, status).as_str(), LogType::Error);
+                                        },
+                                        &DTCState::Pending => {
+                                            self.logview.add_msg(format!("{} {} - Pending DTC", x.error, status).as_str(), LogType::Warn);
+                                        },
+                                        &DTCState::None => {
+                                            self.logview.add_msg(format!("{} {} - New DTC", x.error, status).as_str(), LogType::Info);
+                                        },
+                                    }
+                                    
+                                    println!("{}", x);
                                 }
                             }
                         }
