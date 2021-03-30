@@ -3,8 +3,8 @@ use crate::caesar::{CaesarError, creader};
 
 #[derive(Debug, Clone, Default)]
 pub struct CFFHeader {
-    caesar_version: i32,
-    gpd_version: i32,
+    pub caesar_version: i32,
+    pub gpd_version: i32,
     pub ecu_count: i32,
     pub ecu_offset: i32,
     pub ctf_offset: i32,

@@ -6,8 +6,8 @@ use crate::{ctf::{STUB_HEADER_SIZE, StubHeader, cff_header::CFFHeader, ctf_heade
 
 #[derive(Debug, Clone, Default)]
 pub struct Container {
-    cff_header: CFFHeader,
-    ctf_header: CTFHeader,
+    pub cff_header: CFFHeader,
+    pub ctf_header: CTFHeader,
     pub ecus: Vec<ECU>,
 }
 
