@@ -123,7 +123,7 @@ impl ECUVariant {
 
     fn create_diag_services(&self, pool: Vec<i32>, parent_ecu: &ECU) -> std::result::Result<Vec<Service>, CaesarError> {
         let mut res = vec![Service::default(); pool.len()];
-        parent_ecu.global_env_ctxs.iter().for_each(|d| {
+        parent_ecu.global_services.iter().for_each(|d| {
             for (pos, idx) in pool.iter().enumerate() {
                 if d.pool_idx == *idx as usize {
                     res[pos] = d.clone();

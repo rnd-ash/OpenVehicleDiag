@@ -171,9 +171,9 @@ impl ECU {
         res.variants = variants;
 
         // Done building our ECU varients, we can destroy our working arrays
+        res.global_env_ctxs.clear();
         res.global_services.clear();
         res.global_dtcs.clear();
-
         Ok(res)
     }
 

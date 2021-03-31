@@ -176,6 +176,12 @@ impl Presentation {
 
                 })
             }
+
+            // Quick check to see if this is ACTUALLY a binary encoded string
+            // CBF is evil. Binary encoded string = 256 entries of a scale table!
+            if res.len() == 2i32.pow(prep.size_in_bits as u32) as usize {
+                return Some(DataFormat::Binary)
+            }
             return Some(DataFormat::Table(res))
         }
 
