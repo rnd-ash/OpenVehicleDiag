@@ -31,6 +31,8 @@ pub enum DataDecodeFailure {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum DataFormat {
+    /// Value is encoded as a binary string EG: 0b0001100
+    Binary,
     /// Value is a hex dump
     HexDump,
     /// Value is an encoded String

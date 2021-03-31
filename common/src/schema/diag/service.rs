@@ -86,6 +86,21 @@ impl Parameter {
                     _ => Ok(pos_name.clone().unwrap_or("True".into()))
                 }
             }
+            DataFormat::Binary => {
+                let start_byte = self.start_bit/8;
+                let end_byte = (self.start_bit+self.length_bits)/8;
+                if start_byte == end_byte { // 1 binary value
+                    return Ok(format!("b{:08b}", &input[start_byte]))
+                } else { // Multiple binary values!
+                    let mut res = String::from("[");
+                    for i in &input[start_byte..min(end_byte, input.len())] {
+                        res.push_str(&format!("b{:08b}, ", i));
+                    }
+                    res.drain(res.len()-2..res.len());
+                    res.push(']');
+                    return Ok(res);
+                }
+            },
             DataFormat::Table(t) => {
                 let raw = self.get_number(input)? as f32;
                 for v in t {
@@ -118,6 +133,7 @@ impl Parameter {
     pub fn decode_value_to_number(&self, input: &[u8]) -> std::result::Result<f32, ParamDecodeError> {
         match &self.data_format {
             DataFormat::HexDump => Err(ParamDecodeError::DecodeNotSupported),
+            DataFormat::Binary => Err(ParamDecodeError::DecodeNotSupported),
             DataFormat::String(_) => Err(ParamDecodeError::DecodeNotSupported),
             DataFormat::Bool { pos_name: _, neg_name: _ } => Ok(self.get_number(input)? as f32),
             DataFormat::Table(_) => Err(ParamDecodeError::DecodeNotSupported),
@@ -127,7 +143,7 @@ impl Parameter {
             DataFormat::RatFunc => Err(ParamDecodeError::NotImplemented),
             DataFormat::ScaleRatFunc => Err(ParamDecodeError::NotImplemented),
             DataFormat::TableInterpretation => Err(ParamDecodeError::NotImplemented),
-            DataFormat::CompuCode(_) => Err(ParamDecodeError::NotImplemented)
+            DataFormat::CompuCode(_) => Err(ParamDecodeError::NotImplemented),
         }
     }
 
@@ -135,6 +151,7 @@ impl Parameter {
     pub fn can_plot(&self) -> bool {
         match &self.data_format {
             DataFormat::HexDump => false,
+            DataFormat::Binary => false,
             DataFormat::String(_) => false,
             DataFormat::Bool { pos_name: _, neg_name: _ } => true,
             DataFormat::Table(_) => false,
