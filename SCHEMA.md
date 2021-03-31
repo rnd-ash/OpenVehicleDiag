@@ -25,8 +25,8 @@ Example
 {
   "name": "Awesome ECU",
   "description": "My awesome engine ECU!",
-  "variants": [...],
-  "connections": [...]
+  "variants": [ ... ],
+  "connections": [ ... ]
 }
 ```
 
@@ -49,12 +49,12 @@ Example of a single ECU Variant entry
 {
   "name": "SW_V_01",
   "description": "My Awesome ECU software version 0.1",
-  "patterns": [...],
-  "errors": [...],
-  "adjustments": [...],
-  "actuations": [...],
-  "functions": [...],
-  "downloads": [...]
+  "patterns": [ ... ],
+  "errors": [ ... ],
+  "adjustments": [ ... ],
+  "actuations": [ ... ],
+  "functions": [ ... ],
+  "downloads": [ ... ]
 
 }
 ```
@@ -62,12 +62,12 @@ Example of a single ECU Variant entry
 |:--:|:--:|:--|:--:|
 |**name**|String|A short version string of the ECU Software version|Yes|
 |**description**|String|Description of the ECU Software version|Yes|
-|**patterns**|Array|A list of [Patterns](#Pattern) for the software version. This is used to identify the hardware vendor|Yes|
-|**errors**|Array|A list of [errors](#Error) this ECU Software version can potentially throw|Yes|
-|**adjustments**|Array|A list of [services](#Service) that can be executed on this ECU variant in order to modify certain functions of the ECU, such as specifying a new engine idle RPM|No|
-|**actuations**|Array|A list of [services](#Service) that can be executed on this ECU variant in order to manipulate components the ECU controls temporarily during the diagnostic session|No|
-|**functions**|Array|A list of [services](#Service) that can be executed on this ECU variant in order to modify the ECUs current state, such as soft rebooting an ECU|No|
-|**downloads**|Array|A list of [services](#Service) that can be executed on this ECU variant in order to read data from the ECU|No|
+|**patterns**|Array|A list of [Pattern](#Pattern) objects that are used to identify a particular vendor of an ECU's software version|Yes|
+|**errors**|Array|A list of [error](#Error) objects that this ECU Software version can potentially throw|Yes|
+|**adjustments**|Array|A list of [service](#Service) objects that can be executed on this ECU variant in order to modify certain functions of the ECU, such as specifying a new engine idle RPM|No|
+|**actuations**|Array|A list of [service](#Service) objects that can be executed on this ECU variant in order to manipulate components the ECU controls temporarily during the diagnostic session|No|
+|**functions**|Array|A list of [service](#Service) objects that can be executed on this ECU variant in order to modify the ECUs current state, such as soft rebooting an ECU|No|
+|**downloads**|Array|A list of [service](#Service) objects that can be executed on this ECU variant in order to read data from the ECU|No|
 
 ### Pattern
 
@@ -98,7 +98,7 @@ Example error
   "error_name": "P2082-002",
   "summary": "MAF implausible",
   "description": "Mass airflow sensor is producing inconsistent readings",
-  "envs": [...]
+  "envs": [ ... ]
 }
 
 ```
@@ -121,10 +121,12 @@ Example
   "name": "Read injector status",
   "description": "Retrieves the injector quantity per stroke for all cylinders",
   "payload": "22FB",
-  "input_params": [...],
-  "output_params": [...],
+  "input_params": [ ... ],
+  "output_params": [ ... ],
 }
 ```
+
+
 
 |   |Type|Description|Required|
 |:--:|:--:|:--|:--:|
@@ -132,7 +134,8 @@ Example
 |**description**|String|Description of what the service does|Yes|
 |**payload**|Hex String|The payload to send to the ECU|Yes|
 |**payload**|Array|A list of [parameters](#Parameter) that can be added to the end of the existing content in the `payload` field. These will be inputted by the user before service execution|No|
-|**payload**|Array|A list of [parameters](#Parameter) that will be used to interpret the ECU's response to the payload. This is used to extract values from the ECU's response message, assuming the ECU responded with a positive response to the command.|No|
+|**input_params**|Array|A list of [parameter](#Parameter) objects that will be used to format the users input into the ECU Request payload|No|
+|**output_params**|Array|A list of [parameter](#Parameter) objects that will be used to interpret the ECU's positive response message.|No|
 
 
 #### Parameter
