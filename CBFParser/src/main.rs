@@ -291,6 +291,11 @@ fn decode_ecu(e: &ECU) {
         }
         ecu.variants.push(ecu_variant);
     }
+    println!("SORTED");
+    for v in &ecu.variants {
+        println!("Data: {}, Diag Func: {}, Routine: {}", v.downloads.len(), v.functions.len(), v.functions.len());
+    }
+    println!("Writing to file");
     let mut f = File::create(format!("{}.json", ecu.name)).expect("Cannot open output file");
     f.write_all(serde_json::to_string_pretty(&ecu).unwrap().as_bytes()).expect("Error writing output");
 
