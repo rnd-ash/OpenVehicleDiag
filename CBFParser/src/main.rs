@@ -144,11 +144,34 @@ fn decode_ecu(e: &ECU) {
         });
 
         variant.dtcs.iter().for_each(|e| {
-            let error = ECUDTC {
+            let mut error = ECUDTC {
                 description: e.description.clone().unwrap_or("".into()),
                 error_name: e.qualifier.clone(),
                 summary: e.reference.clone().unwrap_or("".into()),
+                envs: Vec::new()
             };
+
+            for env in &e.envs {
+                // Ok so envs only have 1 output param (ALWAYS!)
+                // so we can copy the name and description to the output param
+                let prep = &env.output_preparations[0];
+                if let Some(pres) = &prep.presentation {
+                    if let Some(data_fmt) = pres.create(prep) {
+                        // Copy name and description from service
+                        let param = Parameter {
+                            name: env.name.clone().unwrap_or(prep.qualifier.clone()),
+                            unit: pres.display_unit.clone().unwrap_or("".into()),
+                            start_bit: prep.bit_pos,
+                            length_bits: prep.size_in_bits as usize,
+                            byte_order: common::schema::diag::service::ParamByteOrder::BigEndian,
+                            data_format: data_fmt,
+                            valid_bounds: None,
+                        };
+                        error.envs.push(param);
+                    }
+                }
+            }
+
             //if !error.error_name.is_empty() {
             ecu_variant.errors.push(error)
             //}

@@ -1,17 +1,20 @@
 use common::raf::Raf;
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 
+use super::service::Service;
+
 #[derive(Debug, Clone, Default)]
 pub struct DTC {
     pub qualifier: String,
     pub description: Option<String>,
     pub reference: Option<String>,
 
-    pub xrefs_start: i32,
-    pub xrefs_count: i32,
+    pub (crate) xrefs_start: i32,
+    pub (crate) xrefs_count: i32,
     pub base_addr: usize,
 
     pub pool_idx: usize,
+    pub envs: Vec<Service>
 }
 
 impl DTC {
@@ -27,8 +30,9 @@ impl DTC {
             qualifier: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
             description: lang.get_string(creader::read_primitive(&mut bitflags, reader, -1i32)?),
             reference: lang.get_string(creader::read_primitive(&mut bitflags, reader, -1i32)?),
-            xrefs_start: -1,
-            xrefs_count: -1,
+            xrefs_start: -1, // ECU Variant will set these values
+            xrefs_count: -1, // ECU Variant will set these values
+            envs: Vec::new() // ECUVariant will process this!
         })
     }
 }

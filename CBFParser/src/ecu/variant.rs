@@ -1,4 +1,4 @@
-use std::vec;
+use std::{ops::Deref, vec};
 use common::raf::Raf;
 use crate::{caesar::{CaesarError, PoolTuple, creader}, ctf::ctf_header::CTFLanguage, diag::{dtc::DTC, service::Service}};
 use super::{ECU, variant_pattern::{VariantPattern}, com_param::ComParameter};
@@ -44,6 +44,7 @@ pub struct ECUVariant {
     pub (crate) variant_patterns: Vec<VariantPattern>,
     pub (crate) services: Vec<Service>,
     pub (crate) dtcs: Vec<DTC>,
+    pub (crate) xref_list: Vec<i32>,
 }
 
 impl ECUVariant {
@@ -88,14 +89,14 @@ impl ECUVariant {
         }
         
         tmp_reader.seek(res.dtc.offset);
-        let mut dtc_pool_bounds: Vec<DTCPoolBounds> = vec![DTCPoolBounds::default(); res.dtc.count];
-        for i in 0..res.dtc.count {
-            dtc_pool_bounds[i] = DTCPoolBounds::new(&mut tmp_reader)?;
+        let mut dtc_pool_bounds: Vec<DTCPoolBounds> = Vec::new();
+        for _ in 0..res.dtc.count {
+            dtc_pool_bounds.push(DTCPoolBounds::new(&mut tmp_reader)?);
         }
 
         tmp_reader.seek(res.environment_ctx.offset);
         // TODO process ENV pool
-        let _env_ctx_pool_offsets: Vec<i32> = (0..res.environment_ctx.count)
+        let mut env_ctx_pool_offsets: Vec<i32> = (0..res.environment_ctx.count)
             .into_iter()
             .map(|_| tmp_reader.read_i32())
             .filter_map(|x| x.ok())
@@ -104,14 +105,25 @@ impl ECUVariant {
 
         res.services = res.create_diag_services(diag_services_pool_offsets, parent_ecu)?;
         res.variant_patterns = res.create_variant_patterns(reader)?;
-        res.dtcs = res.create_dtcs(res.dtc.count, dtc_pool_bounds, parent_ecu)?;
+        res.dtcs = res.create_dtcs(res.dtc.count, &mut dtc_pool_bounds, parent_ecu)?;
+        res.create_xrefs(reader)?;
         res.create_com_params(reader, parent_ecu)?;
+        res.create_env_ctxs(&mut env_ctx_pool_offsets, parent_ecu)?;
         Ok(res)
+    }
+
+    fn create_xrefs(&mut self, reader: &mut Raf) -> std::result::Result<(), CaesarError> {
+        self.xref_list = vec![0; self.xref.count];
+        reader.seek(self.base_addr + self.xref.offset);
+        for x in 0..self.xref.count {
+            self.xref_list[x] = reader.read_i32()?;
+        }
+        Ok(())
     }
 
     fn create_diag_services(&self, pool: Vec<i32>, parent_ecu: &ECU) -> std::result::Result<Vec<Service>, CaesarError> {
         let mut res = vec![Service::default(); pool.len()];
-        parent_ecu.global_diag_jobs.iter().for_each(|d| {
+        parent_ecu.global_env_ctxs.iter().for_each(|d| {
             for (pos, idx) in pool.iter().enumerate() {
                 if d.pool_idx == *idx as usize {
                     res[pos] = d.clone();
@@ -157,18 +169,76 @@ impl ECUVariant {
         Ok(res)
     }
 
-    fn create_dtcs(&self, count: usize, pool: Vec<DTCPoolBounds>, parent: &ECU) -> std::result::Result<Vec<DTC>, CaesarError> {
-        let mut res = vec![DTC::default(); count];
+    fn create_dtcs(&self, count: usize, pool: &mut Vec<DTCPoolBounds>, parent: &ECU) -> std::result::Result<Vec<DTC>, CaesarError> {
+        let mut res: Vec<Option<DTC>> = vec![None; count];
         parent.global_dtcs.iter().for_each(|dtc| {
             for i in 0..count {
                 if dtc.pool_idx == pool[i].actual_index as usize {
-                    res[i] = dtc.clone();
-                    res[i].xrefs_start = pool[i].xref_start;
-                    res[i].xrefs_count = pool[i].xref_count;
+                    let mut d = dtc.clone();
+                    d.xrefs_start = pool[i].xref_start;
+                    d.xrefs_count = pool[i].xref_count;
+                    res[i] = Some(d);
                 }
             }
         });
-        Ok(res)
+        // Modify envs if global DTC
+        let mut lowest = 0;
+        let max = parent.global_dtcs.len();
+
+        pool.sort_by(|x, y| x.actual_index.partial_cmp(&y.actual_index).unwrap());
+
+        for i in 0..count {
+            if res[i].is_none() {
+                for idx in lowest..max {
+                    if parent.global_dtcs[idx].pool_idx == pool[i].actual_index as usize {
+                        // Replace content with global!
+                        let mut pdtc = parent.global_dtcs[idx].clone();
+                        pdtc.xrefs_start = pool[i].xref_start;
+                        pdtc.xrefs_count = pool[i].xref_count;
+                        res[i] = Some(pdtc);
+                        lowest = idx;
+                        break;
+                    }
+                }
+            }
+        }
+
+        Ok(res.into_iter().filter_map(|x| x).collect())
     }
 
+    fn create_env_ctxs(&mut self, offsets: &mut Vec<i32>, parent: &ECU) -> std::result::Result<(), CaesarError> {
+        let count = offsets.len();
+        let mut ctxs: Vec<Option<&Service>> = vec![None; count];
+        
+        for i in 0..count {
+            if i == offsets[i] as usize {
+                ctxs.push(Some(&parent.global_env_ctxs[i]));
+            }
+        }
+
+        for env in &parent.global_env_ctxs {
+            for i in 0..offsets.len() {
+                if env.pool_idx == offsets[i] as usize {
+                    ctxs[i] = Some(env)
+                }
+            }
+        }
+
+        let sorted: Vec<&Service> = ctxs.into_iter().filter_map(|x| x).collect();
+
+        // Now set them to DTCs!
+        for dtc in self.dtcs.iter_mut() {
+            //println!("{} {} - {} -> {}", &self.qualifier, &dtc.qualifier, &dtc.xrefs_start, &dtc.xrefs_count);
+            for idx in dtc.xrefs_start..(dtc.xrefs_start+dtc.xrefs_count) {
+                for s in &sorted {
+                    let xref = self.xref_list[idx as usize] as usize;
+                    if s.pool_idx == xref {
+                        dtc.envs.push(s.deref().clone());
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 }

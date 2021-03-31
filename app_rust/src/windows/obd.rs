@@ -138,22 +138,37 @@ impl OBDHome {
         .padding(10)
         .spacing(10);
 
+        let mut connect_shown = false;
         if self.server.get_capabilities().supports_iso9141() == Capability::Yes {
             btn_row = btn_row.push(obd_btn);
+            connect_shown = true;
         }
         if self.server.get_capabilities().supports_iso15765() == Capability::Yes {
             btn_row = btn_row.push(can_btn);
+            connect_shown = true;
+        }
+
+        // No way to talk to OBD!!
+        if !connect_shown {
+            return Column::new()
+            .padding(10)
+            .spacing(10)
+            .push(title_text("OBD Diagnostics", TitleSize::P2))
+            .push(text("Unfortunately, your adapter does not support ISO9141 or ISO15765.", TextType::Warning))
+            .push(btn_row)
+            .align_items(Align::Center)
+            .into()
         }
 
 
-        let c = Column::new()
+        Column::new()
             .padding(10)
             .spacing(10)
             .push(title_text("OBD Diagnostics", TitleSize::P2))
             .push(Space::with_height(Length::Units(10)))
             .push(btn_row)
-            .align_items(Align::Center);
-        c.into()
+            .align_items(Align::Center)
+            .into()
     }
 
     pub fn create_s09_ui(&mut self) -> Element<OBDMessage> {
