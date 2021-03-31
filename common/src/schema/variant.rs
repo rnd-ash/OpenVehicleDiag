@@ -14,14 +14,18 @@ pub struct ECUVariantDefinition {
     pub errors: Vec<ECUDTC>,
     /// Adjustments are functions that write an adjustment to the ECUs memory
     /// which is permanently set between ECU Resets, such as setting engine idle RPM
+    #[serde(default = "Vec::new")]
     pub adjustments: Vec<Service>,
     /// Actuations are functions that request the ECU to do something now (Such as open/close a valve)
     /// but are reset to normal when the ECU is either power cycled or returns to its normal default state
+    #[serde(default = "Vec::new")]
     pub actuations: Vec<Service>,
     /// Miscellaneous functions
+    #[serde(default = "Vec::new")]
     pub functions: Vec<Service>,
     /// These are functions that simply retrieve data from an ECU, and do not
     /// write anything to it. For example, asking the ECU for current fuel rail pressure
+    #[serde(default = "Vec::new")]
     pub downloads: Vec<Service>
 }
 
