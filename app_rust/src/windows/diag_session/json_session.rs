@@ -8,20 +8,10 @@ use iced::{time, Align, Column, Container, Length, Row, Subscription};
 use protocols::{ECUCommand, Selectable};
 use serde_json::de::Read;
 
-use crate::{
-    commapi::{
-        self,
-        comm_api::{ComServer, ISO15765Config},
-        protocols::{
-            kwp2000::KWP2000ECU, DiagProtocol, DiagServer, ProtocolResult, ProtocolServer,
-        },
-    },
-    themes::{
+use crate::{commapi::{self, comm_api::{ComServer, ISO15765Config}, protocols::{DTC, DiagProtocol, DiagServer, ProtocolResult, ProtocolServer, kwp2000::KWP2000ECU}}, themes::{
         button_coloured, button_outlined, elements::TextInput, picklist, text, text_input,
         title_text, ButtonType, TextType,
-    },
-    windows::diag_manual::DiagManualMessage,
-};
+    }, windows::diag_manual::DiagManualMessage};
 
 use super::{
     log_view::{LogType, LogView},
@@ -64,7 +54,6 @@ pub struct JsonDiagSession {
     pattern: ECUVariantPattern,
     log_view: LogView,
     clear_errors: iced::button::State,
-    can_clear: bool,
 
     service_selector: ServiceSelector,
 
@@ -73,6 +62,7 @@ pub struct JsonDiagSession {
     read_errors: iced::button::State,
     looping_text: String,
     looping_service: Option<ServiceRef>, // Allow only read-only services to be loop read
+    logged_dtcs: Vec<DTC>,
 }
 
 impl JsonDiagSession {
@@ -149,7 +139,6 @@ impl JsonDiagSession {
                         write_functions,
                         actuation_functions,
                     ),
-                    can_clear: false,
                     log_view: LogView::new(),
                     read_errors: Default::default(),
                     clear_errors: Default::default(),
@@ -157,6 +146,7 @@ impl JsonDiagSession {
                     clear_log_btn: Default::default(),
                     looping_service: None,
                     looping_text: String::new(),
+                    logged_dtcs: Vec::new()
                 })
             }
             Err(e) => {
@@ -178,7 +168,7 @@ impl SessionTrait for JsonDiagSession {
             )
             .width(Length::FillPortion(1));
 
-        if self.can_clear {
+        if self.logged_dtcs.len() > 0 {
             btn_view = btn_view.push(
                 button_outlined(&mut self.clear_errors, "Clear errors", ButtonType::Primary)
                     .on_press(JsonDiagSessionMsg::ClearErrors),
@@ -191,7 +181,7 @@ impl SessionTrait for JsonDiagSession {
                 .map(JsonDiagSessionMsg::Selector),
         );
         if self.looping_service.is_some() {
-            btn_view = btn_view.push(text(&self.looping_text, TextType::Normal));
+            btn_view = btn_view.push(text(&self.looping_text, TextType::Normal).size(14));
         }
         Column::new()
             .align_items(Align::Center)
@@ -228,26 +218,44 @@ impl SessionTrait for JsonDiagSession {
         match msg {
             JsonDiagSessionMsg::ReadErrors => match self.server.read_errors() {
                 Ok(res) => {
+                    self.logged_dtcs = res.clone();
                     if res.is_empty() {
                         self.log_view.add_msg("No ECU Errors", LogType::Info);
-                        self.can_clear = false;
                     } else {
                         self.log_view
                             .add_msg(format!("Found {} errors", res.len()), LogType::Warn);
-                        for e in res {
+                        for e in &res {
                             let desc = self
                                 .ecu_data
                                 .errors
                                 .clone()
                                 .into_iter()
                                 .find(|x| x.error_name.ends_with(e.error.as_str()));
-                            let err_txt = match desc {
+
+                            let envs = desc.clone().map(|x| x.envs).unwrap_or_default();
+                            let mut env_string = String::from("\n");
+                            if envs.len() > 0 {
+                                if let Ok(args) = self.server.get_dtc_env_data(e) {
+                                    for e in &envs {
+                                        match e.decode_value_to_string(&args) {
+                                            Ok(s) => {env_string.push_str(&format!("---{}: {}\n", e.name, s))},
+                                            Err(err) => env_string.push_str(&format!("---{}: {:?}\n", e.name, err))
+                                        }
+                                    }
+                                    println!("{} - {:02X?}", &desc.clone().unwrap().error_name ,args);
+                                }
+                            }
+
+
+                            let mut err_txt = match &desc {
                                 Some(d) => format!("{} - {}", e.error, d.description),
                                 None => format!("{} - Unknown description", e.error),
                             };
+                            if env_string.len() > 1 {
+                                err_txt.push_str(&env_string);
+                            }
                             self.log_view.add_msg(err_txt, LogType::Warn)
                         }
-                        self.can_clear = true;
                     }
                 }
                 Err(e) => {
@@ -255,13 +263,15 @@ impl SessionTrait for JsonDiagSession {
                         format!("Error reading ECU Errors: {}", e.get_text()),
                         LogType::Error,
                     );
-                    self.can_clear = false;
+                    self.logged_dtcs.clear();
                 }
             },
             JsonDiagSessionMsg::ClearErrors => {
-                self.can_clear = false;
                 match self.server.clear_errors() {
-                    Ok(_) => self.log_view.add_msg("Clear ECU Errors OK!", LogType::Info),
+                    Ok(_) => {
+                        self.log_view.add_msg("Clear ECU Errors OK!", LogType::Info);
+                        self.logged_dtcs.clear();
+                    },
                     Err(e) => self.log_view.add_msg(
                         format!("Error clearing ECU Errors: {}", e.get_text()),
                         LogType::Error,

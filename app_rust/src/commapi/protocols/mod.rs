@@ -101,10 +101,12 @@ pub enum DTCState {
     Permanent
 }
 
+#[derive(Debug, Clone)]
 pub struct DTC {
     pub(crate) error: String,
     pub(crate) state: DTCState,
     pub(crate) check_engine_on: bool,
+    pub(crate) id: u32,
 }
 
 impl Display for DTC {
@@ -180,6 +182,13 @@ impl DiagServer {
     pub fn get_variant_id(&self) -> ProtocolResult<u16> {
         match self {
             Self::KWP2000(s) => read_ecu_identification::read_dcx_mmc_id(&s).map(|x| x.diag_information),
+            Self::UDS(s) => Err(ProtocolError::CustomError("Not implemented".into())), // TODO
+        }
+    }
+
+    pub fn get_dtc_env_data(&self, dtc: &DTC) -> ProtocolResult<Vec<u8>> {
+        match self {
+            Self::KWP2000(s) => kwp2000::read_status_dtc::read_status_dtc(s, dtc),
             Self::UDS(s) => Err(ProtocolError::CustomError("Not implemented".into())), // TODO
         }
     }

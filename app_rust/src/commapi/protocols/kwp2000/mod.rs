@@ -571,6 +571,7 @@ impl ProtocolServer for KWP2000ECU {
                 error: name,
                 state,
                 check_engine_on: mil,
+                id: ((bytes[0] as u32) << 8) | bytes[1] as u32
             });
             bytes.drain(0..3); // DTC is 3 bytes (1 for status, 2 for the ID)
         }

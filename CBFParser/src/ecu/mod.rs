@@ -79,8 +79,8 @@ pub struct ECU {
     pub global_dtcs: Vec<DTC>,
     pub global_presentations: Vec<Presentation>,
     pub global_internal_presentations: Vec<Presentation>,
+    pub global_env_ctxs: Vec<Service>,
     pub global_services: Vec<Service>,
-    pub global_diag_jobs: Vec<Service>,
     pub variants: Vec<ECUVariant>,
 }
 
@@ -159,8 +159,8 @@ impl ECU {
         res.global_presentations = Self::create_presentations(reader, lang, &res.presentations)?;
         res.global_internal_presentations = Self::create_presentations(reader, lang, &res.internal_presentations)?;
 
-        res.global_services = res.create_env(reader, lang, &res.env)?;
-        res.global_diag_jobs = res.create_diag_jobs(reader, lang, &res.diag_job)?;
+        res.global_env_ctxs = res.create_env(reader, lang, &res.env)?;
+        res.global_services = res.create_diag_jobs(reader, lang, &res.diag_job)?;
 
         // Create DTCs
         res.global_dtcs = Self::create_dtcs(reader, lang, &res.dtc)?;

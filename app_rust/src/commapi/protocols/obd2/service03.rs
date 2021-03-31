@@ -26,6 +26,7 @@ impl Service03 {
                 error: format!("{}{:1X}{:1X}{:2X}", prefix, n1, n2, bytes[1]),
                 state: DTCState::Stored, // TODO Fix this
                 check_engine_on: true,
+                id: bytes[1] as u32
                 
             };
             bytes.drain(0..2);
