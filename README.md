@@ -12,19 +12,19 @@ If you are just here for the application and not the entire framework, check the
 ## Youtube video playlist
 Videos about OpenVehicleDiag and its development progress can be found [here](https://youtube.com/playlist?list=PLxrw-4Vt7xtty50LmMoLXN2iKiUknbMng)
 
-## Feature checklists - Current status (33%)
+## Feature checklists - Current status (90%)
 Features marked with '(**WIP**)' are actively being developed!
 ### Reverse engineering framework
-- [ ] Define a schema in JSON for others to follow (**WIP**)
-- [ ] User guide on how to write a custom parser for an OEM's Database file (**WIP**)
-- [ ] Reverse engineering note on MB CBF (**WIP**)
+- [x] Define a schema in JSON for others to follow 
+- [x] User guide on how to write a custom parser for an OEM's Database file
+- [x] Reverse engineering note on MB CBF
 ### Diagnostic application
 - [x] J2534-2 API
 - [x] Packet tracing support
 - [ ] Support K-Line 
 - [x] Support CAN 
 - [x] Send and receive custom UDS Commands
-- [ ] Realtime performance data viewer for certain views
+- [x] Realtime performance data viewer for certain views
 - [x] DTC View and clearer
 ### Macchina J2534 driver
 - [x] Support J2534-2 API Passthru functions
