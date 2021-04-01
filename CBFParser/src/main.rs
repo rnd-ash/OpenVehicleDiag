@@ -93,7 +93,10 @@ fn decode_ecu(e: &ECU) {
                 global_send_id: x.get_cp_by_name("CP_GLOBAL_REQUEST_CANIDENTIFIER"),
                 connection_type: common::schema::ConType::ISOTP {
                     blocksize: 8, // Some reason MB always uses 8
-                    st_min: x.get_cp_by_name("CP_STMIN_SUG").unwrap_or(20) // Seems default for MB
+                    st_min: x.get_cp_by_name("CP_STMIN_SUG").unwrap_or(20), // Seems default for MB
+                    ext_isotp_addr: false, // MB never use extended ISO-TP addresing
+                    ext_can_addr: x.get_cp_by_name("CP_REQUEST_CANIDENTIFIER").unwrap() > 0x7FF
+                        || x.get_cp_by_name("CP_RESPONSE_CANIDENTIFIER").unwrap() > 0x7FF
                 },
                 server_type: if x.qualifier.contains("UDS") { // Interface type is in qualifier name for ISO-TP
                     common::schema::ServerType::UDS

@@ -92,6 +92,8 @@ pub struct ISO15765Config {
     pub recv_id: u32,
     pub block_size: u32,
     pub sep_time: u32,
+    pub use_ext_can: bool,
+    pub use_ext_isotp: bool,
 }
 unsafe impl Send for ISO15765Config {}
 unsafe impl Sync for ISO15765Config {}

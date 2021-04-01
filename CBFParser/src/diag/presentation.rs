@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use common::{raf::Raf, schema::diag::{DataFormat, TableData}};
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 use super::{preparation::Preparation, pres_types::scale::Scale};
@@ -167,6 +169,15 @@ impl Presentation {
             }
         }
         if is_enum && self.scale_count >= 1 {
+            // Quick check to see if this is ACTUALLY a binary encoded string
+            // CBF is evil. Binary encoded string = 256 entries of a scale table!
+            // All binary stuff I've seen starts with 'b', so check for that as well
+
+            let is_binary_str = self.scale_list.iter().map(|f| f.enum_description.clone().unwrap_or_default()).all(|x| x.starts_with('b'));
+            if prep.size_in_bits <= 8 && self.scale_count == 2i32.pow(prep.size_in_bits as u32) && is_binary_str  {
+                return Some(DataFormat::Binary)
+            }
+
             let mut res: Vec<TableData> = Vec::new();
             for (_, s) in self.scale_list.iter().enumerate() {
                 res.push(TableData {
@@ -175,12 +186,6 @@ impl Presentation {
                     end: s.enum_upper_bound as f32,
 
                 })
-            }
-
-            // Quick check to see if this is ACTUALLY a binary encoded string
-            // CBF is evil. Binary encoded string = 256 entries of a scale table!
-            if res.len() == 2i32.pow(prep.size_in_bits as u32) as usize {
-                return Some(DataFormat::Binary)
             }
             return Some(DataFormat::Table(res))
         }

@@ -48,7 +48,8 @@ impl OBDHome {
                         recv_id: *test_id,
                         block_size: 8,
                         sep_time: 20,
-    
+                        use_ext_isotp: false,
+                        use_ext_can: false
                     };
                     if let Ok(server) = ObdServer::start_diag_session(self.server.clone(), &cfg, None) {
                         if let Ok(r) = server.req_service09(|x| Ok(x.get_everything(&server))) {
