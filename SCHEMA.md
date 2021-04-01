@@ -169,8 +169,7 @@ Example JSON
 |**length_bits**|Integer|The number of bits long the parameter is|Yes|
 |**byte_order**|String|The byte order of the parameter (See below)|Yes|
 |**data_format**|Enum|Data format of the parameter. See [here](#A-list-of-valid-data-formats) for a full list of accepted data format entries|Yes|
-|**valid_bounds**|JSON|Multi use. If the parameter is in the parent services' `input_parameters` section, this field demotes the upper and lower
-bound for user input. If the parameter is in parent services' `output_parameters` section, it is used for graphing, to mark the upper and lower bounds of the graph's range|No|
+|**valid_bounds**|JSON|Multi use. If the parameter is in the parent services' `input_parameters` section, this field demotes the upper and lower bound for user input. If the parameter is in parent services' `output_parameters` section, it is used for graphing, to mark the upper and lower bounds of the graph's range|No|
 
 
 * **Allowed values (`data_format`)**
