@@ -404,21 +404,32 @@ impl PassthruDrv {
             return Err(PassthruError::ERR_INVALID_FILTER_ID);
         }
 
-        let p_msg = match flow_control {
-            None => std::ptr::null() as *const PASSTHRU_MSG,
-            Some(m) => &m as *const PASSTHRU_MSG,
-        };
-
         let mut filter_id: u32 = 0;
-        let res = unsafe {
-            (&self.start_filter_fn)(
-                channel_id,
-                tmp,
-                mask as *const PASSTHRU_MSG,
-                pattern as *const PASSTHRU_MSG,
-                p_msg,
-                &mut filter_id as *mut u32,
-            )
+        let res = match flow_control.as_ref() {
+            None => {
+                unsafe {
+                    (&self.start_filter_fn)(
+                        channel_id,
+                        tmp,
+                        mask as *const PASSTHRU_MSG,
+                        pattern as *const PASSTHRU_MSG,
+                        std::ptr::null() as *const PASSTHRU_MSG,
+                        &mut filter_id as *mut u32,
+                    )
+                }
+            },
+            Some(fc) => {
+                unsafe {
+                    (&self.start_filter_fn)(
+                        channel_id,
+                        tmp,
+                        mask as *const PASSTHRU_MSG,
+                        pattern as *const PASSTHRU_MSG,
+                        fc as *const PASSTHRU_MSG,
+                        &mut filter_id as *mut u32,
+                    )
+                }
+            }
         };
         ret_res(res, filter_id)
     }
