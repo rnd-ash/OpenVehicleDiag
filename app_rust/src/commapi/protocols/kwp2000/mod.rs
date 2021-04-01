@@ -421,7 +421,7 @@ impl ProtocolServer for KWP2000ECU {
         global_tester_present_addr: Option<u32>,
     ) -> ProtocolResult<Self> {
         comm_server
-            .open_iso15765_interface(cfg.baud, false, false)
+            .open_iso15765_interface(cfg.baud, cfg.use_ext_can, cfg.use_ext_isotp)
             .map_err(ProtocolError::CommError)?;
         comm_server
             .configure_iso15765(cfg)

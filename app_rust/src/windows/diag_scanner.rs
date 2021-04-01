@@ -262,6 +262,8 @@ impl DiagScanner {
                                 recv_id: frame.id,
                                 block_size: payload[1] as u32,
                                 sep_time: payload[2] as u32,
+                                use_ext_isotp: false,
+                                use_ext_can: false
                             })
                         }
                     }

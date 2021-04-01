@@ -279,6 +279,8 @@ impl DiagManual {
                 recv_id: Self::decode_string_hex(&self.str_recv_id).unwrap(),
                 block_size: Self::decode_string_int(&self.str_bs).unwrap(),
                 sep_time: Self::decode_string_int(&self.str_sep).unwrap(),
+                use_ext_isotp: false,
+                use_ext_can: false
             };
             match DiagSession::new(&session_type, self.server.clone(), Some(cfg)) {
                 Ok(session) => self.session = Some(session),
@@ -291,6 +293,8 @@ impl DiagManual {
                 recv_id: ecu.flow_control_id,
                 block_size: ecu.block_size,
                 sep_time: ecu.sep_time_ms,
+                use_ext_isotp: false,
+                use_ext_can: false
             };
             match DiagSession::new(&session_type, self.server.clone(), Some(cfg)) {
                 Ok(session) => self.session = Some(session),

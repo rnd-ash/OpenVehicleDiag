@@ -79,13 +79,15 @@ impl JsonDiagSession {
         // TODO K-Line KWP2000
         // For now, Diag server ONLY supports ISO-TP, not LIN!
         let create_server = match connection_settings.connection_type {
-            ConType::ISOTP { blocksize, st_min } => {
+            ConType::ISOTP { blocksize, st_min, ext_isotp_addr, ext_can_addr } => {
                 let cfg = ISO15765Config {
                     baud: connection_settings.baud,
                     send_id: connection_settings.send_id,
                     recv_id: connection_settings.recv_id,
                     block_size: blocksize,
                     sep_time: st_min,
+                    use_ext_can: ext_can_addr,
+                    use_ext_isotp: ext_isotp_addr
                 };
                 DiagServer::new(comm_server, &cfg, connection_settings.global_send_id, diag_server_type)
             },

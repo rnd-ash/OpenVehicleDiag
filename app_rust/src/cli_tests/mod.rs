@@ -43,6 +43,8 @@ pub mod draw_routine {
                 recv_id: 1268,
                 block_size: 8,
                 sep_time: 20,
+                use_ext_isotp: false,
+                use_ext_can: false
             },
             None,
         )

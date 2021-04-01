@@ -191,7 +191,7 @@ impl ProtocolServer for ObdServer {
         cfg: &crate::commapi::comm_api::ISO15765Config,
         _global_tester_present_addr: Option<u32>, // Should always be none for OBD
     ) -> super::ProtocolResult<Self> {
-        comm_server.open_iso15765_interface(cfg.baud, false, false)?; // For OBD this should work
+        comm_server.open_iso15765_interface(cfg.baud, cfg.use_ext_can, cfg.use_ext_isotp)?; // For OBD this should work
         comm_server.add_iso15765_filter(cfg.recv_id, 0xFFFF, cfg.send_id)?;
         comm_server.set_iso15765_params(cfg.sep_time, cfg.block_size)?;
         

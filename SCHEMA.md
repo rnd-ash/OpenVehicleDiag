@@ -495,7 +495,9 @@ Example (ISO-TP Connection method)
 "connection_type": {
   "ISOTP": {
     "blocksize": 8,
-    "st_min": 20
+    "st_min": 20,
+    "ext_can_addr": false,
+    "ext_isotp_addr": false,
   }
 }
 ...
@@ -504,4 +506,6 @@ Example (ISO-TP Connection method)
 |   |Type|Description|Required|
 |:--:|:--:|:--|:--:|
 |**blocksize**|Integer|The maximum number of CAN Frames allowed to be transmitted over ISO-TP before the ECU must send another flow control message back to the tester|Yes|
-|**st_min**|Integer|The minimum delay in milliseconds before sending consecutive CAN Frames to the ECU|Yes
+|**st_min**|Integer|The minimum delay in milliseconds before sending consecutive CAN Frames to the ECU|Yes|
+|**ext_can_addr**|Boolean|Indicates if CAN ID shall be 29bit (Extended - True) or 11bit (Standard - False)|Yes|
+|**ext_isotp_addr**|Boolean|Indicates if the ISO-TP layer shall use extended addressing or not|Yes|
