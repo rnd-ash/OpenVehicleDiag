@@ -147,8 +147,9 @@ Example JSON
 
 ```json
 {
-  "name": "",
-  "description": "",
+  "name": "Supply voltage",
+  "description": "Supply voltage being measured by the ECU",
+  "unit": "V",
   "start_bit": 32,
   "length_bits": 8,
   "byte_order": "BigEndian",
@@ -163,11 +164,13 @@ Example JSON
 |:--:|:--:|:--|:--:|
 |**name**|String|Name of the parameter|Yes|
 |**description**|String|Description of the parameter|Yes|
+|**unit**|String|Optional unit string, which will be appended to the output value when being displayed as a string|No|
 |**start_bit**|String|Start bit in the ECU Payload or ECU response message where this parameter is stored|Yes|
 |**length_bits**|Integer|The number of bits long the parameter is|Yes|
 |**byte_order**|String|The byte order of the parameter (See below)|Yes|
 |**data_format**|Enum|Data format of the parameter. See [here](#A-list-of-valid-data-formats) for a full list of accepted data format entries|Yes|
-|**valid_bounds**|JSON|**Only applies if parameter is in the `input_parameters` section of the parent service**. This denotes an optional Upper and lower bound for user input|No|
+|**valid_bounds**|JSON|Multi use. If the parameter is in the parent services' `input_parameters` section, this field demotes the upper and lower
+bound for user input. If the parameter is in parent services' `output_parameters` section, it is used for graphing, to mark the upper and lower bounds of the graph's range|No|
 
 
 * **Allowed values (`data_format`)**
