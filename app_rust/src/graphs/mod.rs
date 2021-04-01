@@ -58,10 +58,7 @@ impl<'a> Graphable for LineTimeGraph<'a> {
 
 #[cfg_attr(not(feature = "graph_tests"), ignore)]
 pub mod graph_test {
-    use iced::{
-        canvas::{self, Cursor, Frame, Geometry},
-        executor, Application, Canvas, Column, Rectangle, Settings,
-    };
+    use iced::{Application, Canvas, Clipboard, Column, Rectangle, Settings, canvas::{self, Cursor, Frame, Geometry}, executor};
 
     use crate::themes::elements::Container;
 
@@ -104,7 +101,7 @@ pub mod graph_test {
             "Test graph library".into()
         }
 
-        fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
+        fn update(&mut self, message: Self::Message, _clipboard: &mut Clipboard) -> iced::Command<Self::Message> {
             todo!()
         }
 

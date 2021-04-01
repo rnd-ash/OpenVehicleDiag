@@ -8,10 +8,7 @@ use crate::{
     commapi::comm_api::{Capability, ComServer, ComServerError},
     themes, WIN_HEIGHT,
 };
-use iced::{
-    button, executor, time, Align, Application, Column, Command, Container, Element, Length, Row,
-    Rule, Space, Subscription, Text,
-};
+use iced::{Align, Application, Clipboard, Column, Command, Container, Element, Length, Row, Rule, Space, Subscription, Text, button, executor, time};
 use std::fmt::Debug;
 use std::time::Instant;
 
@@ -171,7 +168,7 @@ impl Application for MainWindow {
         }
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<WindowMessage> {
+    fn update(&mut self, message: Self::Message, _clipboard: &mut Clipboard) -> Command<WindowMessage> {
         match message {
             WindowMessage::StatusUpdate(_) => {
                 // On request for battery voltage reading, try to read from the adapter, but it might timeout
