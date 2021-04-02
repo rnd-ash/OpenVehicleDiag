@@ -57,7 +57,7 @@ pub struct VariantPattern {
     pattern_type: i32,
 
     /// ECU Vendor ID (If using UDS)
-    variant_id: ECUType,
+    pub variant_id: ECUType,
 
     base_addr: usize,
 }
