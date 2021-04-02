@@ -23,9 +23,9 @@ impl DTCPoolBounds {
 #[derive(Debug, Clone, Default)]
 pub struct ECUVariant {
     base_addr: usize,
-    pub (crate) qualifier: String,
-    pub (crate) name: Option<String>,
-    pub (crate) description: Option<String>,
+    pub qualifier: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
     pub (crate) unk_str1: String,
     pub (crate) unk_str2: String,
     pub (crate) unk1: i32,
@@ -41,9 +41,9 @@ pub struct ECUVariant {
     pub (crate) negative_response_name: String,
     pub (crate) unk_byte: i32,
 
-    pub (crate) variant_patterns: Vec<VariantPattern>,
-    pub (crate) services: Vec<Service>,
-    pub (crate) dtcs: Vec<DTC>,
+    pub variant_patterns: Vec<VariantPattern>,
+    pub services: Vec<Service>,
+    pub dtcs: Vec<DTC>,
     pub (crate) xref_list: Vec<i32>,
 }
 

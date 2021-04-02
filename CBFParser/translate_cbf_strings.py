@@ -11,20 +11,24 @@ translator = Translator(service_urls=["translate.google.com", "translate.google.
 
 TRANSLATE_BATCH_SIZE = 100
 
-
-
 #
 # USAGE: translate_cbf_strings.py <INPUT.csv>
 # (Strings will be translated in place)
 
 stringTable = dict()
 lang = sys.argv[2]
-lines = open(sys.argv[1], 'r').readlines()
-lines = [ e.split(",\"") for e in lines ]
-lines = [ (int(e[0]), e[1].rstrip("\"\n")) for e in lines ]
+tmp = open(sys.argv[1], 'r').read().split("\"\"\"\"\n")
+lines=[]
+for e in tmp:
+    split = e.split(",\"\"\"\"")
+    try:
+        lines += tuple((int(split[0]), split[1]))
+    except Exception:
+        continue
 lineCount = len(lines)
 
 linesCleaned = []
+print(lines)
 for (idx,line) in lines:
     try:
         # If this succeeds then its a hex string so ignore it!

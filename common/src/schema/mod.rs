@@ -54,7 +54,11 @@ pub enum ConType {
         /// ISO-TP block size 
         blocksize: u32,
         /// ISO-TP minimum packet separation time
-        st_min: u32 
+        st_min: u32,
+        /// Extended CAN Addressing?
+        ext_can_addr: bool,
+        /// Extended ISO-TP Addressing?
+        ext_isotp_addr: bool,
     },
 }
 
