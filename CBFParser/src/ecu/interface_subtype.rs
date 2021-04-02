@@ -65,7 +65,7 @@ pub struct InterfaceSubType {
     base_addr: usize,
     idx: usize,
 
-    pub (crate) comm_params: Vec<ComParameter>
+    pub comm_params: Vec<ComParameter>
 }
 
 impl InterfaceSubType {

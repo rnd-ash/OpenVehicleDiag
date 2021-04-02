@@ -100,7 +100,7 @@ impl CTFLanguage {
         let mut file = std::fs::File::create(name)?;
 
         for (idx, string) in self.strings.iter().enumerate() {
-            file.write_all(format!("{},\"{}\"\n", idx, string).as_bytes())?;
+            file.write_all(format!("{},\"\"\"\"{}\"\"\"\"\n", idx, string).as_bytes())?;
         }
         file.flush()?;
         Ok(())

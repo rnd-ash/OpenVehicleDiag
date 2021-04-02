@@ -174,7 +174,8 @@ impl Presentation {
             // All binary stuff I've seen starts with 'b', so check for that as well
 
             let is_binary_str = self.scale_list.iter().map(|f| f.enum_description.clone().unwrap_or_default()).all(|x| x.starts_with('b'));
-            if prep.size_in_bits <= 8 && self.scale_count == 2i32.pow(prep.size_in_bits as u32) && is_binary_str  {
+            if prep.size_in_bits <= 16 && self.scale_count == 2i32.pow(prep.size_in_bits as u32) && is_binary_str  {
+                println!("Found Binary table with {} entries! {}", self.scale_count, self.qualifier);
                 return Some(DataFormat::Binary)
             }
 
