@@ -3,17 +3,17 @@ use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 
 #[derive(Debug, Clone, Default)]
 pub struct Scale {
-    pub (crate) enum_lower_bound: i32,
-    pub (crate) enum_upper_bound: i32,
-    pub (crate) prep_lower_bound: i32,
-    pub (crate) prep_upper_bound: i32,
-    pub (crate) multiply_factor: f32,
-    pub (crate) add_const_offset: f32,
-    pub (crate) si_count: i32,
-    pub (crate) offset_si: i32,
-    pub (crate) us_count: i32,
-    pub (crate) offset_us: i32,
-    pub (crate) enum_description: Option<String>,
+    pub enum_lower_bound: i32,
+    pub enum_upper_bound: i32,
+    pub prep_lower_bound: i32,
+    pub prep_upper_bound: i32,
+    pub multiply_factor: f32,
+    pub add_const_offset: f32,
+    pub si_count: i32,
+    pub offset_si: i32,
+    pub us_count: i32,
+    pub offset_us: i32,
+    pub enum_description: Option<String>,
     pub (crate) unkc: i32,
     pub (crate) base_addr: usize
 }

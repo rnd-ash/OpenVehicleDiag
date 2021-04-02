@@ -6,10 +6,10 @@ use super::{preparation::Preparation, pres_types::scale::Scale};
 
 #[derive(Debug, Clone, Default)]
 pub struct Presentation {
-    pub (crate) qualifier: String,
-    pub (crate) description: Option<String>,
+    pub qualifier: String,
+    pub description: Option<String>,
     pub (crate) scale_table_offset: i32,
-    pub (crate) scale_count: i32,
+    pub scale_count: i32,
     pub (crate) unk5: i32,
     pub (crate) unk6: i32,
     pub (crate) unk7: i32,
@@ -21,24 +21,24 @@ pub struct Presentation {
     pub (crate) unkd: i32,
     pub (crate) unke: i32,
     pub (crate) unkf: i32,
-    pub (crate) display_unit: Option<String>,
+    pub display_unit: Option<String>,
     pub (crate) unk11: i32,
     pub (crate) unk12: i32,
     pub (crate) unk13: i32,
     pub (crate) unk14: i32,
     pub (crate) unk15: i32,
-    pub (crate) description2: Option<String>,
+    pub description2: Option<String>,
     pub (crate) unk17: i32,
     pub (crate) unk18: i32,
     pub (crate) unk19: i32,
-    pub (crate) type_length_1a: i32,
+    pub type_length_1a: i32,
     pub (crate) unk1b: i32,
-    pub (crate) type_1c: i32,
+    pub type_1c: i32,
     pub (crate) unk1d: i32,
-    pub (crate) enumtype_1e: i32,
+    pub enumtype_1e: i32,
     pub (crate) unk1f: i32,
     pub (crate) unk20: i32,
-    pub (crate) type_length_bytes_maybe: i32,
+    pub type_length_bytes_maybe: i32,
     pub (crate) unk22: i32,
     pub (crate) unk23: i32,
     pub (crate) unk24: i32,
@@ -46,7 +46,7 @@ pub struct Presentation {
     pub (crate) unk26: i32,
     pub (crate) base_addr: usize,
     pub (crate) presentation_idx: usize,
-    pub (crate) scale_list: Vec<Scale>
+    pub scale_list: Vec<Scale>
 }
 
 impl Presentation {
