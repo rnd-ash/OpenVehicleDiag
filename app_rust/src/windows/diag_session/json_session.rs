@@ -1,35 +1,38 @@
-use std::{
-    borrow::Borrow, cell::RefCell, cmp::min, collections::HashMap, sync::Arc, time::Instant,
-};
+use core::panic;
+use std::{borrow::Borrow, cell::RefCell, sync::Arc, time::Instant, vec};
+use crate::commapi::protocols::kwp2000::read_ecu_identification;
+use common::schema::{ConType, Connection, OvdECU, diag::{TableData, dtc::ECUDTC, service::{Service}}, variant::{ECUVariantDefinition, ECUVariantPattern}};
+use iced::{Align, Column, Length, Row, Scrollable, Subscription, time};
+use lazy_static::__Deref;
 
-use commapi::protocols;
-use common::schema::{ConType, Connection, OvdECU, diag::service::{ParamDecodeError, Service}, variant::{ECUVariantDefinition, ECUVariantPattern}};
-use iced::{time, Align, Column, Container, Length, Row, Subscription};
-use protocols::{ECUCommand, Selectable};
-use serde_json::de::Read;
-
-use crate::{commapi::{self, comm_api::{ComServer, ISO15765Config}, protocols::{DTC, DiagProtocol, DiagServer, ProtocolResult, ProtocolServer, kwp2000::KWP2000ECU}}, themes::{
-        button_coloured, button_outlined, elements::TextInput, picklist, text, text_input,
+use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, protocols::{DTC, DTCState, DiagProtocol, DiagServer, ProtocolResult, ProtocolServer, kwp2000::KWP2000ECU}}, themes::{
+        button_coloured, button_outlined, picklist, text, text_input,
         title_text, ButtonType, TextType,
-    }, windows::diag_manual::DiagManualMessage};
+    }, widgets::{self, table::{Table, TableMsg}}};
 
 use super::{
     log_view::{LogType, LogView},
-    DiagMessageTrait, SessionError, SessionMsg, SessionResult, SessionTrait,
+    DiagMessageTrait, SessionError, SessionResult, SessionTrait,
 };
 
-type DiagService = commapi::protocols::kwp2000::Service;
+const TABLE_DTC: usize = 0;
+const ENV_TABLE: usize = 1;
+const INFO_TABLE_ID: usize = 2;
+
+const MAX_TABLES: usize = 3;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonDiagSessionMsg {
     ReadErrors,
     ClearErrors,
+    ReadInfo,
     RunService,
     ExecuteService(ServiceRef, Vec<u8>),
     ClearLogs,
     Selector(SelectorMsg),
     LoopRead(Instant),
-    Back,
+    Navigate(TargetPage),
+    Select(usize, usize, usize)
 }
 
 impl From<SelectorMsg> for JsonDiagSessionMsg {
@@ -40,8 +43,31 @@ impl From<SelectorMsg> for JsonDiagSessionMsg {
 
 impl DiagMessageTrait for JsonDiagSessionMsg {
     fn is_back(&self) -> bool {
-        self == &JsonDiagSessionMsg::Back
+        match self {
+            JsonDiagSessionMsg::Navigate(s) => {
+                s == &TargetPage::Home
+            }
+            _ => false
+        }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct DisplayableDTC {
+    code: String, // DTC Itself
+    summary: String,
+    desc: String,
+    state: DTCState,
+    mil_on: bool,
+    envs: Vec<(String, String)> // Key, Value
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub enum TargetPage {
+    Home,
+    Main,
+    ECUInfo,
+    Error
 }
 
 #[derive(Debug, Clone)]
@@ -53,16 +79,17 @@ pub struct JsonDiagSession {
     ecu_data: ECUVariantDefinition,
     pattern: ECUVariantPattern,
     log_view: LogView,
-    clear_errors: iced::button::State,
-
     service_selector: ServiceSelector,
-
-    execute_service: iced::button::State,
-    clear_log_btn: iced::button::State,
-    read_errors: iced::button::State,
     looping_text: String,
     looping_service: Option<ServiceRef>, // Allow only read-only services to be loop read
-    logged_dtcs: Vec<DTC>,
+    logged_dtcs: Vec<DisplayableDTC>, // DTCs stored on ECU,
+    btn1: iced::button::State,
+    btn2: iced::button::State,
+    btn3: iced::button::State,
+    page_state: TargetPage,
+    scroll_state1: iced::scrollable::State,
+    scroll_state2: iced::scrollable::State,
+    tables: Vec<Table>
 }
 
 impl JsonDiagSession {
@@ -142,13 +169,16 @@ impl JsonDiagSession {
                         actuation_functions,
                     ),
                     log_view: LogView::new(),
-                    read_errors: Default::default(),
-                    clear_errors: Default::default(),
-                    execute_service: Default::default(),
-                    clear_log_btn: Default::default(),
+                    btn1: iced::button::State::default(),
+                    btn2: iced::button::State::default(),
+                    btn3: iced::button::State::default(),
                     looping_service: None,
                     looping_text: String::new(),
-                    logged_dtcs: Vec::new()
+                    logged_dtcs: Vec::new(),
+                    page_state: TargetPage::Main,
+                    scroll_state1: iced::scrollable::State::default(),
+                    scroll_state2: iced::scrollable::State::default(),
+                    tables: vec![Table::default(); MAX_TABLES]
                 })
             }
             Err(e) => {
@@ -159,24 +189,17 @@ impl JsonDiagSession {
     }
 }
 
-impl SessionTrait for JsonDiagSession {
-    type msg = JsonDiagSessionMsg;
-
-    fn view(&mut self) -> iced::Element<Self::msg> {
+impl JsonDiagSession {
+    pub fn draw_main_ui(&mut self) -> iced::Element<JsonDiagSessionMsg> {
         let mut btn_view = Column::new()
             .push(
-                button_outlined(&mut self.read_errors, "Read errors", ButtonType::Primary)
+                button_outlined(&mut self.btn1, "ECU Information", ButtonType::Primary)
+                    .on_press(JsonDiagSessionMsg::ReadInfo),
+            ).width(Length::FillPortion(1))
+            .push(
+                button_outlined(&mut self.btn2, "Read errors", ButtonType::Primary)
                     .on_press(JsonDiagSessionMsg::ReadErrors),
-            )
-            .width(Length::FillPortion(1));
-
-        if self.logged_dtcs.len() > 0 {
-            btn_view = btn_view.push(
-                button_outlined(&mut self.clear_errors, "Clear errors", ButtonType::Primary)
-                    .on_press(JsonDiagSessionMsg::ClearErrors),
-            )
-        }
-
+            ).width(Length::FillPortion(1));
         btn_view = btn_view.push(
             self.service_selector
                 .view()
@@ -211,53 +234,196 @@ impl SessionTrait for JsonDiagSession {
                         .push(self.log_view.view(JsonDiagSessionMsg::ClearLogs))
                         .width(Length::FillPortion(1)),
                 ),
-            )
-            .into()
+            ).into()
+    }
+
+    pub fn draw_error_ui(&mut self) -> iced::Element<JsonDiagSessionMsg> {
+        // Create a table of errors
+        // Top row (Clear + back button)
+
+        let mut content = Column::new()
+            .padding(8)
+            .spacing(8)
+            .align_items(Align::Center);
+
+        let header = Row::new()
+            .padding(8)
+            .spacing(8)
+            .align_items(Align::Center)
+            .push(title_text("ECU Error view", crate::themes::TitleSize::P3));
+
+
+        // Clear btn
+        let read_btn = button_outlined(&mut self.btn1, "Read errors", ButtonType::Primary).on_press(JsonDiagSessionMsg::ReadErrors);
+
+
+        let mut clear_btn = button_outlined(&mut self.btn2, "Clear errors", ButtonType::Primary);
+        if self.logged_dtcs.len() > 0 {
+            clear_btn = clear_btn.on_press(JsonDiagSessionMsg::ClearErrors);
+        };
+
+        let btn_row = Row::new().padding(8).spacing(8)
+            .push(read_btn)    
+            .push(clear_btn)
+            .push(iced::Space::with_width(Length::Fill))
+            .push(button_outlined(&mut self.btn3, "Back", ButtonType::Primary).on_press(JsonDiagSessionMsg::Navigate(TargetPage::Main)));
+        
+        // Like Vediamo. 2 tables. 1 with error list, 1 with env data for current selected DTC
+
+        content = content.push(header);
+        content = content.push(btn_row);
+
+        if self.logged_dtcs.len() > 0 {
+            content = content.align_items(Align::Start);
+
+            for (id, table) in self.tables.iter_mut().enumerate() {
+                match id {
+                    TABLE_DTC => {
+                            content = content.push(table.view().map(|x| {
+                            JsonDiagSessionMsg::Select(TABLE_DTC, x.0, x.1)
+                        }));
+                    },
+                    ENV_TABLE => {
+                        content = content.push(title_text("Freeze frame data", crate::themes::TitleSize::P4));
+                        content = content.push(table.view().map(|x| {
+                            JsonDiagSessionMsg::Select(ENV_TABLE, x.0, x.1)
+                        }));
+                    }
+                    _ => {}
+                }
+            }
+            content.into()
+        } else {
+            //text("No Diagnostic trouble codes found", TextType::Normal)
+            content.push(text("No DTCs", TextType::Normal)).into()
+        }
+    }
+
+
+    pub fn draw_info_ui(&mut self) -> iced::Element<JsonDiagSessionMsg> {
+        let content = Column::new()
+            .padding(8)
+            .spacing(8)
+            .align_items(Align::Center);
+
+        let header = Row::new()
+            .padding(8)
+            .spacing(8)
+            .align_items(Align::Center)
+            .push(title_text("ECU Info view", crate::themes::TitleSize::P3));
+
+        let btn_row = Row::new().padding(8).spacing(8)
+            .push(iced::Space::with_width(Length::Fill))
+            .push(button_outlined(&mut self.btn1, "Back", ButtonType::Primary).on_press(JsonDiagSessionMsg::Navigate(TargetPage::Main)));
+        
+        
+        content
+        .push(header)
+        .push(btn_row)
+        .push(self.tables[INFO_TABLE_ID].view().map(|_| JsonDiagSessionMsg::Select(INFO_TABLE_ID, 0, 0)))
+        .into()
+    }
+}
+
+
+impl SessionTrait for JsonDiagSession {
+    type msg = JsonDiagSessionMsg;
+    fn view(&mut self) -> iced::Element<Self::msg> {
+        match self.page_state {
+            TargetPage::Main => self.draw_main_ui(),
+            TargetPage::Error => self.draw_error_ui(),
+            TargetPage::ECUInfo => self.draw_info_ui(),
+            _ => panic!("????")
+        }.into()
     }
 
     fn update(&mut self, msg: &Self::msg) -> Option<Self::msg> {
         //self.log_view.clear_logs();
         match msg {
+            JsonDiagSessionMsg::Navigate(target) => {
+                self.page_state = *target
+            }
+            JsonDiagSessionMsg::ReadInfo => {
+                let header: Vec<String> = vec!["".into(), "".into()];
+                let mut params: Vec<Vec<String>> = Vec::new();
+                params.push(vec!["Name".into(), self.ecu_text.0.clone()]);
+                params.push(vec!["Description".into(), self.ecu_text.1.clone()]);
+                params.push(vec!["Software".into(), self.ecu_data.name.clone()]);
+                params.push(vec!["Manufacture".into(), self.pattern.vendor.clone()]);
+                if let Some(kwp) = self.server.into_kwp() {
+
+
+                    if let Ok(res) = read_ecu_identification::read_dcx_mmc_id(kwp) {
+                        params.push(vec!["Part number".into(), res.part_number.clone()]);
+                        params.push(vec!["Hardware version".into(), res.hardware_version.clone()]);
+                        params.push(vec!["Software version".into(), res.software_version.clone()]);
+                    }
+
+                    if let Ok(res) = read_ecu_identification::read_dcs_id(kwp) {
+                        params.push(vec!["Hardware build date (WW/YY)".into(), res.hardware_build_date.clone()]);
+                        params.push(vec!["Software build date (WW/YY)".into(), res.software_written_date.clone()]);
+                        params.push(vec!["Production date (DD/MM/YY)".into(), res.production_date.clone()]);
+                    }
+                }
+                
+
+                self.tables[INFO_TABLE_ID] = Table::new(header, params, vec![400, 400], false, 900);
+                return Some(JsonDiagSessionMsg::Navigate(TargetPage::ECUInfo))
+
+
+
+
+            }
             JsonDiagSessionMsg::ReadErrors => match self.server.read_errors() {
                 Ok(res) => {
-                    self.logged_dtcs = res.clone();
-                    if res.is_empty() {
-                        self.log_view.add_msg("No ECU Errors", LogType::Info);
-                    } else {
-                        self.log_view
-                            .add_msg(format!("Found {} errors", res.len()), LogType::Warn);
-                        for e in &res {
-                            let desc = self
-                                .ecu_data
-                                .errors
-                                .clone()
-                                .into_iter()
-                                .find(|x| x.error_name.ends_with(e.error.as_str()));
+                    let dtc_list = self.ecu_data.errors.clone();
+                    self.logged_dtcs = res.iter().map(|raw_dtc| {
+                        let ecu_dtc = dtc_list.clone().into_iter()
+                            .find(|x| x.error_name.ends_with(&raw_dtc.error))
+                            .unwrap_or(ECUDTC {
+                                error_name: raw_dtc.error.clone(),
+                                summary: "UNKNOWN ERROR".into(),
+                                description: "UNKNOWN DTC".into(),
+                                envs: Vec::new(),
+                            });
+                        let mut res = DisplayableDTC {
+                            code: ecu_dtc.error_name.clone(),
+                            summary: ecu_dtc.summary.clone(),
+                            desc: ecu_dtc.description.clone(),
+                            state: raw_dtc.state,
+                            mil_on: raw_dtc.check_engine_on,
+                            envs: Vec::new(),
+                        };
 
-                            let envs = desc.clone().map(|x| x.envs).unwrap_or_default();
-                            let mut env_string = String::from("\n");
-                            if envs.len() > 0 {
-                                if let Ok(args) = self.server.get_dtc_env_data(e) {
-                                    for e in &envs {
-                                        match e.decode_value_to_string(&args) {
-                                            Ok(s) => {env_string.push_str(&format!("---{}: {}\n", e.name, s))},
-                                            Err(err) => env_string.push_str(&format!("---{}: {:?}\n", e.name, err))
+                        if ecu_dtc.envs.len() > 0 { // If parsable freeze frame data exists, then read it
+                            if let Ok(args) = self.server.get_dtc_env_data(raw_dtc) {
+                                for e in &ecu_dtc.envs {
+                                    match e.decode_value_to_string(&args) {
+                                        Ok(s) => res.envs.push((e.name.clone(), s)),
+                                        Err(err) => {
+                                            eprintln!("Warning could not decode param: {:?}", err)
                                         }
                                     }
-                                    println!("{} - {:02X?}", &desc.clone().unwrap().error_name ,args);
                                 }
                             }
-
-
-                            let mut err_txt = match &desc {
-                                Some(d) => format!("{} - {}", e.error, d.description),
-                                None => format!("{} - Unknown description", e.error),
-                            };
-                            if env_string.len() > 1 {
-                                err_txt.push_str(&env_string);
-                            }
-                            self.log_view.add_msg(err_txt, LogType::Warn)
                         }
+                        res
+                    }).collect();
+                    let entries: Vec<Vec<String>> = self.logged_dtcs.iter().map(|dtc| {
+                        vec![dtc.code.clone(), dtc.desc.clone(), format!("{:?}", dtc.state), if dtc.mil_on { "YES".into() } else {"NO ".into()}]
+                    }).collect();
+        
+                    let table = Table::new(
+                        vec!["Error".into(), "Description".into(), "State".into(), "MIL on".into()],
+                            entries,
+                            vec![200, 600, 150, 100],
+                            true,
+                            400
+                    );
+                    self.tables[TABLE_DTC] = table;
+                    if self.page_state == TargetPage::Main {
+                        // Goto DTC View!
+                        return Some(JsonDiagSessionMsg::Navigate(TargetPage::Error))
                     }
                 }
                 Err(e) => {
@@ -319,6 +485,19 @@ impl SessionTrait for JsonDiagSession {
                             s.args_to_string(&res)
                         )
                     }
+                }
+            }
+            JsonDiagSessionMsg::Select(table_id, x, y) => {
+                // update the table!
+                self.tables[*table_id].update(&TableMsg(*x, *y));
+                if *table_id == TABLE_DTC {
+                    let header = vec!["Parameter".into(), "Value".into()];
+                    let mut values: Vec<Vec<String>> = Vec::new();
+                    for (name, v) in &self.logged_dtcs[*y].envs {
+                        values.push(vec![name.clone(), v.clone()]);
+                    }
+                    self.tables[ENV_TABLE] = Table::new(header, values, vec![400, 200],false, 300);
+                    
                 }
             }
             _ => todo!(),

@@ -5,7 +5,7 @@ use iced::{Button, Checkbox, Color, Container, Element, PickList, ProgressBar, R
 use std::ops::RangeInclusive;
 use std::borrow::Cow;
 
-use self::elements::{CheckBox, TextInput};
+use self::elements::{ButtonTableStyle, CheckBox, TextInput};
 
 const BUTTON_RADIUS: f32 = 5.0;
 const BUTTON_BORDER_WIDTH: f32 = 1.5;
@@ -143,6 +143,17 @@ pub fn button_outlined<'a, T: Clone>(
     Button::new(state, Text::new(text))
         .style(ButtonStyle::new(color, true))
         .padding(8)
+}
+
+pub fn button_table<'a, T: Clone>(
+    state: &'a mut button::State,
+    text: &str,
+    btn_type: ButtonType,
+    is_selected: bool
+) -> Button<'a, T> {
+    let color = btn_type.get_colour();
+    Button::new(state, Text::new(text))
+        .style(ButtonTableStyle::new(color, is_selected))
 }
 
 /**

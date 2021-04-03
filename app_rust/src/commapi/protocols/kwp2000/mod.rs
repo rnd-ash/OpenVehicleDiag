@@ -374,7 +374,7 @@ impl std::default::Default for ECUIdentification {
 }
 
 fn bcd_decode(input: &u8) -> String {
-    format!("{}{}", input & 0x0F, (input & 0xF0) >> 4)
+    format!("{}{}", (input & 0xF0) >> 4, input & 0x0F)
 }
 
 fn bcd_decode_slice(input: &[u8]) -> String {
