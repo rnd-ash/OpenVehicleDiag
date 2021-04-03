@@ -89,6 +89,112 @@ impl button::StyleSheet for ButtonStyle {
     }
 }
 
+
+pub struct ButtonTableStyle {
+    color: Color,
+    selected: bool,
+}
+
+impl ButtonTableStyle {
+    pub fn new(color: Color, selected: bool) -> Self {
+        Self { color, selected }
+    }
+}
+
+impl button::StyleSheet for ButtonTableStyle {
+    fn active(&self) -> Style {
+        if self.selected {
+            match super::get_theme() {
+                super::Style::Light => button::Style {
+                    shadow_offset: Default::default(),
+                    background: GREY.into(),
+                    border_radius: 0f32,
+                    border_width: 0f32,
+                    border_color: WHITE,
+                    text_color: self.color,
+                    
+                },
+                super::Style::Dark => button::Style {
+                    shadow_offset: Default::default(),
+                    background: GREY.into(),
+                    border_radius: 0f32,
+                    border_width: 0f32,
+                    border_color: DARK_BG,
+                    text_color: self.color,
+                },
+            }
+        } else {
+            match super::get_theme() {
+                super::Style::Light => button::Style {
+                    shadow_offset: Default::default(),
+                    background: WHITE.into(),
+                    border_radius: 0f32,
+                    border_width: 0f32,
+                    border_color: WHITE,
+                    text_color: self.color,
+                    
+                },
+                super::Style::Dark => button::Style {
+                    shadow_offset: Default::default(),
+                    background: DARK_BG.into(),
+                    border_radius: 0f32,
+                    border_width: 0f32,
+                    border_color: DARK_BG,
+                    text_color: self.color,
+                },
+            }
+        }
+    }
+
+    fn hovered(&self) -> Style {
+        match super::get_theme() {
+            super::Style::Light => button::Style {
+                shadow_offset: Default::default(),
+                background: if self.selected { GREY.into() } else { WHITE.into() },
+                border_radius: 0f32,
+                border_width: 0f32,
+                border_color: WHITE,
+                text_color: DARK_BG,
+                
+            },
+            super::Style::Dark => button::Style {
+                shadow_offset: Default::default(),
+                background: if self.selected { GREY.into() } else { DARK_BG.into() },
+                border_radius: 0f32,
+                border_width: 0f32,
+                border_color: DARK_BG,
+                text_color: WHITE,
+            },
+        }
+    }
+
+    fn pressed(&self) -> Style {
+        self.active()
+    }
+
+    fn disabled(&self) -> Style {
+        match super::get_theme() {
+            super::Style::Light => button::Style {
+                shadow_offset: Default::default(),
+                background: WHITE.into(),
+                border_radius: 0f32,
+                border_width: 0f32,
+                border_color: WHITE,
+                text_color: GREY,
+                
+            },
+            super::Style::Dark => button::Style {
+                shadow_offset: Default::default(),
+                background: DARK_BG.into(),
+                border_radius: 0f32,
+                border_width: 0f32,
+                border_color: DARK_BG,
+                text_color: GREY,
+            },
+        }
+    }
+}
+
 pub struct DropDown;
 
 impl pick_list::StyleSheet for DropDown {

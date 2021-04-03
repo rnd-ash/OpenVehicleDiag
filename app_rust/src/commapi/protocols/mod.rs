@@ -165,6 +165,13 @@ impl DiagServer {
         }
     }
 
+    pub fn into_kwp(&mut self) -> Option<&mut KWP2000ECU> {
+        match self {
+            Self::KWP2000(s) => Some(s),
+            Self::UDS(s) => None
+        }
+    }
+
     pub fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
         match self {
             Self::KWP2000(s) => s.read_errors(),

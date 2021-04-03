@@ -20,12 +20,12 @@ pub enum IdentificationType {
 
 #[derive(Debug, Clone)]
 pub struct DcsEcuId {
-    part_number: String,
-    hardware_build_date: String,
-    software_written_date: String,
-    supplier_id: u8,
-    diag_information: u16,
-    production_date: String,
+    pub part_number: String,
+    pub hardware_build_date: String,
+    pub software_written_date: String,
+    pub supplier_id: u8,
+    pub diag_information: u16,
+    pub production_date: String,
 }
 
 #[derive(Debug, Clone)]

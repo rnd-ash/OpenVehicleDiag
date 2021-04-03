@@ -1,4 +1,5 @@
 use std::{collections::VecDeque, time::Instant};
+pub mod table;
 
 pub trait Graphable {
     fn draw(&self);

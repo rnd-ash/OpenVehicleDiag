@@ -1,7 +1,7 @@
 use iced::{Application, Settings};
 mod cli_tests;
 mod commapi;
-mod graphs;
+mod widgets;
 mod passthru;
 mod themes;
 mod windows;
