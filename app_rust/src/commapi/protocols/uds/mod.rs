@@ -15,6 +15,7 @@ use std::{
 };
 
 pub mod diag_session_control;
+pub mod read_data;
 
 #[derive(Copy, Clone, Debug, Eq, PartialOrd, PartialEq)]
 /// UDS Commands AKA SID (Service identifiers)
@@ -467,7 +468,7 @@ impl ProtocolServer for UDSECU {
         // Enter extended diagnostic session (Full features)
         let s_id = cfg.send_id;
         std::thread::spawn(move || {
-            println!("Diag server start!");
+            println!("UDS Diag server start!");
             let mut timer = Instant::now();
             while should_run_t.load(Relaxed) {
                 if let Ok(data) = channel_tx_receiver.try_recv() {
@@ -491,7 +492,7 @@ impl ProtocolServer for UDSECU {
                         comm_server.as_ref(),
                         s_id,
                         UDSCommand::TesterPresent.into(),
-                        &[0x01],
+                        &[0x00],
                         true,
                     )
                     .is_err()
@@ -502,7 +503,7 @@ impl ProtocolServer for UDSECU {
                 }
                 std::thread::sleep(std::time::Duration::from_micros(100))
             }
-            println!("Diag server stop!");
+            println!("UDS Diag server stop!");
             comm_server.close_iso15765_interface();
         });
 

@@ -448,7 +448,7 @@ impl ProtocolServer for KWP2000ECU {
         // Enter extended diagnostic session (Full features)
         let s_id = cfg.send_id;
         std::thread::spawn(move || {
-            println!("Diag server start!");
+            println!("KWP2000 Diag server start!");
             let mut timer = Instant::now();
             while should_run_t.load(Relaxed) {
                 if let Ok(data) = channel_tx_receiver.try_recv() {

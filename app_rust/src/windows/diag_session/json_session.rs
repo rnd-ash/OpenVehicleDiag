@@ -102,6 +102,7 @@ impl JsonDiagSession {
             common::schema::ServerType::UDS => DiagProtocol::UDS,
             common::schema::ServerType::KWP2000 => DiagProtocol::KWP2000
         };
+        println!("Detect. ECU uses {:?}", diag_server_type);
 
         // TODO K-Line KWP2000
         // For now, Diag server ONLY supports ISO-TP, not LIN!
@@ -357,12 +358,20 @@ impl SessionTrait for JsonDiagSession {
                         params.push(vec!["Part number".into(), res.part_number.clone()]);
                         params.push(vec!["Hardware version".into(), res.hardware_version.clone()]);
                         params.push(vec!["Software version".into(), res.software_version.clone()]);
+                    } else {
+                        params.push(vec!["Part number".into(), "Unknown".into()]);
+                        params.push(vec!["Hardware version".into(), "Unknown".into()]);
+                        params.push(vec!["Software version".into(), "Unknown".into()]);
                     }
 
                     if let Ok(res) = read_ecu_identification::read_dcs_id(kwp) {
                         params.push(vec!["Hardware build date (WW/YY)".into(), res.hardware_build_date.clone()]);
                         params.push(vec!["Software build date (WW/YY)".into(), res.software_written_date.clone()]);
                         params.push(vec!["Production date (DD/MM/YY)".into(), res.production_date.clone()]);
+                    } else {
+                        params.push(vec!["Hardware build date (WW/YY)".into(), "Unknown".into()]);
+                        params.push(vec!["Software build date (WW/YY)".into(), "Unknown".into()]);
+                        params.push(vec!["Production date (DD/MM/YY)".into(), "Unknown".into()]);
                     }
                 }
                 

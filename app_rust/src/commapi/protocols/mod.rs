@@ -4,7 +4,7 @@ use comm_api::{ComServerError, ISO15765Config};
 use kwp2000::KWP2000ECU;
 use uds::UDSECU;
 
-use self::kwp2000::read_ecu_identification;
+use self::{kwp2000::read_ecu_identification, uds::read_data};
 
 use super::comm_api::{self, ComServer, ISO15765Data};
 
@@ -139,8 +139,8 @@ impl DiagServer {
         protocol: DiagProtocol,
     ) -> ProtocolResult<Self> {
         Ok(match protocol {
-            KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(comm_server, cfg, global_test_present_addr)?),
-            UDS => Self::UDS(UDSECU::start_diag_session(comm_server, cfg, global_test_present_addr)?),
+            DiagProtocol::KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(comm_server, cfg, global_test_present_addr)?),
+            DiagProtocol::UDS => Self::UDS(UDSECU::start_diag_session(comm_server, cfg, global_test_present_addr)?),
         })
     }
 
@@ -186,17 +186,17 @@ impl DiagServer {
         }
     }
 
-    pub fn get_variant_id(&self) -> ProtocolResult<u16> {
+    pub fn get_variant_id(&self) -> ProtocolResult<u32> {
         match self {
-            Self::KWP2000(s) => read_ecu_identification::read_dcx_mmc_id(&s).map(|x| x.diag_information),
-            Self::UDS(s) => Err(ProtocolError::CustomError("Not implemented".into())), // TODO
+            Self::KWP2000(s) => read_ecu_identification::read_dcx_mmc_id(&s).map(|x| x.diag_information as u32),
+            Self::UDS(s) => read_data::read_variant_id(s)
         }
     }
 
     pub fn get_dtc_env_data(&self, dtc: &DTC) -> ProtocolResult<Vec<u8>> {
         match self {
             Self::KWP2000(s) => kwp2000::read_status_dtc::read_status_dtc(s, dtc),
-            Self::UDS(s) => Err(ProtocolError::CustomError("Not implemented".into())), // TODO
+            Self::UDS(s) => Err(ProtocolError::CustomError("Not implemented (get_dtc_env_data)".into())), // TODO
         }
     }
 }
@@ -250,7 +250,7 @@ pub trait ProtocolServer: Sized {
             let mut tmp_res = res[0].data.clone();
             if tmp_res[0] == 0x7F && tmp_res[2] == 0x78 {
                 // ResponsePending
-                println!("KWP2000 - ECU is processing request - Waiting!");
+                println!("DIAG - ECU is processing request - Waiting!");
                 let start = Instant::now();
                 while start.elapsed().as_millis() < 1000 {
                     // ECU is sending a response, but its busy right now. just gotta wait for the ECU to give us its response!
@@ -268,7 +268,7 @@ pub trait ProtocolServer: Sized {
                 Ok(tmp_res)
             } else {
                 eprintln!(
-                    "KWP2000 - Command response did not match request? Send: {:02X} - Recv: {:02X}",
+                    "DIAG - Command response did not match request? Send: {:02X} - Recv: {:02X}",
                     cmd, tmp_res[0]
                 );
                 Err(ProtocolError::Timeout)
