@@ -8,7 +8,7 @@ pub fn read_bitflag_string(bit_flag: &mut u32, reader: &mut Raf, base_addr: usiz
         let string_offset = reader.read_i32()? as usize;
         let reader_pos = reader.pos;
         reader.seek(string_offset + base_addr);
-        let res = read_string(reader)?;
+        let res = read_string(reader).unwrap_or("".into());
         reader.seek(reader_pos);
         Ok(res)
     } else {
@@ -21,7 +21,7 @@ pub fn read_bitflag_dump(bit_flag: &mut u32, reader: &mut Raf, dump_size: usize,
         let dump_offset = reader.read_i32()? as usize;
         let reader_pos = reader.pos;
         reader.seek(dump_offset + base_addr);
-        let res = reader.read_bytes(dump_size)?;
+        let res = reader.read_bytes(dump_size).unwrap_or([].into());
         reader.seek(reader_pos);
         Ok(res)
     } else {
@@ -64,7 +64,7 @@ pub trait CaesarPrimitive: Sized {
 impl CaesarPrimitive for f32 {
     fn read_bitflag(bit_flag: &mut u32, reader: &mut Raf, default: Self) -> super::Result<Self> {
         if check_and_advance_bitflag(bit_flag) {
-            reader.read_f32().map_err(CaesarError::FileError)
+            Ok(reader.read_f32().unwrap_or(default))
         } else {
             Ok(default)
         }
@@ -78,7 +78,7 @@ impl CaesarPrimitive for f32 {
 impl CaesarPrimitive for i32 {
     fn read_bitflag(bit_flag: &mut u32, reader: &mut Raf, default: Self) -> super::Result<Self> {
         if check_and_advance_bitflag(bit_flag) {
-            reader.read_i32().map_err(CaesarError::FileError)
+            Ok(reader.read_i32().unwrap_or(default))
         } else {
             Ok(default)
         }
@@ -92,7 +92,7 @@ impl CaesarPrimitive for i32 {
 impl CaesarPrimitive for u32 {
     fn read_bitflag(bit_flag: &mut u32, reader: &mut Raf, default: Self) -> super::Result<Self> {
         if check_and_advance_bitflag(bit_flag) {
-            reader.read_u32().map_err(CaesarError::FileError)
+            Ok(reader.read_u32().unwrap_or(default))
         } else {
             Ok(default)
         }
@@ -106,7 +106,7 @@ impl CaesarPrimitive for u32 {
 impl CaesarPrimitive for i16 {
     fn read_bitflag(bit_flag: &mut u32, reader: &mut Raf, default: Self) -> super::Result<Self> {
         if check_and_advance_bitflag(bit_flag) {
-            reader.read_i16().map_err(CaesarError::FileError)
+            Ok(reader.read_i16().unwrap_or(default))
         } else {
             Ok(default)
         }
@@ -120,7 +120,7 @@ impl CaesarPrimitive for i16 {
 impl CaesarPrimitive for u16 {
     fn read_bitflag(bit_flag: &mut u32, reader: &mut Raf, default: Self) -> super::Result<Self> {
         if check_and_advance_bitflag(bit_flag) {
-            reader.read_u16().map_err(CaesarError::FileError)
+            Ok(reader.read_u16().unwrap_or(default))
         } else {
             Ok(default)
         }
@@ -134,7 +134,7 @@ impl CaesarPrimitive for u16 {
 impl CaesarPrimitive for i8 {
     fn read_bitflag(bit_flag: &mut u32, reader: &mut Raf, default: Self) -> super::Result<Self> {
         if check_and_advance_bitflag(bit_flag) {
-            reader.read_i8().map_err(CaesarError::FileError)
+            Ok(reader.read_i8().unwrap_or(default))
         } else {
             Ok(default)
         }
@@ -148,7 +148,7 @@ impl CaesarPrimitive for i8 {
 impl CaesarPrimitive for u8 {
     fn read_bitflag(bit_flag: &mut u32, reader: &mut Raf, default: Self) -> super::Result<Self> {
         if check_and_advance_bitflag(bit_flag) {
-            reader.read_u8().map_err(CaesarError::FileError)
+            Ok(reader.read_u8().unwrap_or(default))
         } else {
             Ok(default)
         }
