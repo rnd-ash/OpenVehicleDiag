@@ -64,11 +64,16 @@ fn read_file(path: &String, str_path: Option<String>, is_dump: bool) {
                     container.load_strings(p);
                 }
             }
-            if container.read_ecus(reader).is_ok() {
-                decode_ecu(&container.ecus[0])
+            match container.read_ecus(reader) {
+                Ok(_) => decode_ecu(&container.ecus[0]),
+                Err(e) => {
+                    eprintln!("Error decoding ECUS! {:?}", e)
+                }
             }
         },
-        Err(e) => eprintln!("{:?}", e)
+        Err(e) => {
+            println!("ERROR PROCESSING {:?}", e)
+        }
     }
 }
 
