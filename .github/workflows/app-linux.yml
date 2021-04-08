@@ -18,13 +18,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-      
-    - name: Init Macchina module
-      run: git submodule update --init --recursive
-      
     - name: Build/release App
       uses: actions-rs/cargo@v1
       with:
+        working-directory: "app_rust"
         command: build
         args: --release
