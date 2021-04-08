@@ -19,8 +19,4 @@ jobs:
 
     steps:
     - name: Build/release App
-      uses: actions-rs/cargo@v1
-      with:
-        working-directory: "app_rust"
-        command: build
-        args: --release
+      run: cargo build --verbose
