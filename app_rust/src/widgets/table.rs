@@ -31,6 +31,20 @@ pub struct Table {
 impl Table {
     pub fn new(header: Vec<String>, matrix: Vec<Vec<String>>, widths: Vec<u16>,selectable: bool, max_height: usize) -> Self {
         let mut tmp_matrix: Vec<Vec<String>> = Vec::new();
+        if matrix.len() == 0 {
+            return Self {
+                header_row: header,
+                text_matrix: tmp_matrix,
+                states: Vec::new(),
+                selectable: false,
+                max_height,
+                scroll_sate: scrollable::State::default(),
+                default_text: "No data".into(),
+                selected_row: 0,
+                widths
+            }
+        }
+
         assert!(header.len() == matrix[0].len());
         let mut states = Vec::new();
         for (_, row) in matrix.iter().enumerate() {
