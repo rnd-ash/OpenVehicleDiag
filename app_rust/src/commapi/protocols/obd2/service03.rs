@@ -9,7 +9,7 @@ pub struct Service03;
 
 impl Service03 {
     pub fn read_dtcs(s: &ObdServer) -> OBDError<Vec<DTC>> {
-        let mut bytes = s.run_command(0x03, &[])?;
+        let mut bytes = s.run_command(0x07, &[])?;
         let num_dtcs = bytes[1];
         bytes.drain(0..2);
         let mut res = Vec::new();
@@ -32,7 +32,8 @@ impl Service03 {
             bytes.drain(0..2);
             res.push(dtc);
         }
-        // TODO 
+        // TODO
+        println!("DTC BYTES: {:02X?}", res); 
         Ok(res)
     }
 }

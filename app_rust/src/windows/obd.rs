@@ -70,6 +70,12 @@ impl OBDHome {
                 }
             },
             &OBDMessage::ChooseService(sid) => {
+                if sid == 0x03 {
+                    for dtc in &self.obd_server.as_ref().unwrap().read_errors().unwrap() {
+                        println!("Code: {} State: {:?} Desc: {}", dtc.error, dtc.state, ObdServer::get_dtc_desc(dtc))
+                    }
+                    return None
+                }
                 self.curr_service = sid; // What service UI should we be in?
             }
         }

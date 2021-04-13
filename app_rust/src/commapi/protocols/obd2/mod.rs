@@ -6,7 +6,7 @@ use crate::commapi;
 
 use self::{service01::Service01, service02::Service02, service03::Service03, service04::Service04, service05::Service05, service06::Service06, service07::Service07, service08::Service08, service09::Service09, service10::Service0A};
 
-use super::{CommandError, ECUCommand, ProtocolResult, ProtocolServer, Selectable};
+use super::{CommandError, DTC, DTCState, ECUCommand, ProtocolResult, ProtocolServer, Selectable};
 
 pub mod service01;
 pub mod service02;
@@ -18,6 +18,7 @@ pub mod service07;
 pub mod service08;
 pub mod service09;
 pub mod service10;
+pub mod codes;
 
 pub type OBDError<T> = ProtocolResult<T>;
 
@@ -179,6 +180,46 @@ impl ObdServer {
         res.push((self.s0A.is_some(), 0x0A, "Permanent DTCs".into()));
         return res;
     }
+
+
+    // Used for services 03, 07 and 0A
+    fn decode_dtc_resp(&self, bytes: &[u8], state: DTCState, res: &mut Vec<DTC>) {
+        let num_dtcs = bytes[0];
+        if num_dtcs == 0 {
+            return
+        }
+        for idx in 0..num_dtcs as usize {
+            let A = bytes[idx*2+1];
+            let B = bytes[idx*2+2];
+            let char = match (A & 0b11000000) >> 6 {
+                0 => 'P',
+                1 => 'C',
+                2 => 'B',
+                _ => 'U'
+            };
+
+            let second = match (A & 0b00001100) >> 4 {
+                0 => '0',
+                1 => '1',
+                2 => '2',
+                _ => '3',
+            };
+            // STD Hex representation
+            let third = format!("{:1X}", A & 0b00001111);
+            let fourth = format!("{:02X}", B);
+
+            res.push(DTC {
+                error: format!("{}{}{}{}", char, second, third, fourth),
+                state: state,
+                check_engine_on: state == DTCState::Stored || state == DTCState::Permanent,
+                id: (A as u32) << 8 | B as u32,
+            })
+        }
+    }
+
+    pub fn get_dtc_desc(dtc: &DTC) -> String {
+        codes::get_dtc_desc(dtc)
+    }
 }
 
 impl ProtocolServer for ObdServer {
@@ -256,8 +297,6 @@ impl ProtocolServer for ObdServer {
             server.s01 = Some(r)
         }
         server.s03 = Some(service03::Service03);
-        service03::Service03::read_dtcs(&server).unwrap();
-
         if let Some(r) = Service09::init(&server) {
             server.s09 = Some(r)
         }
@@ -282,7 +321,20 @@ impl ProtocolServer for ObdServer {
     }
 
     fn read_errors(&self) -> super::ProtocolResult<Vec<super::DTC>> {
-        todo!()
+        let mut res: Vec<DTC> = Vec::new();
+        if let Ok(resp) = self.run_command(0x03, &[]) { //  Stored DTCs
+            println!("S03: {:02X?}", resp);
+            self.decode_dtc_resp(&resp[1..], DTCState::Stored, &mut res);
+        }
+        if let Ok(resp) = self.run_command(0x07, &[]) { // Pending DTCs
+            println!("S07: {:02X?}", resp);
+            self.decode_dtc_resp(&resp[1..], DTCState::Pending, &mut res);
+        }
+        if let Ok(resp) = self.run_command(0x0A, &[]) { // Permanent DTCs
+            println!("S0A: {:02X?}", resp);
+            self.decode_dtc_resp(&resp[1..], DTCState::Permanent, &mut res);
+        }
+        return Ok(res);
     }
 
     fn is_in_diag_session(&self) -> bool {
