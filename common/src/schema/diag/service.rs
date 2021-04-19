@@ -2,7 +2,7 @@ use std::{cmp::min, collections::VecDeque, string::FromUtf8Error};
 use bit_field::BitArray;
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use serde::{Serialize, Deserialize};
-use super::DataFormat;
+use super::{DataFormat, StringEncoding};
 use serde_with::{serde_as};
 
 #[serde_as]
@@ -75,10 +75,26 @@ impl Parameter {
                 let end_byte = (self.start_bit+self.length_bits)/8;
                 return Ok(format!("{:02X?}", &input[start_byte..min(end_byte, input.len())]))
             }
-            DataFormat::String(_s) => { // TODO take into account encoding of string
+            DataFormat::String(s) => { 
                 let start_byte = self.start_bit/8;
-                let end_byte = (self.start_bit+self.length_bits)/8;
-                return Ok(String::from_utf8_lossy(&input[start_byte..end_byte]).to_string())
+                let mut end_byte = (self.start_bit+self.length_bits)/8;
+                if *s == StringEncoding::Utf16  {
+                    if (start_byte-end_byte) % 2 !=  0 {
+                        end_byte += 1;
+                    }
+                    // Convert out byte array to u16 array
+                    let mut dst: Vec<u16> = Vec::with_capacity((start_byte-end_byte)/2);
+                    for i in (start_byte..end_byte).step_by(2) {
+                        match self.byte_order {
+                            ParamByteOrder::BigEndian => { dst.push((input[i] as u16) << 8 | input[i+1] as u16) }
+                            ParamByteOrder::LittleEndian => { dst.push((input[i+1] as u16) << 8 | input[i] as u16) }
+                        }
+                    }
+                    return Ok(String::from_utf16_lossy(&dst).to_string())
+                } else { // Utf8 can handle ASCII Strings
+                    return Ok(String::from_utf8_lossy(&input[start_byte..end_byte]).to_string())
+                }
+                
             }
             DataFormat::Bool { pos_name, neg_name } => {
                 return match self.get_number(input)? {
@@ -135,9 +151,9 @@ impl Parameter {
             DataFormat::HexDump => Err(ParamDecodeError::DecodeNotSupported),
             DataFormat::Binary => Err(ParamDecodeError::DecodeNotSupported),
             DataFormat::String(_) => Err(ParamDecodeError::DecodeNotSupported),
-            DataFormat::Bool { pos_name: _, neg_name: _ } => Ok(self.get_number(input)? as f32),
+            DataFormat::Bool { pos_name: _, neg_name: _ } => Ok(if self.get_number(input)? as f32 > 0.0 { 1.0 }  else { 0.0 }),
             DataFormat::Table(_) => Err(ParamDecodeError::DecodeNotSupported),
-            DataFormat::Identical => Err(ParamDecodeError::NotImplemented),
+            DataFormat::Identical => Ok(self.get_number(input)? as f32),
             DataFormat::Linear { multiplier, offset } => Ok((self.get_number(input)? as f32 * multiplier) + offset),
             DataFormat::ScaleLinear => Err(ParamDecodeError::NotImplemented),
             DataFormat::RatFunc => Err(ParamDecodeError::NotImplemented),
