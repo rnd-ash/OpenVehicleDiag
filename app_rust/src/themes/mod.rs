@@ -156,9 +156,6 @@ pub fn button_table<'a, T: Clone>(
         .style(ButtonTableStyle::new(color, is_selected))
 }
 
-/**
- */
-
 pub fn checkbox<T:Clone, F>(
     is_checked: bool,
     label: &str,

@@ -129,7 +129,7 @@ impl ComServer for PassthruApi {
                         .map(|msg| PassthruApi::pt_msg_to_iso15765(msg))
                         .filter_map(Option::Some)
                         .map(|x| x.unwrap())
-                        .filter(|x| !x.data.is_empty())
+                        .filter(|x| !x.data.is_empty()) // Ignore RxStatus complete or TxComplete messages
                         .collect()
                 });
             match t {

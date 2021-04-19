@@ -107,7 +107,7 @@ impl DiagScanner {
                 // Accumulate scan results here
                 self.can_traffic_id_list.insert(0x07DF, false); // Add OBD-II CAN ID so we don't scan that
                 self.curr_stage += 1; // We can progress to the next stage!
-                self.curr_scan_id = 0x070F; // Set start ID to 0
+                self.curr_scan_id = 0x0; // Set start ID to 0
                 self.server.clear_can_rx_buffer();
                 return Some(DiagScannerMessage::ScanPoll); // Begin the CAN interrogation (Stage 1)
             }
