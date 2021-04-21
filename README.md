@@ -7,7 +7,7 @@ The idea is to make diagnosing and exploring your cars diagnostics functions pos
 This is for my University FYP for my degree at the University of Reading
 
 ### Latest release
-[Version 0.5.0 (10/02/21)](https://github.com/rnd-ash/OpenVehicleDiag/releases/tag/v0.5.0)
+[Version 1.0.0 (21/04/21)](https://github.com/rnd-ash/OpenVehicleDiag/releases/tag/v1.0.0)
 
 ## Youtube video playlist
 Videos showing OpenVehicleDiag in use and its development progress can be found [here](https://youtube.com/playlist?list=PLxrw-4Vt7xtty50LmMoLXN2iKiUknbMng)
@@ -28,25 +28,3 @@ Parses Mercedes SMR Files into JSON (**DOES NOT FUNCTION FULLY**)
 
 ### Common
 Common library for both parser and GUI Application
-
-## Project feature checklists - Current status (90%)
-Features marked with '(**WIP**)' are actively being developed!
-### Reverse engineering framework
-- [x] Define a schema in JSON for others to follow 
-- [x] User guide on how to write a custom parser for an OEM's Database file
-- [x] Reverse engineering note on MB CBF
-### Diagnostic application
-- [x] J2534-2 API
-- [x] Packet tracing support
-- [ ] Support K-Line 
-- [x] Support CAN 
-- [x] Send and receive custom UDS Commands
-- [x] Realtime performance data viewer for certain views
-- [x] DTC View and clearer
-### Macchina J2534 driver
-- [x] Support J2534-2 API Passthru functions
-- [x] packet Logger
-- [ ] ISO9141
-- [ ] ISO14230 (KWP2000)
-- [x] CAN
-- [x] ISO15765 (ISO-TP)
