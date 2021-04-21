@@ -89,7 +89,6 @@ fn decode_ecu(e: &ECU) {
 
     let mut connections = Vec::new();
     for x in e.interface_sub_types.iter() {
-        println!("{:?}\n\n", x);
         let connection = if x.comm_params.iter().any(|x| x.param_name == "CP_REQUEST_CANIDENTIFIER") { // Its CAN (ISOTP)
             Connection {
                 baud: x.get_cp_by_name("CP_BAUDRATE").expect("No CAN Baudrate on interface!?"),
