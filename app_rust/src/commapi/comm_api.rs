@@ -27,14 +27,14 @@ impl CanFrame {
     }
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 impl From<CanFrame> for socketcan::CANFrame {
     fn from(s: CanFrame) -> Self {
         Self::new(s.id, s.get_data(), false, false).unwrap()
     }
 }
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 impl From<socketcan::CANFrame> for CanFrame {
     fn from(s: socketcan::CANFrame) -> Self {
         let data = s.data();

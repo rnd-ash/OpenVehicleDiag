@@ -12,7 +12,7 @@ use crate::{
 };
 use iced::{button, pick_list, Align, Column, Element, Image, Length, Row, Text};
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 use crate::commapi::socket_can_api::SocketCanAPI;
 
 #[derive(Debug, Clone)]
