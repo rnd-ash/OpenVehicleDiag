@@ -208,9 +208,8 @@ impl PassthruDrv {
     //type PassThruOpenFn = unsafe extern "stdcall" fn(name: *const libc::c_void, device_id: *mut u32) -> i32;
     pub fn open(&mut self) -> Result<u32> {
         let mut id: u32 = 0;
-        let name = CString::new("test").unwrap();
         let res =
-            unsafe { (&self.open_fn)(name.as_ptr() as *const libc::c_void, &mut id as *mut u32) };
+            unsafe { (&self.open_fn)(std::ptr::null() as *const libc::c_void, &mut id as *mut u32) };
         if res == 0x00 {
             self.is_connected = true;
         }
