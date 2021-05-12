@@ -98,10 +98,11 @@ pub struct ISO15765Config {
 unsafe impl Send for ISO15765Config {}
 unsafe impl Sync for ISO15765Config {}
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FilterType {
-    Pass,
-    Block,
+    Pass { id: u32, mask: u32 },
+    Block { id: u32, mask: u32 },
+    IsoTP { id: u32, mask: u32, fc: u32 }
 }
 
 #[derive(Debug, Clone)]
@@ -326,7 +327,7 @@ pub trait ComServer: Send + Sync + Debug {
     ///
     /// ## Returns
     /// The filter ID provided by the adapter. Use this when destroying the filter
-    fn add_can_filter(&mut self, filter: FilterType, id: u32, mask: u32)
+    fn add_can_filter(&mut self, f: FilterType)
         -> Result<u32, ComServerError>;
 
     /// Tells the adapter to remove an active filter on an open CAN channel
@@ -334,19 +335,7 @@ pub trait ComServer: Send + Sync + Debug {
     /// * filter_idx - Filter ID to remove, this should be the value given by [`add_can_filter`](fn@add_can_filter)
     fn rem_can_filter(&mut self, filter_idx: u32) -> Result<(), ComServerError>;
 
-    fn add_iso15765_filter(&mut self, id: u32, mask: u32, fc_id: u32) -> Result<u32, ComServerError>;
-
-    fn configure_iso15765(&mut self, cfg: &ISO15765Config) -> Result<u32, ComServerError> {
-        self.add_iso15765_filter(cfg.recv_id, 0xFFFF, cfg.send_id)
-            .and_then(|idx| {
-                self.set_iso15765_params(cfg.sep_time, cfg.block_size)
-                    .map(|_| idx)
-                    .map_err(|e| match self.rem_iso15765_filter(idx) {
-                        Ok(_) => e,
-                        Err(e1) => e1,
-                    })
-            })
-    }
+    fn add_iso15765_filter(&mut self, f: FilterType) -> Result<u32, ComServerError>;
 
     /// Tells the adapter to remove an active filter on an open ISO15765 channel
     /// # Params
@@ -368,33 +357,6 @@ pub trait ComServer: Send + Sync + Debug {
         separation_time_min: u32,
         block_size: u32,
     ) -> Result<(), ComServerError>;
-
-    /// Sends an ISOTP payload and attempts to read the ECUs response
-    /// IMPORTANT - This function assumes the ISO15765 interface is ALREADY open
-    fn send_receive_iso15765(
-        &self,
-        p: ISO15765Data,
-        max_timeout_ms: u128,
-        max_resp: usize,
-    ) -> Result<Vec<ISO15765Data>, ComServerError> {
-        self.clear_iso15765_rx_buffer()?; // Clear the receive buffer
-        self.send_iso15765_data(&[p], 0)?; // Send data
-        let mut timeout = max_timeout_ms;
-        let mut payloads: Vec<ISO15765Data> = Vec::new();
-        let start = Instant::now();
-        while start.elapsed().as_millis() < timeout {
-            if let Ok(d) = self.read_iso15765_packets(0, 10) {
-                for msg in d {
-                    payloads.push(msg);
-                    if max_resp != 0 && payloads.len() >= max_resp {
-                        timeout = 0; // Return now!
-                    }
-                }
-            }
-            std::thread::sleep(std::time::Duration::from_millis(1));
-        }
-        Ok(payloads)
-    }
 
     /// Tells the adapter to clear any data in its Rx buffer
     /// that is from CAN protocol

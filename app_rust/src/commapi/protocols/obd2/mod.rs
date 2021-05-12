@@ -1,12 +1,12 @@
-use std::{sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, Sender}}, vec};
+use std::{borrow::{Borrow, BorrowMut}, sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, Sender}}, vec};
 
 use commapi::protocols::ProtocolError;
 
-use crate::commapi;
+use crate::commapi::{self, comm_api::{ComServer, FilterType}, iface::{DynamicInterface, Interface, InterfaceConfig, InterfaceType, PayloadFlag}};
 
 use self::{service01::Service01, service02::Service02, service03::Service03, service04::Service04, service05::Service05, service06::Service06, service07::Service07, service08::Service08, service09::Service09, service10::Service0A};
 
-use super::{CommandError, DTC, DTCState, ECUCommand, ProtocolResult, ProtocolServer, Selectable};
+use super::{CommandError, DTC, DTCState, DiagCfg, ECUCommand, ProtocolResult, ProtocolServer, Selectable};
 
 pub mod service01;
 pub mod service02;
@@ -228,14 +228,23 @@ impl ProtocolServer for ObdServer {
     type Error = ObdError;
 
     fn start_diag_session(
-        mut comm_server: Box<dyn crate::commapi::comm_api::ComServer>,
-        cfg: &crate::commapi::comm_api::ISO15765Config,
-        _global_tester_present_addr: Option<u32>, // Should always be none for OBD
+        comm_server: &Box<dyn ComServer>,
+        interface_type: InterfaceType,
+        interface_cfg: InterfaceConfig,
+        tx_flags: Option<Vec<PayloadFlag>>,
+        diag_cfg: DiagCfg,
     ) -> super::ProtocolResult<Self> {
-        comm_server.open_iso15765_interface(cfg.baud, cfg.use_ext_can, cfg.use_ext_isotp)?; // For OBD this should work
-        comm_server.add_iso15765_filter(cfg.recv_id, 0xFFFF, cfg.send_id)?;
-        comm_server.set_iso15765_params(cfg.sep_time, cfg.block_size)?;
-        
+        if interface_type != InterfaceType::IsoTp && interface_type != InterfaceType::Iso9141 {
+            return Err(ProtocolError::CustomError("OBD-II Can only be executed over ISO-TP or ISO9141".into()))
+        }
+
+        let mut dyn_interface = DynamicInterface::new(comm_server, interface_type, &interface_cfg)?.clone_box();
+        if interface_type == InterfaceType::IsoTp {
+            dyn_interface.add_filter(FilterType::IsoTP{id: diag_cfg.recv_id, mask: 0xFFFF, fc: diag_cfg.send_id})?;
+        } else {
+            return Err(ProtocolError::CustomError("OBD-II over ISO9141 is a WIP".into()))
+        }
+      
         let should_run = Arc::new(AtomicBool::new(true));
         let should_run_t = should_run.clone();
 
@@ -251,13 +260,14 @@ impl ProtocolServer for ObdServer {
             Receiver<ProtocolResult<Vec<u8>>>,
         ) = mpsc::channel();
 
-        let s_id = cfg.send_id;
+        let s_id = diag_cfg.send_id;
         std::thread::spawn(move || {
             println!("OBD2 server start!");
             while should_run_t.load(Ordering::Relaxed) {
                 if let Ok(data) = channel_tx_receiver.try_recv() {
-                    let res = Self::run_command_iso_tp(
-                        comm_server.as_ref(),
+                    let res = Self::run_command_resp(
+                        &mut dyn_interface,
+                        &tx_flags,
                         s_id,
                         data.0,
                         &data.1,
@@ -272,7 +282,7 @@ impl ProtocolServer for ObdServer {
                 std::thread::sleep(std::time::Duration::from_micros(100))
             }
             println!("OBD2 Server stop!");
-            comm_server.close_iso15765_interface();
+            dyn_interface.close();
         });
 
         let mut server = ObdServer {

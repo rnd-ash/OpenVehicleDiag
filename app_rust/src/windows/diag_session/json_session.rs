@@ -1,6 +1,6 @@
 use core::panic;
 use std::{borrow::Borrow, cell::RefCell, sync::Arc, time::Instant, vec};
-use crate::commapi::protocols::kwp2000::read_ecu_identification;
+use crate::commapi::{iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DiagCfg, kwp2000::read_ecu_identification}};
 use common::schema::{ConType, Connection, OvdECU, diag::{TableData, dtc::ECUDTC, service::{Service}}, variant::{ECUVariantDefinition, ECUVariantPattern}};
 use iced::{Align, Column, Length, Row, Scrollable, Subscription, time};
 use lazy_static::__Deref;
@@ -108,16 +108,21 @@ impl JsonDiagSession {
         // For now, Diag server ONLY supports ISO-TP, not LIN!
         let create_server = match connection_settings.connection_type {
             ConType::ISOTP { blocksize, st_min, ext_isotp_addr, ext_can_addr } => {
-                let cfg = ISO15765Config {
-                    baud: connection_settings.baud,
+                let mut cfg = InterfaceConfig::new();
+                cfg.add_param(IFACE_CFG::BAUDRATE, connection_settings.baud);
+                cfg.add_param(IFACE_CFG::EXT_CAN_ADDR, ext_can_addr as u32);
+                cfg.add_param(IFACE_CFG::EXT_ISOTP_ADDR, ext_isotp_addr as u32);
+                cfg.add_param(IFACE_CFG::ISOTP_BS, blocksize);
+                cfg.add_param(IFACE_CFG::ISOTP_ST_MIN, st_min);
+
+                let diag_cfg = DiagCfg {
                     send_id: connection_settings.send_id,
                     recv_id: connection_settings.recv_id,
-                    block_size: blocksize,
-                    sep_time: st_min,
-                    use_ext_can: ext_can_addr,
-                    use_ext_isotp: ext_isotp_addr
+                    global_id: connection_settings.global_send_id,
                 };
-                DiagServer::new(comm_server, &cfg, connection_settings.global_send_id, diag_server_type)
+
+                let tx_flags = vec![PayloadFlag::ISOTP_PAD_FRAME];
+                DiagServer::new(diag_server_type, &comm_server, InterfaceType::IsoTp, cfg, Some(tx_flags), diag_cfg)
             },
             ConType::LIN { .. } => return Err(SessionError::Other("K-Line is not implemented at this time".into()))
         };

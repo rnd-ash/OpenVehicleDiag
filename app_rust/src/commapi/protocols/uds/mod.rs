@@ -1,9 +1,6 @@
 use self::diag_session_control::DiagSession;
-use super::{
-    CautionLevel, CommandError, ECUCommand, ProtocolError, ProtocolResult, ProtocolServer,
-    Selectable, DTC,
-};
-use crate::commapi::comm_api::{ComServer, ISO15765Config};
+use super::{CautionLevel, CommandError, DTC, DiagCfg, ECUCommand, ProtocolError, ProtocolResult, ProtocolServer, Selectable};
+use crate::commapi::{comm_api::{ComServer, FilterType, ISO15765Config}, iface::{Interface, InterfaceConfig, InterfaceType, IsoTPInterface, PayloadFlag}};
 use std::sync::atomic::Ordering::Relaxed;
 use std::{
     sync::{
@@ -395,7 +392,6 @@ impl CommandError for UDSNegativeCode {
 
 #[derive(Debug, Clone)]
 pub struct UDSECU {
-    iso_tp_settings: ISO15765Config,
     should_run: Arc<AtomicBool>,
     last_error: Arc<RwLock<Option<ProtocolError>>>,
     cmd_tx: Sender<(u8, Vec<u8>, bool)>,
@@ -436,16 +432,20 @@ impl ProtocolServer for UDSECU {
     type Command = UDSCommand;
     type Error = UDSNegativeCode;
     fn start_diag_session(
-        mut comm_server: Box<dyn ComServer>,
-        cfg: &ISO15765Config,
-        global_test_present_addr: Option<u32>,
+        comm_server: &Box<dyn ComServer>,
+        interface_type: InterfaceType,
+        interface_cfg: InterfaceConfig,
+        tx_flags: Option<Vec<PayloadFlag>>,
+        diag_cfg: DiagCfg,
     ) -> ProtocolResult<Self> {
-        comm_server
-            .open_iso15765_interface(cfg.baud, cfg.use_ext_can, cfg.use_ext_isotp)
-            .map_err(ProtocolError::CommError)?;
-        comm_server
-            .configure_iso15765(cfg)
-            .map_err(ProtocolError::CommError)?;
+        if interface_type != InterfaceType::IsoTp {
+            return Err(ProtocolError::CustomError("UDS Can only be executed over ISO-TP".into()))
+        }
+
+        let mut interface = IsoTPInterface::new(comm_server.clone_box())?;
+
+        interface.setup(&interface_cfg)?;
+        interface.add_filter(FilterType::IsoTP{id: diag_cfg.recv_id, mask: 0xFFFF, fc: diag_cfg.send_id})?;
 
         let should_run = Arc::new(AtomicBool::new(true));
         let should_run_t = should_run.clone();
@@ -466,14 +466,15 @@ impl ProtocolServer for UDSECU {
         let session_type_t = session_type.clone();
 
         // Enter extended diagnostic session (Full features)
-        let s_id = cfg.send_id;
+        let s_id = diag_cfg.send_id;
         std::thread::spawn(move || {
             println!("UDS Diag server start!");
             let mut timer = Instant::now();
             while should_run_t.load(Relaxed) {
                 if let Ok(data) = channel_tx_receiver.try_recv() {
-                    let res = Self::run_command_iso_tp(
-                        comm_server.as_ref(),
+                    let res = Self::run_command_resp(
+                        &mut interface,
+                        &tx_flags,
                         s_id,
                         data.0,
                         &data.1,
@@ -488,8 +489,9 @@ impl ProtocolServer for UDSECU {
                 if timer.elapsed().as_millis() >= 2000
                     && *session_type_t.read().unwrap() != DiagSession::Default
                 {
-                    if Self::run_command_iso_tp(
-                        comm_server.as_ref(),
+                    if Self::run_command_resp(
+                        &mut interface,
+                        &tx_flags,
                         s_id,
                         UDSCommand::TesterPresent.into(),
                         &[0x00],
@@ -504,16 +506,15 @@ impl ProtocolServer for UDSECU {
                 std::thread::sleep(std::time::Duration::from_micros(100))
             }
             println!("UDS Diag server stop!");
-            comm_server.close_iso15765_interface();
+            interface.close();
         });
 
         let mut ecu = UDSECU {
-            iso_tp_settings: *cfg,
             should_run,
             last_error,
             cmd_tx: channel_tx_sender,
             cmd_rx: Arc::new(channel_rx_receiver),
-            send_id: cfg.send_id,
+            send_id: diag_cfg.send_id,
             curr_session_type: session_type, // Assumed,
             cmd_mutex: Arc::new(Mutex::new(())),
         };
@@ -555,60 +556,6 @@ impl ProtocolServer for UDSECU {
         match self.last_error.read().unwrap().as_ref() {
             Some(x) => Some(x.get_text()),
             None => None,
-        }
-    }
-
-    fn run_command_iso_tp(
-        server: &dyn ComServer,
-        send_id: u32,
-        cmd: u8,
-        args: &[u8],
-        receive_require: bool,
-    ) -> Result<Vec<u8>, ProtocolError> {
-        let mut data = crate::commapi::comm_api::ISO15765Data {
-            id: send_id,
-            data: vec![cmd],
-            pad_frame: false,
-            ext_addressing: false,
-        };
-        data.data.extend_from_slice(args);
-        if !receive_require {
-            server
-                .send_iso15765_data(&[data], 0)
-                .map(|_| vec![])
-                .map_err(ProtocolError::CommError)
-        } else {
-            // Await max 1 second for response
-            let res = server.send_receive_iso15765(data, 1000, 1)?;
-            if res.is_empty() {
-                return Err(ProtocolError::Timeout);
-            }
-            let mut tmp_res = res[0].data.clone();
-            if tmp_res[0] == 0x7F && tmp_res[2] == 0x78 {
-                // ResponsePending
-                println!("UDS - ECU is processing request - Waiting!");
-                let start = Instant::now();
-                while start.elapsed().as_millis() < 1000 {
-                    // ECU is sending a response, but its busy right now. just gotta wait for the ECU to give us its response!
-                    if let Some(msg) = server.read_iso15765_packets(0, 1)?.get(0) {
-                        tmp_res = msg.data.clone();
-                    }
-                }
-            }
-            if tmp_res[0] == 0x7F {
-                // Still error :(
-                Err(ProtocolError::ProtocolError(Box::new(
-                    Self::Error::from_byte(tmp_res[2]),
-                )))
-            } else if tmp_res[0] == (cmd + 0x40) {
-                Ok(tmp_res)
-            } else {
-                eprintln!(
-                    "UDS - Command response did not match request? Send: {:02X} - Recv: {:02X}",
-                    cmd, tmp_res[0]
-                );
-                Err(ProtocolError::Timeout)
-            }
         }
     }
 }

@@ -9,7 +9,7 @@ use std::{
 use iced::{time, Column, Container, Length, Row, Space, Subscription};
 use log_view::{LogType, LogView};
 
-use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, protocols::uds::UDSECU, protocols::ProtocolServer}, themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize}, windows::{diag_manual::DiagManualMessage, window}};
+use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, iface::{InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DiagCfg, ProtocolServer}, protocols::uds::UDSECU}, themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize}, windows::{diag_manual::DiagManualMessage, window}};
 
 use super::{log_view, DiagMessageTrait, SessionMsg, SessionResult, SessionTrait};
 
@@ -163,7 +163,21 @@ impl SessionTrait for UDSDiagSession {
     fn update(&mut self, msg: &Self::msg) -> Option<Self::msg> {
         match msg {
             UDSDiagSessionMsg::ConnectECU => {
-                match UDSECU::start_diag_session(self.server.clone(), &self.ecu, None) {
+                let cfg = InterfaceConfig::new();
+
+                let diag_cfg = DiagCfg {
+                    send_id: self.ecu.send_id,
+                    recv_id: self.ecu.recv_id,
+                    global_id: None,
+                };
+
+                match UDSECU::start_diag_session(
+                    &self.server, 
+                    InterfaceType::IsoTp, 
+                    cfg,
+                    Some(vec![PayloadFlag::ISOTP_PAD_FRAME]),
+                    diag_cfg
+                ) {
                     Ok(server) => {
                         window::disable_home();
                         self.diag_server = Some(server);
@@ -268,7 +282,9 @@ impl SessionTrait for UDSDiagSession {
                     }
                 }
             }
-            _ => {}
+            
+            UDSDiagSessionMsg::Back => {}
+            UDSDiagSessionMsg::LoadErrorDefinition => {}
         }
         None
     }

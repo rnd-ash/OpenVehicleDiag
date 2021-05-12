@@ -1,4 +1,4 @@
-use crate::{commapi::{comm_api::{Capability, ComServer, ISO15765Config}, protocols::{ProtocolServer, obd2::{self, ObdServer, service09::Service09Data}}}, themes::button_coloured};
+use crate::{commapi::{comm_api::{Capability, ComServer, ISO15765Config}, iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DiagCfg, ProtocolServer, obd2::{self, ObdServer, service09::Service09Data}}}, themes::button_coloured};
 use crate::commapi::protocols::vin::Vin;
 use crate::themes::{button_outlined, text, title_text, ButtonType, TextType, TitleSize};
 use iced::{button, Align, Button, Column, Element, Length, Row, Space, Text};
@@ -42,16 +42,25 @@ impl OBDHome {
             OBDMessage::InitOBD_IsoTP => {
                 // Try all the CAN IDs
                 for test_id in [0x07E8, 0x07E9, 0x07E0].iter() {
-                    let cfg = ISO15765Config {
-                        baud: 500_000,
+                    let mut cfg = InterfaceConfig::new();
+                    cfg.add_param(IFACE_CFG::BAUDRATE, 500_000);
+                    cfg.add_param(IFACE_CFG::EXT_CAN_ADDR, 0);
+                    cfg.add_param(IFACE_CFG::EXT_ISOTP_ADDR, 0);
+
+                    let diag_cfg = DiagCfg {
                         send_id: 0x07DF,
                         recv_id: *test_id,
-                        block_size: 8,
-                        sep_time: 20,
-                        use_ext_isotp: false,
-                        use_ext_can: false
+                        global_id: None,
+                        
                     };
-                    if let Ok(server) = ObdServer::start_diag_session(self.server.clone(), &cfg, None) {
+                    if let Ok(server) = ObdServer::start_diag_session(
+                        &self.server,
+                        InterfaceType::IsoTp,
+                        cfg,
+                        Some(vec![PayloadFlag::ISOTP_PAD_FRAME]),
+                        diag_cfg
+
+                    ) {
                         if let Ok(r) = server.req_service09(|x| Ok(x.get_everything(&server))) {
                             self.s09_data = r;
                         }
@@ -78,6 +87,7 @@ impl OBDHome {
                 }
                 self.curr_service = sid; // What service UI should we be in?
             }
+            OBDMessage::ChooseService(_) => {}
         }
         None
     }
