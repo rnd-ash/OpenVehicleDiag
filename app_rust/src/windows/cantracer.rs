@@ -1,9 +1,9 @@
-use crate::{commapi::comm_api::{CanFrame, ComServer, FilterType}, themes::checkbox};
+use crate::{commapi::{comm_api::{CanFrame, ComServer, FilterType}, iface::{CanbusInterface, IFACE_CFG, Interface, InterfaceConfig, InterfacePayload}}, themes::checkbox};
 use crate::themes::{button_coloured, ButtonType};
 use crate::windows::window::WindowMessage;
 use iced::time;
 use iced::{button, Color, Column, Element, Length, Row, Scrollable, Subscription, Text};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use std::time::Instant;
 
 #[derive(Debug, Clone)]
@@ -15,10 +15,10 @@ pub enum TracerMessage {
 
 #[derive(Debug, Clone)]
 pub struct CanTracer {
-    server: Box<dyn ComServer>,
+    can_interface: CanbusInterface,
     btn_state: button::State,
-    can_queue: HashMap<u32, CanFrame>,
-    can_prev: HashMap<u32, CanFrame>,
+    can_queue: HashMap<u32, InterfacePayload>,
+    can_prev: HashMap<u32, InterfacePayload>,
     is_connected: bool,
     is_binary_fmt: bool,
     status_text: String,
@@ -28,7 +28,7 @@ pub struct CanTracer {
 impl<'a> CanTracer {
     pub(crate) fn new(server: Box<dyn ComServer>) -> Self {
         Self {
-            server,
+            can_interface: CanbusInterface::new_raw(server),
             btn_state: Default::default(),
             can_queue: HashMap::new(),
             can_prev: HashMap::new(),
@@ -39,7 +39,7 @@ impl<'a> CanTracer {
         }
     }
 
-    pub fn insert_frames_to_map(&mut self, frames: Vec<CanFrame>) {
+    pub fn insert_frames_to_map(&mut self, frames: Vec<InterfacePayload>) {
         for f in frames {
             self.can_queue.insert(f.id, f);
         }
@@ -48,34 +48,38 @@ impl<'a> CanTracer {
     pub fn update(&mut self, msg: &TracerMessage) -> Option<WindowMessage> {
         match msg {
             TracerMessage::NewData(_) => {
-                if let Ok(m) = self.server.as_ref().read_can_packets(0, 100) {
+                if let Ok(m) = self.can_interface.recv_data(100, 0) {
                     self.insert_frames_to_map(m)
                 }
             }
             TracerMessage::ToggleCan => {
                 if self.is_connected {
-                    if let Err(e) = self.server.as_mut().close_can_interface() {
+                    if let Err(e) = self.can_interface.close() {
                         self.status_text = format!("Error closing CAN Interface {}", e)
                     } else {
                         self.is_connected = false;
                         self.can_queue.clear();
                     }
-                } else if let Err(e) = self.server.as_mut().open_can_interface(500_000, false) {
+                } else if let Err(e) = {
+                    let mut cfg = InterfaceConfig::new();
+                    cfg.add_param(IFACE_CFG::BAUDRATE, 500_000);
+                    cfg.add_param(IFACE_CFG::EXT_CAN_ADDR, 0);
+                    self.can_interface.setup(&cfg)
+                }{
                     self.status_text = format!("Error opening CAN Interface {}", e)
                 } else {
                     self.is_connected = true;
                     if let Err(e) =
-                        self.server
-                            .as_mut()
-                            .add_can_filter(FilterType::Pass, 0x0000, 0x0000)
+                        self.can_interface.add_filter(FilterType::Pass{id: 0x0000, mask: 0x0000})
                     {
                         self.status_text = format!("Error setting CAN Filter {}", e)
-                    } else if let Err(e) = self.server.send_can_packets(
-                        &[CanFrame::new(
-                            0x07DF,
-                            &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-                        )],
-                        0,
+                    } else if let Err(e) = self.can_interface.send_data(
+                    &[InterfacePayload {
+                            id: 0x07DF,
+                            data: vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                            flags: vec![],
+                        }],
+                        0
                     ) {
                         self.status_text = format!("Error sending wake-up packet {}", e)
                     }
@@ -125,8 +129,8 @@ impl<'a> CanTracer {
 
     pub fn build_can_list(
         binary: &bool,
-        curr_data: &HashMap<u32, CanFrame>,
-        old_data: &mut HashMap<u32, CanFrame>,
+        curr_data: &HashMap<u32, InterfacePayload>,
+        old_data: &mut HashMap<u32, InterfacePayload>,
     ) -> Element<'a, TracerMessage> {
         let mut col = Column::new();
         let mut x: Vec<u32> = curr_data.keys().into_iter().copied().collect();
@@ -141,8 +145,8 @@ impl<'a> CanTracer {
             );
             if let Some(old_frame) = old_data.get(&cid) {
                 // Old frame exists, try to work out what changed
-                let old_data = old_frame.get_data();
-                for (i, byte) in i.get_data().iter().enumerate() {
+                let old_data = &old_frame.data;
+                for (i, byte) in i.data.iter().enumerate() {
                     container =
                         if *byte == old_data[i] {
                             // Same as old data
@@ -175,7 +179,7 @@ impl<'a> CanTracer {
                 col = col.push(container)
             } else {
                 // New frame, just add it
-                for byte in i.get_data() {
+                for byte in &i.data {
                     container = match binary {
                         true => container.push(Row::new().push(Text::new(format!("{:08b}", byte)))), // Cram all binary bits together
                         false => container.push(
@@ -185,7 +189,7 @@ impl<'a> CanTracer {
                     }
                 }
             }
-            old_data.insert(cid, *i); // Update the old table
+            old_data.insert(cid, i.clone()); // Update the old table
         }
         col.into()
     }

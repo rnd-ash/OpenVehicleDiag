@@ -344,11 +344,26 @@ impl ComServer for SocketCanAPI {
 
     fn add_can_filter(
         &mut self,
-        filter: FilterType,
-        id: u32,
-        mask: u32,
-    ) -> Result<u32, ComServerError> {
-        let f = CANFilter::new(id, mask)?;
+        f: FilterType) -> Result<u32, ComServerError> {
+
+        // SocketCAN 
+        let mut apply_mask =  0;
+        let mut apply_id = 0;
+        match f {
+            FilterType::Block{id, mask} => {
+
+            },
+            FilterType::Pass{id, mask} => {
+                apply_id = id;
+                apply_mask = mask;
+            },
+            FilterType::IsoTP{ id, mask, fc } => {
+                return Err(ComServerError{ err_code: 99, err_desc: "Cannot apply a FlowControl filter to CAN".into()})
+            }
+        }
+
+
+        let f = CANFilter::new(apply_id, apply_mask)?;
         // Find a free ID
         let mut pos = 99;
         for x in 0..10usize {
@@ -379,7 +394,7 @@ impl ComServer for SocketCanAPI {
         self.write_filters()
     }
 
-    fn add_iso15765_filter(&mut self, id: u32, mask: u32, resp_id: u32) -> Result<u32, ComServerError> {
+    fn add_iso15765_filter(&mut self, f: FilterType) -> Result<u32, ComServerError> {
         if self.isotp_iface.read().unwrap().is_some() {
             // Socket CAN only allows for 1 ISO-TP filter!
             return Err(ComServerError {
@@ -388,11 +403,15 @@ impl ComServer for SocketCanAPI {
             })
         }
 
-        // Now try to setup the ISO-TP interface
-        let iface = IsoTpSocket::open_with_opts(&self.iface, resp_id, id & mask, None, None, None)?;
-        iface.set_nonblocking(true)?; // Request non blocking!
-        *self.isotp_iface.write().unwrap() = Some(iface);
-        Ok(1)
+        if let FilterType::IsoTP{id, mask, fc} = f {
+            // Now try to setup the ISO-TP interface
+            let iface = IsoTpSocket::open_with_opts(&self.iface, fc, id & mask, None, None, None)?;
+            iface.set_nonblocking(true)?; // Request non blocking!
+            *self.isotp_iface.write().unwrap() = Some(iface);
+            Ok(1)
+        } else {
+            Err(ComServerError{ err_code: 99, err_desc: "Cannot apply a pass/block filter to ISOTP".into()})
+        }
     }
 
     fn rem_iso15765_filter(&mut self, filter_idx: u32) -> Result<(), ComServerError> {
