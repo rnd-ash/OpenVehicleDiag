@@ -253,7 +253,7 @@ pub trait ProtocolServer: Sized {
                 .map_err(ProtocolError::CommError)
         } else {
             // Await max 1 second for response
-            let mut res = interface.send_recv_data(tx, 1000, 1000)?;
+            let mut res = interface.send_recv_data(tx, 0, 2000)?;
             if res.data[0] == 0x7F && res.data[2] == 0x78 {
                 // ResponsePending
                 println!("DIAG - ECU is processing request - Waiting!");
