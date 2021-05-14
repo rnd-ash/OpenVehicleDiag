@@ -101,7 +101,12 @@ pub trait Interface: Send + Sync + Debug {
     fn send_recv_data(&mut self, request: InterfacePayload, write_timeout: u32, read_timeout: u32) -> InterfaceResult<InterfacePayload> {
         self.clearBuffer(BufferType::RX);
         self.send_data(&[request], write_timeout)?;
-        self.recv_data(1, read_timeout).map(|p| p[0].clone())
+        let res = self.recv_data(1, read_timeout)?;
+        if res.is_empty() {
+            return Err(ComServerError{err_code: 2, err_desc: "Timeout waiting".into()});
+        } else {
+            return Ok(res[0].clone())
+        }
     }
     fn get_server(&self) -> Box<dyn ComServer>;
     fn clone_box(&self) -> Box<dyn Interface>;
