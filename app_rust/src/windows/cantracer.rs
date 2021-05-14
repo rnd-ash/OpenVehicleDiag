@@ -63,7 +63,7 @@ impl<'a> CanTracer {
                 } else if let Err(e) = {
                     let mut cfg = InterfaceConfig::new();
                     cfg.add_param(IFACE_CFG::BAUDRATE, 500_000);
-                    cfg.add_param(IFACE_CFG::EXT_CAN_ADDR, 0);
+                    cfg.add_param(IFACE_CFG::EXT_CAN_ADDR, 1);
                     self.can_interface.setup(&cfg)
                 }{
                     self.status_text = format!("Error opening CAN Interface {}", e)

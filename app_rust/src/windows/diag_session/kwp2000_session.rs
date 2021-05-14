@@ -6,7 +6,7 @@ use std::{
 use iced::{time, Column, Container, Length, Row, Space, Subscription};
 use log_view::{LogType, LogView};
 
-use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, iface::{InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DTCState, DiagCfg, ProtocolServer, kwp2000::KWP2000ECU}}, themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize}, windows::window};
+use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DTCState, DiagCfg, ProtocolServer, kwp2000::KWP2000ECU}}, themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize}, windows::window};
 
 use super::{log_view, DiagMessageTrait, SessionResult, SessionTrait};
 
@@ -160,7 +160,12 @@ impl SessionTrait for KWP2000DiagSession {
     fn update(&mut self, msg: &Self::msg) -> Option<Self::msg> {
         match msg {
             KWP2000DiagSessionMsg::ConnectECU => {
-                let cfg = InterfaceConfig::new();
+                let mut cfg = InterfaceConfig::new();
+                cfg.add_param(IFACE_CFG::BAUDRATE, self.ecu.baud);
+                cfg.add_param(IFACE_CFG::EXT_CAN_ADDR, self.ecu.use_ext_can as u32);
+                cfg.add_param(IFACE_CFG::EXT_ISOTP_ADDR, self.ecu.use_ext_isotp as u32);
+                cfg.add_param(IFACE_CFG::ISOTP_BS, self.ecu.block_size);
+                cfg.add_param(IFACE_CFG::ISOTP_ST_MIN, self.ecu.sep_time);
 
                 let diag_cfg = DiagCfg {
                     send_id: self.ecu.send_id,
