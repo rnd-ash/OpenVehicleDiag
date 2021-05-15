@@ -2,7 +2,7 @@ use super::{
     diag_manual::{DiagManual, DiagManualMessage},
     diag_scanner::{DiagScanner, DiagScannerMessage},
 };
-use crate::commapi::comm_api::{ComServer};
+use crate::commapi::comm_api::ComServer;
 use crate::themes::{button_outlined, text, title_text, ButtonType, TextType, TitleSize};
 use iced::{Align, Column, Element, Length, Row, Space, Subscription};
 use serde::{Deserialize, Serialize};
@@ -88,9 +88,6 @@ impl DiagHome {
     pub fn subscription(&self) -> Subscription<DiagHomeMessage> {
         if let Some(ref manual) = self.manual_mode {
             manual.subscription().map(DiagHomeMessage::ManualSession)
-        } else if let Some(ref scan) = self.scan_mode {
-            //todo!()
-            Subscription::none()
         } else {
             Subscription::none()
         }

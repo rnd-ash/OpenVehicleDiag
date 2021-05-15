@@ -6,8 +6,7 @@ use iced::{Align, Column, Element, Length, Row, Subscription};
 use crate::{
     commapi::comm_api::{ComServer, ISO15765Config},
     themes::{
-        button_outlined, picklist, text, text_input, title_text, ButtonType,
-        TextType, TitleSize,
+        button_outlined, picklist, text, text_input, title_text, ButtonType, TextType, TitleSize,
     },
 };
 
@@ -19,7 +18,6 @@ use super::{
 #[derive(Debug, Clone)]
 pub enum DiagManualMessage {
     LaunchFileBrowser,
-    LoadFile(String),
     PickECU(ECUDiagSettings),
     LaunchKWP,
     LaunchKWPCustom,
@@ -27,7 +25,6 @@ pub enum DiagManualMessage {
     LaunchUDSCustom,
     LaunchCustom,
     LaunchCustomCustom,
-    Back,
     Session(SessionMsg),
 
     //User input queues
@@ -116,7 +113,6 @@ impl DiagManual {
             }
         }
         match msg {
-            DiagManualMessage::Back => {}
             DiagManualMessage::LaunchFileBrowser => {
                 if let nfd::Response::Okay(f_path) =
                     nfd::open_file_dialog(Some("json"), None).unwrap_or(nfd::Response::Cancel)
@@ -124,7 +120,6 @@ impl DiagManual {
                     if let Ok(mut file) = File::open(f_path) {
                         let mut str = "".into();
                         if file.read_to_string(&mut str).is_ok() {
-
                             if let Ok(car) = serde_json::from_str::<VehicleECUList>(&str) {
                                 println!("Car save opened!");
                                 self.curr_ecu = None;
@@ -267,7 +262,7 @@ impl DiagManual {
             return;
         }
 
-        if let SessionType::JSON(ecu, connection) = &session_type {
+        if let SessionType::JSON(_, _) = &session_type {
             match DiagSession::new(&session_type, self.server.clone(), None) {
                 Ok(session) => self.session = Some(session),
                 Err(e) => self.status = format!("Error init diag session: {}", e.get_description()),
@@ -280,7 +275,7 @@ impl DiagManual {
                 block_size: Self::decode_string_int(&self.str_bs).unwrap(),
                 sep_time: Self::decode_string_int(&self.str_sep).unwrap(),
                 use_ext_isotp: false,
-                use_ext_can: false
+                use_ext_can: false,
             };
             match DiagSession::new(&session_type, self.server.clone(), Some(cfg)) {
                 Ok(session) => self.session = Some(session),
@@ -294,7 +289,7 @@ impl DiagManual {
                 block_size: ecu.block_size,
                 sep_time: ecu.sep_time_ms,
                 use_ext_isotp: false,
-                use_ext_can: false
+                use_ext_can: false,
             };
             match DiagSession::new(&session_type, self.server.clone(), Some(cfg)) {
                 Ok(session) => self.session = Some(session),
@@ -314,11 +309,18 @@ impl DiagManual {
             .spacing(20)
             .align_items(Align::Center)
             .width(Length::Fill)
-            .push(title_text("Load a save file or ECU JSON file to get started", TitleSize::P3));
+            .push(title_text(
+                "Load a save file or ECU JSON file to get started",
+                TitleSize::P3,
+            ));
 
         view = view.push(
-            button_outlined(&mut self.btn_state, "Load save / ECU JSON file", ButtonType::Success)
-                .on_press(DiagManualMessage::LaunchFileBrowser),
+            button_outlined(
+                &mut self.btn_state,
+                "Load save / ECU JSON file",
+                ButtonType::Success,
+            )
+            .on_press(DiagManualMessage::LaunchFileBrowser),
         );
 
         if let Some(car) = &self.car {

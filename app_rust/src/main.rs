@@ -1,9 +1,13 @@
+use std::{fs::File, io::Write, panic, time};
+use backtrace;
+
+use dialog::DialogBox;
 use iced::{Application, Settings};
 mod cli_tests;
 mod commapi;
-mod widgets;
 mod passthru;
 mod themes;
+mod widgets;
 mod windows;
 
 use iced::window::Icon;
@@ -31,5 +35,26 @@ fn main() -> iced::Result {
             themes::set_debug(true)
         }
     }
+
+    panic::set_hook(Box::new(|info|{
+        let backtrace = backtrace::Backtrace::new();
+
+        let mut report = String::from("!!! Report crash to https://github.com/rnd-ash/OpenVehicleDiag/issues/ !!!\n");
+        report.push_str("\n----\n");
+        report.push_str(format!("Reason: {}\nBacktrace:\n{:?}", info, backtrace).as_str());
+        report.push_str("\n----\n");
+        let time = chrono::Utc::now();
+        let path = std::env::current_dir().unwrap().join(format!("ovd_crash-{}.txt", time.format("%F-%H_%M_%S")));
+        let write_res = File::create(&path).unwrap().write_all(report.as_bytes());
+
+        let mut summary = format!("Reason: {}\n", info);
+        summary.push_str(format!("Crash report written to {}\n", &path.as_os_str().to_str().unwrap()).as_str());
+        summary.push_str("See crash report for more info on how to report");
+
+        let _res = dialog::Message::new(summary)
+            .title("Oh no! OpenVehicleDiag crashed")
+            .show();
+    }));
+
     MainWindow::run(launcher_settings)
 }

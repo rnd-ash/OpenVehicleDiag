@@ -1,9 +1,6 @@
-use std::marker::PhantomData;
+use iced::{scrollable, Column, Element, Length, Row, Scrollable};
 
-use iced::{Column, Element, Length, Row, Scrollable, scrollable};
-use iced_native::Widget;
-
-use crate::themes::{ButtonType, TextType, button_coloured, button_outlined, button_table, text};
+use crate::themes::{button_table, text, ButtonType, TextType};
 
 #[derive(Debug, Copy, Clone)]
 pub struct TableMsg(pub usize, pub usize);
@@ -25,11 +22,17 @@ pub struct Table {
     scroll_sate: scrollable::State,
     default_text: String,
     selected_row: usize,
-    widths: Vec<u16>
+    widths: Vec<u16>,
 }
 
 impl Table {
-    pub fn new(header: Vec<String>, matrix: Vec<Vec<String>>, widths: Vec<u16>,selectable: bool, max_height: usize) -> Self {
+    pub fn new(
+        header: Vec<String>,
+        matrix: Vec<Vec<String>>,
+        widths: Vec<u16>,
+        selectable: bool,
+        max_height: usize,
+    ) -> Self {
         let mut tmp_matrix: Vec<Vec<String>> = Vec::new();
         if matrix.len() == 0 {
             return Self {
@@ -41,8 +44,8 @@ impl Table {
                 scroll_sate: scrollable::State::default(),
                 default_text: "No data".into(),
                 selected_row: 0,
-                widths
-            }
+                widths,
+            };
         }
 
         assert!(header.len() == matrix[0].len());
@@ -57,15 +60,13 @@ impl Table {
             }
         }
 
-        for (x,s) in tmp_matrix.iter().enumerate() {
+        for (x, s) in tmp_matrix.iter().enumerate() {
             for (y, _) in s.iter().enumerate() {
-                states.push(
-                    Position {
-                        x,
-                        y,
-                        state: iced::button::State::default()
-                    }
-                )
+                states.push(Position {
+                    x,
+                    y,
+                    state: iced::button::State::default(),
+                })
             }
         }
 
@@ -78,7 +79,7 @@ impl Table {
             scroll_sate: scrollable::State::default(),
             default_text: "No data".into(),
             selected_row: 0,
-            widths
+            widths,
         }
     }
 
@@ -88,19 +89,14 @@ impl Table {
         }
     }
 
-    pub fn set_default_text(&mut self, default: String) {
-        self.default_text = default;
-    }
-
-    pub fn view(&mut self) -> Element<TableMsg>{
-
+    pub fn view(&mut self) -> Element<TableMsg> {
         if self.header_row.is_empty() || self.text_matrix.is_empty() {
-            return text(&self.default_text, TextType::Normal).into()
+            return text(&self.default_text, TextType::Normal).into();
         }
 
         let mut row = Row::new();
 
-        let mut scroll = Scrollable::new(&mut self.scroll_sate);
+        let scroll = Scrollable::new(&mut self.scroll_sate);
 
         let mut column = Column::new();
 
@@ -115,9 +111,14 @@ impl Table {
             }
 
             let selected = self.selectable && self.selected_row == position.y;
-            let mut btn = button_table(&mut position.state, &self.text_matrix[position.x][position.y], ButtonType::Danger, selected)
-                .width(Length::Units(self.widths[position.x]));
-            
+            let mut btn = button_table(
+                &mut position.state,
+                &self.text_matrix[position.x][position.y],
+                ButtonType::Danger,
+                selected,
+            )
+            .width(Length::Units(self.widths[position.x]));
+
             if self.selectable {
                 btn = btn.on_press(TableMsg(position.x, position.y));
             }
@@ -125,6 +126,11 @@ impl Table {
         }
         row = row.push(column); // Last column
 
-        scroll.push(row).padding(4).spacing(4).max_height(self.max_height as u32).into()
+        scroll
+            .push(row)
+            .padding(4)
+            .spacing(4)
+            .max_height(self.max_height as u32)
+            .into()
     }
 }

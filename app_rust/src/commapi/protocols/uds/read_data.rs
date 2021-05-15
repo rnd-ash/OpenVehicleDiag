@@ -2,9 +2,6 @@ use crate::commapi::protocols::{ProtocolResult, ProtocolServer};
 
 use super::UDSECU;
 
-
-
-
 pub fn read_variant_id(ecu: &UDSECU) -> ProtocolResult<u32> {
     let mut res = ecu.run_command(super::UDSCommand::ReadDataByID.into(), &[0xF1, 0x00])?;
     println!("{:02X?}", res);

@@ -1,9 +1,13 @@
-use std::{borrow::Borrow, sync::{Arc, PoisonError, RwLock}, time::Instant};
+use std::{
+    borrow::Borrow,
+    sync::{Arc, PoisonError, RwLock},
+    time::Instant,
+};
 
-use crate::{commapi, main};
 use crate::commapi::comm_api::{
     CanFrame, ComServerError, DeviceCapabilities, FilterType, ISO15765Data,
 };
+use crate::{commapi, main};
 use commapi::comm_api::ComServer;
 use socketcan::{CANError, CANFilter, CANSocket, ConstructionError};
 use socketcan_isotp::{IsoTpOptions, IsoTpSocket};
@@ -20,8 +24,8 @@ pub struct SocketCanAPI {
     isotp_iface: Arc<RwLock<Option<socketcan_isotp::IsoTpSocket>>>,
     can_filters: [Option<CANFilter>; 10],
     isotp_in_use: bool,
-    req_iso_tp_settings: (u32, bool, bool) // Baud, ext CAN, ext Addressing
-    // TODO SocketCAN
+    req_iso_tp_settings: (u32, bool, bool), // Baud, ext CAN, ext Addressing
+                                            // TODO SocketCAN
 }
 
 impl std::fmt::Debug for SocketCanAPI {
@@ -38,7 +42,6 @@ impl From<ConstructionError> for ComServerError {
         Self {
             err_code: 0xFF,
             err_desc: x.to_string(),
-
         }
     }
 }
@@ -48,7 +51,6 @@ impl From<std::io::Error> for ComServerError {
         Self {
             err_code: x.raw_os_error().unwrap_or_default() as u32,
             err_desc: x.to_string(),
-
         }
     }
 }
@@ -56,18 +58,14 @@ impl From<std::io::Error> for ComServerError {
 impl From<socketcan_isotp::Error> for ComServerError {
     fn from(x: socketcan_isotp::Error) -> Self {
         match x {
-            socketcan_isotp::Error::LookupError { source } => {
-                ComServerError {
-                    err_code: 2,
-                    err_desc: source.to_string(),
-                }
-            }
-            socketcan_isotp::Error::IOError { source } => {
-                ComServerError {
-                    err_code: 3,
-                    err_desc: source.to_string(),
-                }
-            }
+            socketcan_isotp::Error::LookupError { source } => ComServerError {
+                err_code: 2,
+                err_desc: source.to_string(),
+            },
+            socketcan_isotp::Error::IOError { source } => ComServerError {
+                err_code: 3,
+                err_desc: source.to_string(),
+            },
         }
     }
 }
@@ -80,66 +78,41 @@ impl SocketCanAPI {
             isotp_iface: Arc::new(RwLock::new(None)),
             can_filters: [None; 10],
             isotp_in_use: false,
-            req_iso_tp_settings: (0, false, false)
+            req_iso_tp_settings: (0, false, false),
         }
     }
 }
 
 impl SocketCanAPI {
     fn write_filters(&mut self) -> Result<(), ComServerError> {
-        let filters: Vec<CANFilter> = self.can_filters.iter()
+        let filters: Vec<CANFilter> = self
+            .can_filters
+            .iter()
             .filter(|x| x.is_some())
             .map(|x| x.unwrap())
             .collect();
-        
-        self.run_can_iface(|s| {
-            s.set_filter(&filters).map_err(|x| x.into())
-        })?;
+
+        self.run_can_iface(|s| s.set_filter(&filters).map_err(|x| x.into()))?;
 
         Ok(())
     }
 
-    fn run_can_iface_mut<T, F: Fn(&mut CANSocket) -> Result<T, ComServerError>>(&mut self, func: F) -> Result<T, ComServerError> {
-        match self.sockcan_iface.write() {
-            Ok(mut r) => {
-                match r.as_mut() {
-                    Some(x) => func(x),
-                    None => Err(ComServerError {
-                        err_code: 99,
-                        err_desc: "Can Socket was null!".into(),
-    
-                    })
-                }
-            },
-            Err(_) => {
-                Err(ComServerError {
-                    err_code: 99,
-                    err_desc: "Write guard failed on CAN Socket".into(),
-
-                })
-            }
-        }
-    }
-
-    fn run_can_iface<T, F: Fn(&CANSocket) -> Result<T, ComServerError>>(&self, func: F) -> Result<T, ComServerError> {
+    fn run_can_iface<T, F: Fn(&CANSocket) -> Result<T, ComServerError>>(
+        &self,
+        func: F,
+    ) -> Result<T, ComServerError> {
         match self.sockcan_iface.read() {
-            Ok(r) => {
-                match r.as_ref() {
-                    Some(x) => func(x),
-                    None => Err(ComServerError {
-                        err_code: 99,
-                        err_desc: "Can Socket was null!".into(),
-    
-                    })
-                }
-            },
-            Err(_) => {
-                Err(ComServerError {
+            Ok(r) => match r.as_ref() {
+                Some(x) => func(x),
+                None => Err(ComServerError {
                     err_code: 99,
-                    err_desc: "Read guard failed on CAN Socket".into(),
-
-                })
-            }
+                    err_desc: "Can Socket was null!".into(),
+                }),
+            },
+            Err(_) => Err(ComServerError {
+                err_code: 99,
+                err_desc: "Read guard failed on CAN Socket".into(),
+            }),
         }
     }
 }
@@ -193,27 +166,23 @@ impl ComServer for SocketCanAPI {
         if timeout_ms == 0 {
             let v_timeout = 10;
             match &self.run_can_iface(|x| x.read_frame().map_err(|x| x.into())) {
-                Ok(cf) => {
-                    res.push(CanFrame::from(*cf))
-                },
+                Ok(cf) => res.push(CanFrame::from(*cf)),
                 Err(e) => {
-                    return Ok(res) // Return what we have
+                    return Ok(res); // Return what we have
                 }
             }
             if res.len() == max_msgs {
-                return Ok(res)
+                return Ok(res);
             }
         } else {
             let start = Instant::now();
             while start.elapsed().as_millis() <= timeout_ms as u128 {
                 match &self.run_can_iface(|x| x.read_frame().map_err(|x| x.into())) {
-                    Ok(cf) => {
-                        res.push(CanFrame::from(*cf))
-                    },
+                    Ok(cf) => res.push(CanFrame::from(*cf)),
                     Err(_) => {} // Ignore error when using timeout
                 }
                 if res.len() == max_msgs {
-                    return Ok(res)
+                    return Ok(res);
                 }
             }
         }
@@ -231,13 +200,11 @@ impl ComServer for SocketCanAPI {
                     i.write(&x.data)?;
                 }
                 Ok(data.len())
-            },
-            None => {
-                Err(ComServerError {
-                    err_code: 4,
-                    err_desc: "Socket CAN Interface null!".into(),
-                })
             }
+            None => Err(ComServerError {
+                err_code: 4,
+                err_desc: "Socket CAN Interface null!".into(),
+            }),
         }
     }
 
@@ -257,10 +224,9 @@ impl ComServer for SocketCanAPI {
                             data: Vec::from(buf),
                             pad_frame: false,
                             ext_addressing: false,
-
                         });
                         if res.len() == max_msgs {
-                            return Ok(res)
+                            return Ok(res);
                         }
                     }
                     Ok(res)
@@ -273,19 +239,16 @@ impl ComServer for SocketCanAPI {
                                 data: Vec::from(buf),
                                 pad_frame: false,
                                 ext_addressing: false,
-
                             })
                         }
                     }
                     Ok(res)
                 }
-            },
-            None => {
-                Err(ComServerError {
-                    err_code: 4,
-                    err_desc: "Socket CAN Interface null!".into(),
-                })
             }
+            None => Err(ComServerError {
+                err_code: 4,
+                err_desc: "Socket CAN Interface null!".into(),
+            }),
         }
     }
 
@@ -342,13 +305,25 @@ impl ComServer for SocketCanAPI {
         Ok(())
     }
 
-    fn add_can_filter(
-        &mut self,
-        filter: FilterType,
-        id: u32,
-        mask: u32,
-    ) -> Result<u32, ComServerError> {
-        let f = CANFilter::new(id, mask)?;
+    fn add_can_filter(&mut self, f: FilterType) -> Result<u32, ComServerError> {
+        // SocketCAN
+        let mut apply_mask = 0;
+        let mut apply_id = 0;
+        match f {
+            FilterType::Block { id, mask } => {}
+            FilterType::Pass { id, mask } => {
+                apply_id = id;
+                apply_mask = mask;
+            }
+            FilterType::IsoTP { id, mask, fc } => {
+                return Err(ComServerError {
+                    err_code: 99,
+                    err_desc: "Cannot apply a FlowControl filter to CAN".into(),
+                })
+            }
+        }
+
+        let f = CANFilter::new(apply_id, apply_mask)?;
         // Find a free ID
         let mut pos = 99;
         for x in 0..10usize {
@@ -357,18 +332,19 @@ impl ComServer for SocketCanAPI {
                 break;
             }
         }
-        if pos == 99 { // No free filters
+        if pos == 99 {
+            // No free filters
             return Err(ComServerError {
                 err_code: 98,
                 err_desc: "No free CAN Filters were found".into(),
-            })
+            });
         }
 
         self.can_filters[pos] = Some(f);
         // Now write the filters
         if let Err(e) = self.write_filters() {
             self.can_filters[pos] = None; // Unset if filter set failed!
-            return Err(ComServerError::from(e))
+            return Err(ComServerError::from(e));
         }
         // Set was OK! return result
         Ok(pos as u32)
@@ -379,20 +355,27 @@ impl ComServer for SocketCanAPI {
         self.write_filters()
     }
 
-    fn add_iso15765_filter(&mut self, id: u32, mask: u32, resp_id: u32) -> Result<u32, ComServerError> {
+    fn add_iso15765_filter(&mut self, f: FilterType) -> Result<u32, ComServerError> {
         if self.isotp_iface.read().unwrap().is_some() {
             // Socket CAN only allows for 1 ISO-TP filter!
             return Err(ComServerError {
                 err_code: 1,
                 err_desc: "Socket CAN only allows for 1 ISO-TP filter!".into(),
-            })
+            });
         }
 
-        // Now try to setup the ISO-TP interface
-        let iface = IsoTpSocket::open_with_opts(&self.iface, resp_id, id & mask, None, None, None)?;
-        iface.set_nonblocking(true)?; // Request non blocking!
-        *self.isotp_iface.write().unwrap() = Some(iface);
-        Ok(1)
+        if let FilterType::IsoTP { id, mask, fc } = f {
+            // Now try to setup the ISO-TP interface
+            let iface = IsoTpSocket::open_with_opts(&self.iface, fc, id & mask, None, None, None)?;
+            iface.set_nonblocking(true)?; // Request non blocking!
+            *self.isotp_iface.write().unwrap() = Some(iface);
+            Ok(1)
+        } else {
+            Err(ComServerError {
+                err_code: 99,
+                err_desc: "Cannot apply a pass/block filter to ISOTP".into(),
+            })
+        }
     }
 
     fn rem_iso15765_filter(&mut self, filter_idx: u32) -> Result<(), ComServerError> {

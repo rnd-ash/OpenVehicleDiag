@@ -1,12 +1,15 @@
-use std::{fmt::Display, time::Instant};
+use std::fmt::Display;
 
-use comm_api::{ComServerError, ISO15765Config};
+use comm_api::ComServerError;
 use kwp2000::KWP2000ECU;
 use uds::UDSECU;
 
 use self::{kwp2000::read_ecu_identification, uds::read_data};
 
-use super::comm_api::{self, ComServer, ISO15765Data};
+use super::{
+    comm_api::{self, ComServer},
+    iface::{Interface, InterfaceConfig, InterfacePayload, InterfaceType, PayloadFlag},
+};
 
 pub mod kwp2000;
 pub mod obd2;
@@ -98,7 +101,7 @@ pub enum DTCState {
     None,
     Stored,
     Pending,
-    Permanent
+    Permanent,
 }
 
 #[derive(Debug, Clone)]
@@ -119,6 +122,13 @@ impl Display for DTC {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct DiagCfg {
+    pub send_id: u32,
+    pub recv_id: u32,
+    pub global_id: Option<u32>,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum DiagProtocol {
     KWP2000,
@@ -133,14 +143,28 @@ pub enum DiagServer {
 
 impl DiagServer {
     pub fn new(
-        comm_server: Box<dyn ComServer>,
-        cfg: &ISO15765Config,
-        global_test_present_addr: Option<u32>,
         protocol: DiagProtocol,
+        comm_server: &Box<dyn ComServer>,
+        interface_type: InterfaceType,
+        interface_cfg: InterfaceConfig,
+        tx_flags: Option<Vec<PayloadFlag>>,
+        diag_cfg: DiagCfg,
     ) -> ProtocolResult<Self> {
         Ok(match protocol {
-            DiagProtocol::KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(comm_server, cfg, global_test_present_addr)?),
-            DiagProtocol::UDS => Self::UDS(UDSECU::start_diag_session(comm_server, cfg, global_test_present_addr)?),
+            DiagProtocol::KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(
+                comm_server,
+                interface_type,
+                interface_cfg,
+                tx_flags,
+                diag_cfg,
+            )?),
+            DiagProtocol::UDS => Self::UDS(UDSECU::start_diag_session(
+                comm_server,
+                interface_type,
+                interface_cfg,
+                tx_flags,
+                diag_cfg,
+            )?),
         })
     }
 
@@ -168,7 +192,7 @@ impl DiagServer {
     pub fn into_kwp(&mut self) -> Option<&mut KWP2000ECU> {
         match self {
             Self::KWP2000(s) => Some(s),
-            Self::UDS(s) => None
+            Self::UDS(s) => None,
         }
     }
 
@@ -188,15 +212,19 @@ impl DiagServer {
 
     pub fn get_variant_id(&self) -> ProtocolResult<u32> {
         match self {
-            Self::KWP2000(s) => read_ecu_identification::read_dcx_mmc_id(&s).map(|x| x.diag_information as u32),
-            Self::UDS(s) => read_data::read_variant_id(s)
+            Self::KWP2000(s) => {
+                read_ecu_identification::read_dcx_mmc_id(&s).map(|x| x.diag_information as u32)
+            }
+            Self::UDS(s) => read_data::read_variant_id(s),
         }
     }
 
     pub fn get_dtc_env_data(&self, dtc: &DTC) -> ProtocolResult<Vec<u8>> {
         match self {
             Self::KWP2000(s) => kwp2000::read_status_dtc::read_status_dtc(s, dtc),
-            Self::UDS(s) => Err(ProtocolError::CustomError("Not implemented (get_dtc_env_data)".into())), // TODO
+            Self::UDS(s) => Err(ProtocolError::CustomError(
+                "Not implemented (get_dtc_env_data)".into(),
+            )), // TODO
         }
     }
 }
@@ -212,9 +240,11 @@ pub trait ProtocolServer: Sized {
     type Command: Selectable + ECUCommand;
     type Error: CommandError + 'static;
     fn start_diag_session(
-        comm_server: Box<dyn ComServer>,
-        cfg: &ISO15765Config,
-        global_tester_present_addr: Option<u32>,
+        comm_server: &Box<dyn ComServer>,
+        interface_type: InterfaceType,
+        interface_cfg: InterfaceConfig,
+        tx_flags: Option<Vec<PayloadFlag>>,
+        diag_cfg: DiagCfg,
     ) -> ProtocolResult<Self>;
     fn exit_diag_session(&mut self);
     fn run_command(&self, cmd: u8, args: &[u8]) -> ProtocolResult<Vec<u8>>;
@@ -222,54 +252,55 @@ pub trait ProtocolServer: Sized {
     fn is_in_diag_session(&self) -> bool;
     fn get_last_error(&self) -> Option<String>;
 
-    fn run_command_iso_tp(
-        server: &dyn ComServer,
+    fn run_command_resp(
+        interface: &mut Box<dyn Interface>,
+        flags: &Option<Vec<PayloadFlag>>,
         send_id: u32,
         cmd: u8,
         args: &[u8],
         receive_require: bool,
     ) -> std::result::Result<Vec<u8>, ProtocolError> {
-        let mut data = ISO15765Data {
-            id: send_id,
-            data: vec![cmd],
-            pad_frame: false,
-            ext_addressing: true,
-        };
-        data.data.extend_from_slice(args);
+        let mut tx_data = vec![cmd];
+        tx_data.extend_from_slice(args);
+        let mut tx = InterfacePayload::new(send_id, &tx_data);
+        if let Some(f) = flags {
+            tx.flags = f.clone();
+        }
         if !receive_require {
-            server
-                .send_iso15765_data(&[data], 0)
+            interface
+                .send_data(&[tx], 0)
                 .map(|_| vec![])
                 .map_err(ProtocolError::CommError)
         } else {
             // Await max 1 second for response
-            let res = server.send_receive_iso15765(data, 1000, 1)?;
-            if res.is_empty() {
-                return Err(ProtocolError::Timeout);
-            }
-            let mut tmp_res = res[0].data.clone();
-            if tmp_res[0] == 0x7F && tmp_res[2] == 0x78 {
+            let mut res = interface.send_recv_data(tx, 0, 2000)?;
+            if res.data[0] == 0x7F && res.data[2] == 0x78 {
                 // ResponsePending
                 println!("DIAG - ECU is processing request - Waiting!");
-                let start = Instant::now();
-                while start.elapsed().as_millis() < 1000 {
-                    // ECU is sending a response, but its busy right now. just gotta wait for the ECU to give us its response!
-                    if let Some(msg) = server.read_iso15765_packets(0, 1)?.get(0) {
-                        tmp_res = msg.data.clone();
+                match interface.recv_data(1, 2000) {
+                    Ok(data) => {
+                        if let Some(d) = data.get(0) {
+                            res = d.clone();
+                        } else {
+                            return Err(ProtocolError::ProtocolError(Box::new(
+                                Self::Error::from_byte(res.data[2]),
+                            )));
+                        }
                     }
+                    Err(e) => return Err(ProtocolError::CommError(e)),
                 }
             }
-            if tmp_res[0] == 0x7F {
+            if res.data[0] == 0x7F {
                 // Still error :(
                 Err(ProtocolError::ProtocolError(Box::new(
-                    Self::Error::from_byte(tmp_res[2]),
+                    Self::Error::from_byte(res.data[2]),
                 )))
-            } else if tmp_res[0] == (cmd + 0x40) {
-                Ok(tmp_res)
+            } else if res.data[0] == (cmd + 0x40) {
+                Ok(res.data)
             } else {
                 eprintln!(
                     "DIAG - Command response did not match request? Send: {:02X} - Recv: {:02X}",
-                    cmd, tmp_res[0]
+                    cmd, res.data[0]
                 );
                 Err(ProtocolError::Timeout)
             }

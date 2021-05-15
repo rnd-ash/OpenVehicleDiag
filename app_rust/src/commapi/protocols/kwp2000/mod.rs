@@ -1,4 +1,7 @@
-use commapi::{comm_api::{ComServer, ISO15765Config}, protocols::DTCState};
+use commapi::{
+    comm_api::{ComServer, ISO15765Config},
+    protocols::DTCState,
+};
 use std::sync::atomic::Ordering::Relaxed;
 use std::{
     sync::{
@@ -10,12 +13,16 @@ use std::{
 };
 
 use self::start_diag_session::DiagSession;
-use crate::{
-    commapi::{self},
+use crate::commapi::{
+    self,
+    comm_api::FilterType,
+    iface::{
+        DynamicInterface, Interface, InterfaceConfig, InterfaceType, IsoTPInterface, PayloadFlag,
+    },
 };
 
 use super::{
-    CautionLevel, CommandError, ECUCommand, ProtocolError, ProtocolResult, ProtocolServer,
+    CautionLevel, CommandError, DiagCfg, ECUCommand, ProtocolError, ProtocolResult, ProtocolServer,
     Selectable, DTC,
 };
 
@@ -342,7 +349,6 @@ impl CommandError for KwpNegativeCode {
 
 #[derive(Debug, Clone)]
 pub struct KWP2000ECU {
-    iso_tp_settings: ISO15765Config,
     should_run: Arc<AtomicBool>,
     last_error: Arc<RwLock<Option<ProtocolError>>>,
     cmd_tx: Sender<(u8, Vec<u8>, bool)>,
@@ -416,16 +422,31 @@ impl ProtocolServer for KWP2000ECU {
     type Command = Service;
     type Error = KwpNegativeCode;
     fn start_diag_session(
-        mut comm_server: Box<dyn ComServer>,
-        cfg: &ISO15765Config,
-        global_tester_present_addr: Option<u32>,
+        comm_server: &Box<dyn ComServer>,
+        interface_type: InterfaceType,
+        interface_cfg: InterfaceConfig,
+        tx_flags: Option<Vec<PayloadFlag>>,
+        diag_cfg: DiagCfg,
     ) -> ProtocolResult<Self> {
-        comm_server
-            .open_iso15765_interface(cfg.baud, cfg.use_ext_can, cfg.use_ext_isotp)
-            .map_err(ProtocolError::CommError)?;
-        comm_server
-            .configure_iso15765(cfg)
-            .map_err(ProtocolError::CommError)?;
+        if interface_type != InterfaceType::IsoTp && interface_type != InterfaceType::Iso14230 {
+            return Err(ProtocolError::CustomError(
+                "KWP2000 Can only be executed over ISO-TP or ISO14230".into(),
+            ));
+        }
+
+        let mut dyn_interface =
+            DynamicInterface::new(comm_server, interface_type, &interface_cfg)?.clone_box();
+        if interface_type == InterfaceType::IsoTp {
+            dyn_interface.add_filter(FilterType::IsoTP {
+                id: diag_cfg.recv_id,
+                mask: 0xFFFF,
+                fc: diag_cfg.send_id,
+            })?;
+        } else {
+            return Err(ProtocolError::CustomError(
+                "KWP2000 over ISO14230 is a WIP".into(),
+            ));
+        }
 
         let should_run = Arc::new(AtomicBool::new(true));
         let should_run_t = should_run.clone();
@@ -446,14 +467,15 @@ impl ProtocolServer for KWP2000ECU {
         let session_type_t = session_type.clone();
 
         // Enter extended diagnostic session (Full features)
-        let s_id = cfg.send_id;
+        let s_id = diag_cfg.send_id;
         std::thread::spawn(move || {
             println!("KWP2000 Diag server start!");
             let mut timer = Instant::now();
             while should_run_t.load(Relaxed) {
                 if let Ok(data) = channel_tx_receiver.try_recv() {
-                    let res = Self::run_command_iso_tp(
-                        comm_server.as_ref(),
+                    let res = Self::run_command_resp(
+                        &mut dyn_interface,
+                        &tx_flags,
                         s_id,
                         data.0,
                         &data.1,
@@ -470,18 +492,33 @@ impl ProtocolServer for KWP2000ECU {
                 {
                     timer = Instant::now();
                     //if let Err(e) = Self::run_command_iso_tp(comm_server.as_ref(), 0x001C, Service::TesterPresent.into(), &[0x02], false) {
-                    
-                    let tp_cmd = match global_tester_present_addr {
+
+                    let tp_cmd = match diag_cfg.global_id {
                         // Global tester present - No response from ECU
-                        Some(x) => Self::run_command_iso_tp(comm_server.as_ref(), x, Service::TesterPresent.into(), &[0x02], false),
-                        None => Self::run_command_iso_tp(comm_server.as_ref(), s_id, Service::TesterPresent.into(), &[0x01], true)
+                        Some(x) => Self::run_command_resp(
+                            &mut dyn_interface,
+                            &tx_flags,
+                            x,
+                            Service::TesterPresent.into(),
+                            &[0x02],
+                            false,
+                        ),
+                        None => Self::run_command_resp(
+                            &mut dyn_interface,
+                            &tx_flags,
+                            s_id,
+                            Service::TesterPresent.into(),
+                            &[0x01],
+                            true,
+                        ),
                     };
                     if let Err(e) = tp_cmd {
                         if e.is_timeout() {
                             println!("Lost connection with ECU! - {:?}", e);
                             // Try to regain connection
-                            if Self::run_command_iso_tp(
-                                comm_server.as_ref(),
+                            if Self::run_command_resp(
+                                &mut dyn_interface,
+                                &tx_flags,
                                 s_id,
                                 Service::StartDiagSession.into(),
                                 &[0x92],
@@ -502,16 +539,15 @@ impl ProtocolServer for KWP2000ECU {
                 std::thread::sleep(std::time::Duration::from_micros(100))
             }
             println!("Diag server stop!");
-            comm_server.close_iso15765_interface();
+            let _res = dyn_interface.close();
         });
 
         let mut ecu = KWP2000ECU {
-            iso_tp_settings: *cfg,
             should_run,
             last_error,
             cmd_tx: channel_tx_sender,
             cmd_rx: Arc::new(channel_rx_receiver),
-            send_id: cfg.send_id,
+            send_id: diag_cfg.send_id,
             curr_session_type: session_type, // Assumed,
             cmd_mutex: Arc::new(Mutex::new(())),
         };
@@ -557,12 +593,12 @@ impl ProtocolServer for KWP2000ECU {
             //let flag = (status >> 4 & 0b00000001) > 0;
             //0b011
             let storage_state = (status >> 5) & 0b0000011;
-            
+
             let state = match storage_state {
                 1 => DTCState::Stored,
                 2 => DTCState::Pending,
                 3 => DTCState::Permanent,
-                _ => DTCState::None
+                _ => DTCState::None,
             };
 
             let mil = (status >> 7 & 0b00000001) > 0;
@@ -571,7 +607,7 @@ impl ProtocolServer for KWP2000ECU {
                 error: name,
                 state,
                 check_engine_on: mil,
-                id: ((bytes[0] as u32) << 8) | bytes[1] as u32
+                id: ((bytes[0] as u32) << 8) | bytes[1] as u32,
             });
             bytes.drain(0..3); // DTC is 3 bytes (1 for status, 2 for the ID)
         }
