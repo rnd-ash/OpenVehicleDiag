@@ -1,10 +1,9 @@
-use crate::{commapi::{comm_api::{CanFrame, ComServer, FilterType}, iface::{CanbusInterface, IFACE_CFG, Interface, InterfaceConfig, InterfacePayload}}, themes::{TextType, checkbox, picklist, text}};
+use crate::{commapi::{comm_api::{ComServer, FilterType}, iface::{CanbusInterface, IFACE_CFG, Interface, InterfaceConfig, InterfacePayload}}, themes::{TextType, checkbox, picklist, text}};
 use crate::themes::{button_coloured, ButtonType};
 use crate::windows::window::WindowMessage;
 use iced::{pick_list, time};
 use iced::{button, Color, Column, Element, Length, Row, Scrollable, Subscription, Text};
-use iced_native::Widget;
-use std::{borrow::Cow, collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 use std::time::Instant;
 
 #[derive(Debug, Clone)]

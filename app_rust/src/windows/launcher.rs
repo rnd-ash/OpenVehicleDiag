@@ -6,11 +6,8 @@ use crate::themes::{button_coloured, container, picklist, radio_btn, text, Butto
 use crate::windows::launcher::LauncherMessage::LaunchRequested;
 use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::window::{ApplicationError, WindowMessage};
-use crate::{
-    passthru::{PassthruDevice, PassthruDrv},
-    themes::images::{pix_to_iced_image},
-};
-use iced::{button, pick_list, Align, Column, Element, Image, Length, Row, Text};
+use crate::passthru::{PassthruDevice, PassthruDrv};
+use iced::{button, pick_list, Align, Column, Element, Length, Row, Text};
 
 #[cfg(target_os = "linux")]
 use crate::commapi::socket_can_api::SocketCanAPI;

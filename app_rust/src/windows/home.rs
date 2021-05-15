@@ -32,6 +32,7 @@ impl Home {
         ret
     }
 
+    #[allow(dead_code)]
     pub fn update(&mut self, _msg: &HomeMessage) -> Option<WindowMessage> {
         None
     }

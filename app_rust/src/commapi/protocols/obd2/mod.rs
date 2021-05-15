@@ -1,4 +1,4 @@
-use std::{borrow::{Borrow, BorrowMut}, sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, Sender}}, vec};
+use std::{sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, Sender}}, vec};
 
 use commapi::protocols::ProtocolError;
 
@@ -55,7 +55,7 @@ impl CommandError for ObdError {
         Some("OBD Command not supported".into())
     }
 
-    fn from_byte(b: u8) -> Self
+    fn from_byte(_b: u8) -> Self
     where
         Self: Sized {
         Self::CmdNotSupported
@@ -150,7 +150,7 @@ pub struct ObdServer {
     s07: Option<Service07>,
     s08: Option<Service08>,
     s09: Option<Service09>,
-    s0A: Option<Service0A>,
+    s10: Option<Service0A>,
 }
 
 impl ObdServer {
@@ -177,7 +177,7 @@ impl ObdServer {
         res.push((self.s07.is_some(), 0x07, "Show pending DTCs".into()));
         res.push((self.s08.is_some(), 0x08, "Control operation".into()));
         res.push((self.s09.is_some(), 0x09, "Vehicle Info".into()));
-        res.push((self.s0A.is_some(), 0x0A, "Permanent DTCs".into()));
+        res.push((self.s10.is_some(), 0x0A, "Permanent DTCs".into()));
         return res;
     }
 
@@ -189,30 +189,30 @@ impl ObdServer {
             return
         }
         for idx in 0..num_dtcs as usize {
-            let A = bytes[idx*2+1];
-            let B = bytes[idx*2+2];
-            let char = match (A & 0b11000000) >> 6 {
+            let a = bytes[idx*2+1];
+            let b = bytes[idx*2+2];
+            let char = match (a & 0b11000000) >> 6 {
                 0 => 'P',
                 1 => 'C',
                 2 => 'B',
                 _ => 'U'
             };
 
-            let second = match (A & 0b00001100) >> 4 {
+            let second = match (a & 0b00001100) >> 4 {
                 0 => '0',
                 1 => '1',
                 2 => '2',
                 _ => '3',
             };
             // STD Hex representation
-            let third = format!("{:1X}", A & 0b00001111);
-            let fourth = format!("{:02X}", B);
+            let third = format!("{:1X}", a & 0b00001111);
+            let fourth = format!("{:02X}", b);
 
             res.push(DTC {
                 error: format!("{}{}{}{}", char, second, third, fourth),
                 state: state,
                 check_engine_on: state == DTCState::Stored || state == DTCState::Permanent,
-                id: (A as u32) << 8 | B as u32,
+                id: (a as u32) << 8 | b as u32,
             })
         }
     }
@@ -282,7 +282,7 @@ impl ProtocolServer for ObdServer {
                 std::thread::sleep(std::time::Duration::from_micros(100))
             }
             println!("OBD2 Server stop!");
-            dyn_interface.close();
+            let _res = dyn_interface.close();
         });
 
         let mut server = ObdServer {
@@ -299,7 +299,7 @@ impl ProtocolServer for ObdServer {
             s07: None,
             s08: None,
             s09: None,
-            s0A: None,
+            s10: None,
         };
         std::thread::sleep(std::time::Duration::from_millis(100)); // Wait for diag server to start
 
@@ -322,7 +322,7 @@ impl ProtocolServer for ObdServer {
         if self.cmd_tx.send((cmd, Vec::from(args), true)).is_err() {
             return Err(ProtocolError::CustomError("Channel Tx failed".into()));
         }
-        let mut resp = self.cmd_rx.recv().unwrap()?;
+        let resp = self.cmd_rx.recv().unwrap()?;
         if resp[0] == 0x7F {
             Err(ProtocolError::ProtocolError(Box::new(ObdError::from_byte(0))))
         } else {

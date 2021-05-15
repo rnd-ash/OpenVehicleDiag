@@ -1,9 +1,6 @@
-use std::marker::PhantomData;
-
 use iced::{Column, Element, Length, Row, Scrollable, scrollable};
-use iced_native::Widget;
 
-use crate::themes::{ButtonType, TextType, button_coloured, button_outlined, button_table, text};
+use crate::themes::{ButtonType, TextType, button_table, text};
 
 #[derive(Debug, Copy, Clone)]
 pub struct TableMsg(pub usize, pub usize);
@@ -88,10 +85,6 @@ impl Table {
         }
     }
 
-    pub fn set_default_text(&mut self, default: String) {
-        self.default_text = default;
-    }
-
     pub fn view(&mut self) -> Element<TableMsg>{
 
         if self.header_row.is_empty() || self.text_matrix.is_empty() {
@@ -100,7 +93,7 @@ impl Table {
 
         let mut row = Row::new();
 
-        let mut scroll = Scrollable::new(&mut self.scroll_sate);
+        let scroll = Scrollable::new(&mut self.scroll_sate);
 
         let mut column = Column::new();
 

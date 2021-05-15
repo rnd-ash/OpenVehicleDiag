@@ -9,9 +9,9 @@ use std::{
 use iced::{time, Column, Container, Length, Row, Space, Subscription};
 use log_view::{LogType, LogView};
 
-use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DiagCfg, ProtocolServer}, protocols::uds::UDSECU}, themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize}, windows::{diag_manual::DiagManualMessage, window}};
+use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DiagCfg, ProtocolServer}, protocols::uds::UDSECU}, themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize}, windows::window};
 
-use super::{log_view, DiagMessageTrait, SessionMsg, SessionResult, SessionTrait};
+use super::{log_view, DiagMessageTrait, SessionResult, SessionTrait};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UDSDiagSessionMsg {
@@ -19,7 +19,6 @@ pub enum UDSDiagSessionMsg {
     DisconnectECU,
     Back,
     PollServer(Instant),
-    LoadErrorDefinition,
     ClearLogs,
     ClearErrors,
     ReadCodes,
@@ -288,9 +287,7 @@ impl SessionTrait for UDSDiagSession {
                     }
                 }
             }
-            
             UDSDiagSessionMsg::Back => {}
-            UDSDiagSessionMsg::LoadErrorDefinition => {}
         }
         None
     }

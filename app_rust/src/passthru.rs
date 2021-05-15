@@ -201,6 +201,7 @@ impl PassthruDrv {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_connected(&self) -> bool {
         self.is_connected
     }
@@ -366,6 +367,7 @@ impl PassthruDrv {
 
     //type PassThruStartPeriodicMsgFn = unsafe extern "stdcall" fn(channel_id: u32, msg: *const PASSTHRU_MSG, msg_id: *mut u32, time_interval: u32) -> i32;
     /// Returns message ID
+    #[allow(dead_code)]
     pub fn start_periodic_msg(
         &self,
         channel_id: u32,
@@ -385,6 +387,7 @@ impl PassthruDrv {
     }
 
     //type PassThruStopPeriodicMsgFn = unsafe extern "stdcall" fn(channel_id: u32, msg_id: u32) -> i32;
+    #[allow(dead_code)]
     pub fn stop_periodic_msg(&self, channel_id: u32, msg_id: u32) -> Result<()> {
         ret_res(unsafe { (&self.stop_periodic_fn)(channel_id, msg_id) }, ())
     }
@@ -444,6 +447,7 @@ impl PassthruDrv {
     }
 
     //type PassThruSetProgrammingVoltageFn = unsafe extern "stdcall" fn(device_id: u32, pin_number: u32, voltage: u32) -> i32;
+    #[allow(dead_code)]
     pub fn set_programming_voltage(&self, dev_id: u32, pin: u32, voltage: u32) -> Result<()> {
         ret_res(unsafe { (&self.set_prog_v_fn)(dev_id, pin, voltage) }, ())
     }
@@ -506,6 +510,7 @@ pub enum LoadDeviceError {
 }
 
 impl LoadDeviceError {
+    #[allow(dead_code)]
     pub fn get_err_desc(&self) -> String {
         match &self {
             LoadDeviceError::NoName => "No device name attribute".to_string(),

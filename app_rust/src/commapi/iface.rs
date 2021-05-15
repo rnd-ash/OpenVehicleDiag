@@ -1,14 +1,13 @@
-use std::{borrow::{Borrow, BorrowMut}, cell::{Cell, RefCell}, collections::HashMap, sync::{Arc, Mutex}};
+use std::{borrow::BorrowMut, collections::HashMap, sync::{Arc, Mutex}};
 use std::fmt::Debug;
-use lazy_static::__Deref;
 
-use super::{comm_api::{Capability, ComServer, ComServerError, FilterType, CanFrame, ISO15765Data}, protocols::ProtocolResult};
+use super::{comm_api::{Capability, ComServer, ComServerError, FilterType, CanFrame, ISO15765Data}};
 
 
 pub type InterfaceResult<T> = std::result::Result<T, ComServerError>;
 
 #[derive(Debug)]
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, dead_code)]
 pub enum IFACE_CFG {
     BAUDRATE,
     SEND_ID,
@@ -84,6 +83,7 @@ impl InterfaceConfig {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum BufferType {
     TX,
     RX,
@@ -97,9 +97,9 @@ pub trait Interface: Send + Sync + Debug {
     fn add_filter(&mut self, f: FilterType) -> InterfaceResult<u32>;
     fn rem_filter(&mut self, f_id: u32) -> InterfaceResult<()>;
     fn close(&mut self) -> InterfaceResult<()>;
-    fn clearBuffer(&mut self, bufType: BufferType) -> InterfaceResult<()>;
+    fn clear_buffer(&mut self, buffer_type: BufferType) -> InterfaceResult<()>;
     fn send_recv_data(&mut self, request: InterfacePayload, write_timeout: u32, read_timeout: u32) -> InterfaceResult<InterfacePayload> {
-        self.clearBuffer(BufferType::RX);
+        self.clear_buffer(BufferType::RX)?;
         self.send_data(&[request], write_timeout)?;
         let res = self.recv_data(1, read_timeout)?;
         if res.is_empty() {
@@ -133,8 +133,8 @@ impl CanbusInterface {
 
 impl Interface for CanbusInterface {
 
-    fn clearBuffer(&mut self, bufType: BufferType) -> InterfaceResult<()> {
-        match bufType {
+    fn clear_buffer(&mut self, buffer_type: BufferType) -> InterfaceResult<()> {
+        match buffer_type {
             BufferType::TX => self.dev.clear_can_tx_buffer(),
             BufferType::RX => self.dev.clear_can_rx_buffer(),
             BufferType::BOTH => {
@@ -210,8 +210,8 @@ impl IsoTPInterface {
 
 impl Interface for IsoTPInterface {
 
-    fn clearBuffer(&mut self, bufType: BufferType) -> InterfaceResult<()> {
-        match bufType {
+    fn clear_buffer(&mut self, buffer_type: BufferType) -> InterfaceResult<()> {
+        match buffer_type {
             BufferType::TX => self.dev.clear_iso15765_tx_buffer(),
             BufferType::RX => self.dev.clear_iso15765_rx_buffer(),
             BufferType::BOTH => {
@@ -295,8 +295,9 @@ impl Iso14230Interface {
     }
 }
 
+#[allow(unused_variables)]
 impl Interface for Iso14230Interface {
-    fn clearBuffer(&mut self, bufType: BufferType) -> InterfaceResult<()> {
+    fn clear_buffer(&mut self, buffer_type: BufferType) -> InterfaceResult<()> {
         todo!()
     }
 
@@ -349,8 +350,9 @@ impl Iso9141Interface {
     }
 }
 
+#[allow(unused_variables)]
 impl Interface for Iso9141Interface {
-    fn clearBuffer(&mut self, bufType: BufferType) -> InterfaceResult<()> {
+    fn clear_buffer(&mut self, buffer_type: BufferType) -> InterfaceResult<()> {
         todo!()
     }
 
@@ -425,6 +427,7 @@ impl DynamicInterface {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_name(&self) -> &str {
         if let Some(s) = self.iface_type {
             match &s {
@@ -468,8 +471,8 @@ impl Interface for DynamicInterface {
         self.exec(|iface| iface.close())
     }
 
-    fn clearBuffer(&mut self, bufType: BufferType) -> InterfaceResult<()> {
-        self.exec(|iface| iface.clearBuffer(bufType))
+    fn clear_buffer(&mut self, buffer_type: BufferType) -> InterfaceResult<()> {
+        self.exec(|iface| iface.clear_buffer(buffer_type))
     }
 
     fn send_recv_data(&mut self, request: InterfacePayload, write_timeout: u32, read_timeout: u32) -> InterfaceResult<InterfacePayload> {

@@ -6,7 +6,7 @@ use commapi::{
 };
 use iced::{Align, Column, Element, Length, Row, Space};
 
-use crate::{commapi::{self, comm_api::{CanFrame, ComServer, FilterType}, iface::{BufferType, DynamicInterface, IFACE_CFG, Interface, InterfaceConfig, InterfacePayload, InterfaceType, PayloadFlag}, protocols::{DiagCfg, kwp2000::read_ecu_identification::read_dcx_mmc_id}}, themes::{
+use crate::{commapi::{self, comm_api::{ComServer, FilterType}, iface::{BufferType, DynamicInterface, IFACE_CFG, Interface, InterfaceConfig, InterfacePayload, InterfaceType, PayloadFlag}, protocols::{DiagCfg, kwp2000::read_ecu_identification::read_dcx_mmc_id}}, themes::{
         button_coloured, button_outlined, progress_bar, text, title_text, ButtonType, TextType,
     }};
 
@@ -87,7 +87,7 @@ impl DiagScanner {
                         if let Err(e) = self.activate_interface.send_data(
                             &[InterfacePayload::new(0x07Df, &[0x09, 0x02])], 0
                         ) {
-                            self.status = "Could not send wake up test packet".into();
+                            self.status = format!("Could not send wake up test packet: {}", e);
                             self.activate_interface.close().expect("WTF. Could not close CAN Interface!?");
                         } else {
                             std::thread::sleep(std::time::Duration::from_millis(500));
@@ -110,7 +110,10 @@ impl DiagScanner {
                 self.can_traffic_id_list.insert(0x07DF, false); // Add OBD-II CAN ID so we don't scan that
                 self.curr_stage += 1; // We can progress to the next stage!
                 self.curr_scan_id = 0x0; // Set start ID to 0
-                self.activate_interface.clearBuffer(BufferType::BOTH);
+                if let Err(e) = self.activate_interface.clear_buffer(BufferType::BOTH) {
+                    self.status = format!("Could not set Clear CAN Tx/Rx buffers: {}", e);
+                    return None;
+                }
                 return Some(DiagScannerMessage::ScanPoll); // Begin the CAN interrogation (Stage 1)
             }
             2 => {
@@ -199,7 +202,7 @@ impl DiagScanner {
                 } else if self.clock.elapsed().as_millis() >= 100 {
                     // Timeout waiting for response
                     self.get_next_canid();
-                    self.activate_interface.clearBuffer(BufferType::RX);
+                    self.activate_interface.clear_buffer(BufferType::RX);
                     // Send a fake ISO-TP first frame. Tell the potential ECU we are sending 16 bytes to it. If it uses ISO-TP, it'll send back a
                     // flow control message back to OVD
                     self.activate_interface.send_data(
@@ -232,7 +235,7 @@ impl DiagScanner {
             3 => {
                 if self.clock.elapsed().as_millis() > 100 {
                     self.activate_interface.rem_filter(self.filter_idx);
-                    self.activate_interface.clearBuffer(BufferType::BOTH);
+                    self.activate_interface.clear_buffer(BufferType::BOTH);
                     if self.curr_scan_id as usize >= self.stage2_results.len() {
                         self.activate_interface.close(); // We don't need CAN anymore
                         return Some(DiagScannerMessage::IncrementStage); // Done with stage3 scan
@@ -432,7 +435,6 @@ impl DiagScanner {
                 }
                 None
             }
-            _ => None,
         }
     }
 
@@ -645,7 +647,7 @@ impl DiagScanner {
     }
 
     fn draw_stage_7(&mut self) -> Element<DiagScannerMessage> {
-        let mut c = Column::new()
+        let c = Column::new()
             .padding(10)
             .spacing(10)
             .align_items(Align::Center)

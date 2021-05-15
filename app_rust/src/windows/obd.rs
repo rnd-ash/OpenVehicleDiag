@@ -1,11 +1,10 @@
-use crate::{commapi::{comm_api::{Capability, ComServer, ISO15765Config}, iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DiagCfg, ProtocolServer, obd2::{self, ObdServer, service09::Service09Data}}}, themes::button_coloured};
-use crate::commapi::protocols::vin::Vin;
+use crate::{commapi::{comm_api::{Capability, ComServer}, iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DiagCfg, ProtocolServer, obd2::{ObdServer, service09::Service09Data}}}, themes::button_coloured};
 use crate::themes::{button_outlined, text, title_text, ButtonType, TextType, TitleSize};
 use iced::{button, Align, Button, Column, Element, Length, Row, Space, Text};
 
 #[derive(Debug, Clone)]
 pub enum OBDMessage {
-    InitOBD_IsoTP,
+    InitIsoTP,
     Disconnect,
     ChooseService(u8),
 }
@@ -39,7 +38,7 @@ impl OBDHome {
     pub fn update(&mut self, msg: &OBDMessage) -> Option<OBDMessage> {
         match msg {
 
-            OBDMessage::InitOBD_IsoTP => {
+            OBDMessage::InitIsoTP => {
                 // Try all the CAN IDs
                 for test_id in [0x07E8, 0x07E9, 0x07E0].iter() {
                     let mut cfg = InterfaceConfig::new();
@@ -87,7 +86,6 @@ impl OBDHome {
                 }
                 self.curr_service = sid; // What service UI should we be in?
             }
-            OBDMessage::ChooseService(_) => {}
         }
         None
     }
@@ -143,7 +141,7 @@ impl OBDHome {
         let can_btn = match self.server.get_capabilities().supports_iso15765() {
             Capability::Yes => {
                 button_outlined(&mut self.can_state, "OBD over CANBUS", ButtonType::Danger)
-                    .on_press(OBDMessage::InitOBD_IsoTP)
+                    .on_press(OBDMessage::InitIsoTP)
             }
             _ => Button::new(
                 &mut self.can_state,

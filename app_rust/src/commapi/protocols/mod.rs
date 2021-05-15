@@ -1,12 +1,12 @@
-use std::{fmt::Display, time::Instant};
+use std::{fmt::Display};
 
-use comm_api::{ComServerError, ISO15765Config};
+use comm_api::{ComServerError};
 use kwp2000::KWP2000ECU;
 use uds::UDSECU;
 
 use self::{kwp2000::read_ecu_identification, uds::read_data};
 
-use super::{comm_api::{self, ComServer, ISO15765Data}, iface::{Interface, InterfaceConfig, InterfacePayload, InterfaceType, PayloadFlag}};
+use super::{comm_api::{self, ComServer}, iface::{Interface, InterfaceConfig, InterfacePayload, InterfaceType, PayloadFlag}};
 
 pub mod kwp2000;
 pub mod obd2;

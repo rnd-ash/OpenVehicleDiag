@@ -16,7 +16,6 @@ pub enum KWP2000DiagSessionMsg {
     DisconnectECU,
     Back,
     PollServer(Instant),
-    LoadErrorDefinition,
     ClearLogs,
     ClearErrors,
     ReadCodes,
