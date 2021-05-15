@@ -2,7 +2,7 @@ use super::{
     diag_manual::{DiagManual, DiagManualMessage},
     diag_scanner::{DiagScanner, DiagScannerMessage},
 };
-use crate::commapi::comm_api::{ComServer};
+use crate::commapi::comm_api::ComServer;
 use crate::themes::{button_outlined, text, title_text, ButtonType, TextType, TitleSize};
 use iced::{Align, Column, Element, Length, Row, Space, Subscription};
 use serde::{Deserialize, Serialize};

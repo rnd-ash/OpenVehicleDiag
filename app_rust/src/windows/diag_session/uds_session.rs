@@ -9,7 +9,16 @@ use std::{
 use iced::{time, Column, Container, Length, Row, Space, Subscription};
 use log_view::{LogType, LogView};
 
-use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DiagCfg, ProtocolServer}, protocols::uds::UDSECU}, themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize}, windows::window};
+use crate::{
+    commapi::{
+        comm_api::{ComServer, ISO15765Config},
+        iface::{InterfaceConfig, InterfaceType, PayloadFlag, IFACE_CFG},
+        protocols::uds::UDSECU,
+        protocols::{DiagCfg, ProtocolServer},
+    },
+    themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize},
+    windows::window,
+};
 
 use super::{log_view, DiagMessageTrait, SessionResult, SessionTrait};
 
@@ -169,7 +178,6 @@ impl SessionTrait for UDSDiagSession {
                 cfg.add_param(IFACE_CFG::ISOTP_BS, self.ecu.block_size);
                 cfg.add_param(IFACE_CFG::ISOTP_ST_MIN, self.ecu.sep_time);
 
-
                 let diag_cfg = DiagCfg {
                     send_id: self.ecu.send_id,
                     recv_id: self.ecu.recv_id,
@@ -177,11 +185,11 @@ impl SessionTrait for UDSDiagSession {
                 };
 
                 match UDSECU::start_diag_session(
-                    &self.server, 
-                    InterfaceType::IsoTp, 
+                    &self.server,
+                    InterfaceType::IsoTp,
                     cfg,
                     Some(vec![PayloadFlag::ISOTP_PAD_FRAME]),
-                    diag_cfg
+                    diag_cfg,
                 ) {
                     Ok(server) => {
                         window::disable_home();
@@ -294,8 +302,7 @@ impl SessionTrait for UDSDiagSession {
 
     fn subscription(&self) -> iced::Subscription<Self::msg> {
         if self.diag_server.is_some() {
-            time::every(std::time::Duration::from_millis(250))
-                .map(UDSDiagSessionMsg::PollServer)
+            time::every(std::time::Duration::from_millis(250)).map(UDSDiagSessionMsg::PollServer)
         } else {
             Subscription::none()
         }

@@ -1,12 +1,17 @@
-use std::{
-    borrow::BorrowMut,
-    time::Instant,
-};
+use std::{borrow::BorrowMut, time::Instant};
 
 use iced::{time, Column, Container, Length, Row, Space, Subscription};
 use log_view::{LogType, LogView};
 
-use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DTCState, DiagCfg, ProtocolServer, kwp2000::KWP2000ECU}}, themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize}, windows::window};
+use crate::{
+    commapi::{
+        comm_api::{ComServer, ISO15765Config},
+        iface::{InterfaceConfig, InterfaceType, PayloadFlag, IFACE_CFG},
+        protocols::{kwp2000::KWP2000ECU, DTCState, DiagCfg, ProtocolServer},
+    },
+    themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize},
+    windows::window,
+};
 
 use super::{log_view, DiagMessageTrait, SessionResult, SessionTrait};
 
@@ -173,11 +178,11 @@ impl SessionTrait for KWP2000DiagSession {
                 };
 
                 match KWP2000ECU::start_diag_session(
-                    &self.server, 
-                    InterfaceType::IsoTp, 
+                    &self.server,
+                    InterfaceType::IsoTp,
                     cfg,
                     Some(vec![PayloadFlag::ISOTP_PAD_FRAME]),
-                    diag_cfg
+                    diag_cfg,
                 ) {
                     Ok(server) => {
                         window::disable_home();
@@ -248,26 +253,38 @@ impl SessionTrait for KWP2000DiagSession {
                                 );
                                 self.can_clear_codes = true;
                                 for x in &errors {
-                                    let status = if !x.check_engine_on {
-                                        " MIL ON "
-                                    } else {
-                                        "  "
-                                    };
+                                    let status = if !x.check_engine_on { " MIL ON " } else { "  " };
                                     match &x.state {
                                         &DTCState::Permanent => {
-                                            self.logview.add_msg(format!("{} {} - Permanent DTC", x.error, status).as_str(), LogType::Error);
-                                        },
+                                            self.logview.add_msg(
+                                                format!("{} {} - Permanent DTC", x.error, status)
+                                                    .as_str(),
+                                                LogType::Error,
+                                            );
+                                        }
                                         &DTCState::Stored => {
-                                            self.logview.add_msg(format!("{} {} - Stored DTC", x.error, status).as_str(), LogType::Error);
-                                        },
+                                            self.logview.add_msg(
+                                                format!("{} {} - Stored DTC", x.error, status)
+                                                    .as_str(),
+                                                LogType::Error,
+                                            );
+                                        }
                                         &DTCState::Pending => {
-                                            self.logview.add_msg(format!("{} {} - Pending DTC", x.error, status).as_str(), LogType::Warn);
-                                        },
+                                            self.logview.add_msg(
+                                                format!("{} {} - Pending DTC", x.error, status)
+                                                    .as_str(),
+                                                LogType::Warn,
+                                            );
+                                        }
                                         &DTCState::None => {
-                                            self.logview.add_msg(format!("{} {} - New DTC", x.error, status).as_str(), LogType::Info);
-                                        },
+                                            self.logview.add_msg(
+                                                format!("{} {} - New DTC", x.error, status)
+                                                    .as_str(),
+                                                LogType::Info,
+                                            );
+                                        }
                                     }
-                                    
+
                                     println!("{}", x);
                                 }
                             }

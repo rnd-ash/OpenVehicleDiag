@@ -1,12 +1,15 @@
 use std::process::Command;
 
-use crate::{commapi::comm_api::{ComServer, ComServerError}, themes::images::get_launcher_image};
 use crate::commapi::passthru_api::PassthruApi;
+use crate::passthru::{PassthruDevice, PassthruDrv};
 use crate::themes::{button_coloured, container, picklist, radio_btn, text, ButtonType, TextType};
 use crate::windows::launcher::LauncherMessage::LaunchRequested;
 use crate::windows::window::ApplicationError::DriverError;
 use crate::windows::window::{ApplicationError, WindowMessage};
-use crate::passthru::{PassthruDevice, PassthruDrv};
+use crate::{
+    commapi::comm_api::{ComServer, ComServerError},
+    themes::images::get_launcher_image,
+};
 use iced::{button, pick_list, Align, Column, Element, Length, Row, Text};
 
 #[cfg(target_os = "linux")]
@@ -158,14 +161,14 @@ impl Launcher {
 
         #[cfg(target_os = "linux")] // Only available on Linux
         {
-                selection = selection.push(radio_btn(
-                    API::SocketCAN,
-                    "Socket CAN",
-                    Some(self.api_selection),
-                    LauncherMessage::SwitchAPI,
-                    ButtonType::Primary
-                ));
-            }
+            selection = selection.push(radio_btn(
+                API::SocketCAN,
+                "Socket CAN",
+                Some(self.api_selection),
+                LauncherMessage::SwitchAPI,
+                ButtonType::Primary,
+            ));
+        }
 
         let mut contents = if self.api_selection == API::DPdu {
             Column::new()

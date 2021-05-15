@@ -1,12 +1,15 @@
-use std::{fmt::Display};
+use std::fmt::Display;
 
-use comm_api::{ComServerError};
+use comm_api::ComServerError;
 use kwp2000::KWP2000ECU;
 use uds::UDSECU;
 
 use self::{kwp2000::read_ecu_identification, uds::read_data};
 
-use super::{comm_api::{self, ComServer}, iface::{Interface, InterfaceConfig, InterfacePayload, InterfaceType, PayloadFlag}};
+use super::{
+    comm_api::{self, ComServer},
+    iface::{Interface, InterfaceConfig, InterfacePayload, InterfaceType, PayloadFlag},
+};
 
 pub mod kwp2000;
 pub mod obd2;
@@ -98,7 +101,7 @@ pub enum DTCState {
     None,
     Stored,
     Pending,
-    Permanent
+    Permanent,
 }
 
 #[derive(Debug, Clone)]
@@ -145,11 +148,23 @@ impl DiagServer {
         interface_type: InterfaceType,
         interface_cfg: InterfaceConfig,
         tx_flags: Option<Vec<PayloadFlag>>,
-        diag_cfg: DiagCfg
+        diag_cfg: DiagCfg,
     ) -> ProtocolResult<Self> {
         Ok(match protocol {
-            DiagProtocol::KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(comm_server, interface_type, interface_cfg, tx_flags, diag_cfg)?),
-            DiagProtocol::UDS => Self::UDS(UDSECU::start_diag_session(comm_server, interface_type, interface_cfg, tx_flags, diag_cfg)?),
+            DiagProtocol::KWP2000 => Self::KWP2000(KWP2000ECU::start_diag_session(
+                comm_server,
+                interface_type,
+                interface_cfg,
+                tx_flags,
+                diag_cfg,
+            )?),
+            DiagProtocol::UDS => Self::UDS(UDSECU::start_diag_session(
+                comm_server,
+                interface_type,
+                interface_cfg,
+                tx_flags,
+                diag_cfg,
+            )?),
         })
     }
 
@@ -177,7 +192,7 @@ impl DiagServer {
     pub fn into_kwp(&mut self) -> Option<&mut KWP2000ECU> {
         match self {
             Self::KWP2000(s) => Some(s),
-            Self::UDS(s) => None
+            Self::UDS(s) => None,
         }
     }
 
@@ -197,15 +212,19 @@ impl DiagServer {
 
     pub fn get_variant_id(&self) -> ProtocolResult<u32> {
         match self {
-            Self::KWP2000(s) => read_ecu_identification::read_dcx_mmc_id(&s).map(|x| x.diag_information as u32),
-            Self::UDS(s) => read_data::read_variant_id(s)
+            Self::KWP2000(s) => {
+                read_ecu_identification::read_dcx_mmc_id(&s).map(|x| x.diag_information as u32)
+            }
+            Self::UDS(s) => read_data::read_variant_id(s),
         }
     }
 
     pub fn get_dtc_env_data(&self, dtc: &DTC) -> ProtocolResult<Vec<u8>> {
         match self {
             Self::KWP2000(s) => kwp2000::read_status_dtc::read_status_dtc(s, dtc),
-            Self::UDS(s) => Err(ProtocolError::CustomError("Not implemented (get_dtc_env_data)".into())), // TODO
+            Self::UDS(s) => Err(ProtocolError::CustomError(
+                "Not implemented (get_dtc_env_data)".into(),
+            )), // TODO
         }
     }
 }
@@ -225,7 +244,7 @@ pub trait ProtocolServer: Sized {
         interface_type: InterfaceType,
         interface_cfg: InterfaceConfig,
         tx_flags: Option<Vec<PayloadFlag>>,
-        diag_cfg: DiagCfg
+        diag_cfg: DiagCfg,
     ) -> ProtocolResult<Self>;
     fn exit_diag_session(&mut self);
     fn run_command(&self, cmd: u8, args: &[u8]) -> ProtocolResult<Vec<u8>>;
@@ -248,7 +267,8 @@ pub trait ProtocolServer: Sized {
             tx.flags = f.clone();
         }
         if !receive_require {
-            interface.send_data(&[tx], 0)
+            interface
+                .send_data(&[tx], 0)
                 .map(|_| vec![])
                 .map_err(ProtocolError::CommError)
         } else {
@@ -264,12 +284,10 @@ pub trait ProtocolServer: Sized {
                         } else {
                             return Err(ProtocolError::ProtocolError(Box::new(
                                 Self::Error::from_byte(res.data[2]),
-                            )))
+                            )));
                         }
                     }
-                    Err(e) => {
-                        return Err(ProtocolError::CommError(e))
-                    }
+                    Err(e) => return Err(ProtocolError::CommError(e)),
                 }
             }
             if res.data[0] == 0x7F {

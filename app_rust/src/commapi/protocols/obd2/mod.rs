@@ -1,13 +1,31 @@
-use std::{sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, Sender}}, vec};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex, RwLock,
+    },
+    vec,
+};
 
 use commapi::protocols::ProtocolError;
 
-use crate::commapi::{self, comm_api::{ComServer, FilterType}, iface::{DynamicInterface, Interface, InterfaceConfig, InterfaceType, PayloadFlag}};
+use crate::commapi::{
+    self,
+    comm_api::{ComServer, FilterType},
+    iface::{DynamicInterface, Interface, InterfaceConfig, InterfaceType, PayloadFlag},
+};
 
-use self::{service01::Service01, service02::Service02, service03::Service03, service04::Service04, service05::Service05, service06::Service06, service07::Service07, service08::Service08, service09::Service09, service10::Service0A};
+use self::{
+    service01::Service01, service02::Service02, service03::Service03, service04::Service04,
+    service05::Service05, service06::Service06, service07::Service07, service08::Service08,
+    service09::Service09, service10::Service0A,
+};
 
-use super::{CommandError, DTC, DTCState, DiagCfg, ECUCommand, ProtocolResult, ProtocolServer, Selectable};
+use super::{
+    CommandError, DTCState, DiagCfg, ECUCommand, ProtocolResult, ProtocolServer, Selectable, DTC,
+};
 
+pub mod codes;
 pub mod service01;
 pub mod service02;
 pub mod service03;
@@ -18,12 +36,11 @@ pub mod service07;
 pub mod service08;
 pub mod service09;
 pub mod service10;
-pub mod codes;
 
 pub type OBDError<T> = ProtocolResult<T>;
 
 // Helper function to get bits from byte array, in order MSB to LSB
-pub (crate) fn get_obd_bits(src: &[u8]) -> Vec<bool> {
+pub(crate) fn get_obd_bits(src: &[u8]) -> Vec<bool> {
     let mut res = Vec::new();
     for byte in src {
         let mut mask: u8 = 0b10000000;
@@ -35,15 +52,16 @@ pub (crate) fn get_obd_bits(src: &[u8]) -> Vec<bool> {
     res
 }
 
-trait ObdService where Self: Sized {
+trait ObdService
+where
+    Self: Sized,
+{
     fn init(s: &ObdServer) -> Option<Self>;
 }
 
-
-
 #[derive(Debug, Clone, Copy)]
 pub enum ObdError {
-    CmdNotSupported
+    CmdNotSupported,
 }
 
 impl CommandError for ObdError {
@@ -57,13 +75,14 @@ impl CommandError for ObdError {
 
     fn from_byte(_b: u8) -> Self
     where
-        Self: Sized {
+        Self: Sized,
+    {
         Self::CmdNotSupported
     }
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum OBDCmd{
+pub enum OBDCmd {
     Service01,
     Service02,
     Service03,
@@ -89,7 +108,8 @@ impl Selectable for OBDCmd {
             OBDCmd::Service08 => "Control operation of on-board systems",
             OBDCmd::Service09 => "Request vehicle information",
             OBDCmd::Service0A => "Permanent DTCs",
-        }.into()
+        }
+        .into()
     }
 
     fn get_name(&self) -> String {
@@ -154,11 +174,16 @@ pub struct ObdServer {
 }
 
 impl ObdServer {
-    pub fn req_service09<T, F: Fn(&Service09) -> ProtocolResult<T>>(&self, func: F) -> ProtocolResult<T> {
+    pub fn req_service09<T, F: Fn(&Service09) -> ProtocolResult<T>>(
+        &self,
+        func: F,
+    ) -> ProtocolResult<T> {
         if let Some(s) = &self.s09 {
             func(s)
         } else {
-            Err(ProtocolError::CustomError("Service not supported by ECU".into()))
+            Err(ProtocolError::CustomError(
+                "Service not supported by ECU".into(),
+            ))
         }
     }
 
@@ -172,7 +197,11 @@ impl ObdServer {
         res.push((self.s02.is_some(), 0x02, "Freeze frame data".into()));
         res.push((self.s03.is_some(), 0x03, "Read DTCs".into()));
         res.push((self.s04.is_some(), 0x04, "Clear DTCs".into()));
-        res.push((self.s05.is_some(), 0x05, "O2 monitoring test results".into()));
+        res.push((
+            self.s05.is_some(),
+            0x05,
+            "O2 monitoring test results".into(),
+        ));
         res.push((self.s06.is_some(), 0x06, "test results (other)".into()));
         res.push((self.s07.is_some(), 0x07, "Show pending DTCs".into()));
         res.push((self.s08.is_some(), 0x08, "Control operation".into()));
@@ -181,21 +210,20 @@ impl ObdServer {
         return res;
     }
 
-
     // Used for services 03, 07 and 0A
     fn decode_dtc_resp(&self, bytes: &[u8], state: DTCState, res: &mut Vec<DTC>) {
         let num_dtcs = bytes[0];
         if num_dtcs == 0 {
-            return
+            return;
         }
         for idx in 0..num_dtcs as usize {
-            let a = bytes[idx*2+1];
-            let b = bytes[idx*2+2];
+            let a = bytes[idx * 2 + 1];
+            let b = bytes[idx * 2 + 2];
             let char = match (a & 0b11000000) >> 6 {
                 0 => 'P',
                 1 => 'C',
                 2 => 'B',
-                _ => 'U'
+                _ => 'U',
             };
 
             let second = match (a & 0b00001100) >> 4 {
@@ -235,16 +263,25 @@ impl ProtocolServer for ObdServer {
         diag_cfg: DiagCfg,
     ) -> super::ProtocolResult<Self> {
         if interface_type != InterfaceType::IsoTp && interface_type != InterfaceType::Iso9141 {
-            return Err(ProtocolError::CustomError("OBD-II Can only be executed over ISO-TP or ISO9141".into()))
+            return Err(ProtocolError::CustomError(
+                "OBD-II Can only be executed over ISO-TP or ISO9141".into(),
+            ));
         }
 
-        let mut dyn_interface = DynamicInterface::new(comm_server, interface_type, &interface_cfg)?.clone_box();
+        let mut dyn_interface =
+            DynamicInterface::new(comm_server, interface_type, &interface_cfg)?.clone_box();
         if interface_type == InterfaceType::IsoTp {
-            dyn_interface.add_filter(FilterType::IsoTP{id: diag_cfg.recv_id, mask: 0xFFFF, fc: diag_cfg.send_id})?;
+            dyn_interface.add_filter(FilterType::IsoTP {
+                id: diag_cfg.recv_id,
+                mask: 0xFFFF,
+                fc: diag_cfg.send_id,
+            })?;
         } else {
-            return Err(ProtocolError::CustomError("OBD-II over ISO9141 is a WIP".into()))
+            return Err(ProtocolError::CustomError(
+                "OBD-II over ISO9141 is a WIP".into(),
+            ));
         }
-      
+
         let should_run = Arc::new(AtomicBool::new(true));
         let should_run_t = should_run.clone();
 
@@ -324,7 +361,9 @@ impl ProtocolServer for ObdServer {
         }
         let resp = self.cmd_rx.recv().unwrap()?;
         if resp[0] == 0x7F {
-            Err(ProtocolError::ProtocolError(Box::new(ObdError::from_byte(0))))
+            Err(ProtocolError::ProtocolError(Box::new(ObdError::from_byte(
+                0,
+            ))))
         } else {
             Ok(resp)
         }
@@ -332,15 +371,18 @@ impl ProtocolServer for ObdServer {
 
     fn read_errors(&self) -> super::ProtocolResult<Vec<super::DTC>> {
         let mut res: Vec<DTC> = Vec::new();
-        if let Ok(resp) = self.run_command(0x03, &[]) { //  Stored DTCs
+        if let Ok(resp) = self.run_command(0x03, &[]) {
+            //  Stored DTCs
             println!("S03: {:02X?}", resp);
             self.decode_dtc_resp(&resp[1..], DTCState::Stored, &mut res);
         }
-        if let Ok(resp) = self.run_command(0x07, &[]) { // Pending DTCs
+        if let Ok(resp) = self.run_command(0x07, &[]) {
+            // Pending DTCs
             println!("S07: {:02X?}", resp);
             self.decode_dtc_resp(&resp[1..], DTCState::Pending, &mut res);
         }
-        if let Ok(resp) = self.run_command(0x0A, &[]) { // Permanent DTCs
+        if let Ok(resp) = self.run_command(0x0A, &[]) {
+            // Permanent DTCs
             println!("S0A: {:02X?}", resp);
             self.decode_dtc_resp(&resp[1..], DTCState::Permanent, &mut res);
         }

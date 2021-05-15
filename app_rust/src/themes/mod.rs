@@ -1,9 +1,12 @@
 pub mod elements;
 pub mod images;
 use crate::themes::elements::{ButtonStyle, DropDown, PBar};
-use iced::{Button, Checkbox, Color, Container, Element, PickList, ProgressBar, Radio, Text, button, pick_list};
-use std::ops::RangeInclusive;
+use iced::{
+    button, pick_list, Button, Checkbox, Color, Container, Element, PickList, ProgressBar, Radio,
+    Text,
+};
 use std::borrow::Cow;
+use std::ops::RangeInclusive;
 
 use self::elements::{ButtonTableStyle, CheckBox, TextInput};
 
@@ -31,8 +34,6 @@ const WHITE: Color = Color {
 };
 
 static mut CURR_THEME: Style = Style::Dark;
-
-
 
 static mut DEBUG: bool = false;
 
@@ -151,22 +152,17 @@ pub fn button_table<'a, T: Clone>(
     state: &'a mut button::State,
     text: &str,
     btn_type: ButtonType,
-    is_selected: bool
+    is_selected: bool,
 ) -> Button<'a, T> {
     let color = btn_type.get_colour();
-    Button::new(state, Text::new(text))
-        .style(ButtonTableStyle::new(color, is_selected))
+    Button::new(state, Text::new(text)).style(ButtonTableStyle::new(color, is_selected))
 }
 
-pub fn checkbox<T:Clone, F>(
-    is_checked: bool,
-    label: &str,
-    on_click: F
-) -> Checkbox<T> 
+pub fn checkbox<T: Clone, F>(is_checked: bool, label: &str, on_click: F) -> Checkbox<T>
 where
-F: 'static + Fn(bool) -> T {
-    Checkbox::new(is_checked, label, on_click)
-        .style(CheckBox)
+    F: 'static + Fn(bool) -> T,
+{
+    Checkbox::new(is_checked, label, on_click).style(CheckBox)
 }
 
 pub fn picklist<'a, T, Msg>(

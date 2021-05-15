@@ -2,8 +2,6 @@ use crate::commapi::comm_api::{
     CanFrame, Capability, ComServer, ComServerError, DeviceCapabilities, FilterType, ISO15765Data,
 };
 use crate::passthru::{self, DrvVersion, PassthruDevice, PassthruDrv};
-use std::sync::{Arc, Mutex, RwLock};
-use std::{os::raw::c_void, time::Instant};
 use j2534_rust::FilterType::{BLOCK_FILTER, FLOW_CONTROL_FILTER, PASS_FILTER};
 use j2534_rust::IoctlID::READ_VBATT;
 use j2534_rust::PassthruError::{ERR_FAILED, ERR_INVALID_CHANNEL_ID};
@@ -11,6 +9,8 @@ use j2534_rust::{
     ConnectFlags, IoctlID, IoctlParam, Loggable, PassthruError, Protocol, SConfig, SConfigList,
     TxFlag, PASSTHRU_MSG,
 };
+use std::sync::{Arc, Mutex, RwLock};
+use std::{os::raw::c_void, time::Instant};
 
 #[derive(Debug, Clone)]
 pub struct PassthruApi {
@@ -241,26 +241,29 @@ impl ComServer for PassthruApi {
         Ok(())
     }
 
-    fn add_can_filter(
-        &mut self,
-        f: FilterType) -> Result<u32, ComServerError> {
+    fn add_can_filter(&mut self, f: FilterType) -> Result<u32, ComServerError> {
         match *self.can_channel_idx.read().unwrap() {
             None => Err(self.convert_error(ERR_INVALID_CHANNEL_ID)),
             Some(idx) => {
                 let mut apply_mask = 0;
                 let mut apply_id = 0;
                 let f_type = match f {
-                    FilterType::Pass {id, mask} => {
+                    FilterType::Pass { id, mask } => {
                         apply_mask = mask;
                         apply_id = id;
                         PASS_FILTER
-                    },
-                    FilterType::Block {id, mask} => {
+                    }
+                    FilterType::Block { id, mask } => {
                         apply_mask = mask;
                         apply_id = id;
                         BLOCK_FILTER
-                    },
-                    _ => return Err(ComServerError{ err_code: 99, err_desc: "Cannot apply a flow control filter to CAN".into()})
+                    }
+                    _ => {
+                        return Err(ComServerError {
+                            err_code: 99,
+                            err_desc: "Cannot apply a flow control filter to CAN".into(),
+                        })
+                    }
                 };
 
                 let mut mask_msg = PASSTHRU_MSG {
@@ -297,28 +300,25 @@ impl ComServer for PassthruApi {
         }
     }
 
-    fn add_iso15765_filter(
-        &mut self,
-        f: FilterType
-    ) -> Result<u32, ComServerError> {
+    fn add_iso15765_filter(&mut self, f: FilterType) -> Result<u32, ComServerError> {
         match *self.iso15765_channel_idx.read().unwrap() {
             None => Err(self.convert_error(ERR_INVALID_CHANNEL_ID)),
             Some(idx) => {
-                if let FilterType::IsoTP{id, mask, fc} = f {
+                if let FilterType::IsoTP { id, mask, fc } = f {
                     let mut mask_msg = PASSTHRU_MSG {
                         protocol_id: Protocol::ISO15765 as u32,
                         data_size: 4,
                         ..Default::default()
                     };
                     PassthruApi::u32_to_msg_id(mask, &mut mask_msg);
-    
+
                     let mut ptn_msg = PASSTHRU_MSG {
                         protocol_id: Protocol::ISO15765 as u32,
                         data_size: 4,
                         ..Default::default()
                     };
                     PassthruApi::u32_to_msg_id(id, &mut ptn_msg);
-    
+
                     let mut fc_msg = PASSTHRU_MSG {
                         protocol_id: Protocol::ISO15765 as u32,
                         data_size: 4,
@@ -328,11 +328,20 @@ impl ComServer for PassthruApi {
                     self.driver
                         .lock()
                         .unwrap()
-                        .start_msg_filter(idx, FLOW_CONTROL_FILTER, &mask_msg, &ptn_msg, Some(fc_msg))
+                        .start_msg_filter(
+                            idx,
+                            FLOW_CONTROL_FILTER,
+                            &mask_msg,
+                            &ptn_msg,
+                            Some(fc_msg),
+                        )
                         .map_err(|e| self.convert_error(e))
                 } else {
                     // Error out
-                    Err(ComServerError{ err_code: 99, err_desc: "Cannot apply a pass/block filter to ISOTP".into()})
+                    Err(ComServerError {
+                        err_code: 99,
+                        err_desc: "Cannot apply a pass/block filter to ISOTP".into(),
+                    })
                 }
             }
         }

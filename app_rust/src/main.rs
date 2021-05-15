@@ -1,9 +1,9 @@
 use iced::{Application, Settings};
 mod cli_tests;
 mod commapi;
-mod widgets;
 mod passthru;
 mod themes;
+mod widgets;
 mod windows;
 
 use iced::window::Icon;

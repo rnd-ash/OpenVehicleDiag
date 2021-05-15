@@ -2,7 +2,6 @@ use crate::commapi::protocols::ProtocolServer;
 
 use super::{OBDError, ObdServer};
 
-
 #[derive(Debug, Clone)]
 pub struct Service04;
 

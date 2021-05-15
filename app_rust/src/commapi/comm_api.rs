@@ -102,7 +102,7 @@ unsafe impl Sync for ISO15765Config {}
 pub enum FilterType {
     Pass { id: u32, mask: u32 },
     Block { id: u32, mask: u32 },
-    IsoTP { id: u32, mask: u32, fc: u32 }
+    IsoTP { id: u32, mask: u32, fc: u32 },
 }
 
 #[derive(Debug, Clone)]
@@ -225,8 +225,11 @@ pub trait ComServer: Send + Sync + Debug {
     /// ## Returns
     /// The number of CAN Frames successfully written to the vehicle, if Timeout is 0, this
     /// number will always be equal to the number of frames that were provided.
-    fn send_can_packets(&mut self, data: &[CanFrame], timeout_ms: u32)
-        -> Result<usize, ComServerError>;
+    fn send_can_packets(
+        &mut self,
+        data: &[CanFrame],
+        timeout_ms: u32,
+    ) -> Result<usize, ComServerError>;
 
     /// Returns a boolean indicating if there is at least 1 channel communicating with the car
     fn is_connected(&self) -> bool;
@@ -327,8 +330,7 @@ pub trait ComServer: Send + Sync + Debug {
     ///
     /// ## Returns
     /// The filter ID provided by the adapter. Use this when destroying the filter
-    fn add_can_filter(&mut self, f: FilterType)
-        -> Result<u32, ComServerError>;
+    fn add_can_filter(&mut self, f: FilterType) -> Result<u32, ComServerError>;
 
     /// Tells the adapter to remove an active filter on an open CAN channel
     /// # Params
