@@ -504,7 +504,7 @@ impl ProtocolServer for KWP2000ECU {
                 std::thread::sleep(std::time::Duration::from_micros(100))
             }
             println!("Diag server stop!");
-            dyn_interface.close();
+            let _res = dyn_interface.close();
         });
 
         let mut ecu = KWP2000ECU {

@@ -71,11 +71,6 @@ impl<'a> WindowState {
                     return launcher.update(x);
                 }
             }
-            Self::Home(home) => {
-                if let WindowMessage::Home(x) = msg {
-                    return home.update(x);
-                }
-            }
             Self::CanTracer(tracer) => {
                 if let WindowMessage::CanTracer(x) = msg {
                     return tracer.update(x);
@@ -90,7 +85,8 @@ impl<'a> WindowState {
                 if let WindowMessage::OBDTools(x) = msg {
                     return o.update(x).map(WindowMessage::OBDTools);
                 }
-            }
+            },
+            _ => return None
         }
         None
     }
@@ -111,7 +107,6 @@ impl WindowState {
 #[derive(Debug, Clone)]
 pub enum WindowMessage {
     Launcher(LauncherMessage),
-    Home(HomeMessage),
     CanTracer(TracerMessage),
     DiagHome(DiagHomeMessage),
     OBDTools(OBDMessage),

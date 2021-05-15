@@ -1,14 +1,13 @@
 use core::panic;
-use std::{borrow::Borrow, cell::RefCell, sync::Arc, time::Instant, vec};
+use std::{cell::RefCell, time::Instant, vec};
 use crate::commapi::{iface::{IFACE_CFG, InterfaceConfig, InterfaceType, PayloadFlag}, protocols::{DiagCfg, kwp2000::read_ecu_identification}};
-use common::schema::{ConType, Connection, OvdECU, diag::{TableData, dtc::ECUDTC, service::{Service}}, variant::{ECUVariantDefinition, ECUVariantPattern}};
-use iced::{Align, Column, Length, Row, Scrollable, Subscription, time};
-use lazy_static::__Deref;
+use common::schema::{ConType, Connection, OvdECU, diag::{dtc::ECUDTC, service::{Service}}, variant::{ECUVariantDefinition, ECUVariantPattern}};
+use iced::{Align, Column, Length, Row, Subscription, time};
 
-use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, protocols::{DTC, DTCState, DiagProtocol, DiagServer, ProtocolResult, ProtocolServer, kwp2000::KWP2000ECU}}, themes::{
+use crate::{commapi::{comm_api::{ComServer}, protocols::{DTCState, DiagProtocol, DiagServer, ProtocolResult}}, themes::{
         button_coloured, button_outlined, picklist, text, text_input,
         title_text, ButtonType, TextType,
-    }, widgets::{self, table::{Table, TableMsg}}};
+    }, widgets::table::{Table, TableMsg}};
 
 use super::{
     log_view::{LogType, LogView},
@@ -26,7 +25,6 @@ pub enum JsonDiagSessionMsg {
     ReadErrors,
     ClearErrors,
     ReadInfo,
-    RunService,
     ExecuteService(ServiceRef, Vec<u8>),
     ClearLogs,
     Selector(SelectorMsg),
@@ -133,7 +131,7 @@ impl JsonDiagSession {
                 println!("Server started");
                 let variant = server.get_variant_id()? as u32;
                 let mut unknown_variant = false;
-                let mut ecu_varient = ecu_data.variants.clone().into_iter().find(|x| {
+                let ecu_varient = ecu_data.variants.clone().into_iter().find(|x| {
                     x.clone()
                         .patterns
                         .into_iter()
@@ -514,7 +512,6 @@ impl SessionTrait for JsonDiagSession {
                     
                 }
             }
-            _ => todo!(),
         }
         None
     }

@@ -88,9 +88,6 @@ impl DiagHome {
     pub fn subscription(&self) -> Subscription<DiagHomeMessage> {
         if let Some(ref manual) = self.manual_mode {
             manual.subscription().map(DiagHomeMessage::ManualSession)
-        } else if let Some(ref scan) = self.scan_mode {
-            //todo!()
-            Subscription::none()
         } else {
             Subscription::none()
         }

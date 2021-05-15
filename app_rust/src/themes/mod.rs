@@ -70,6 +70,7 @@ pub(crate) fn get_theme<'a>() -> &'a Style {
     unsafe { &CURR_THEME }
 }
 
+#[allow(dead_code)]
 pub enum ButtonType {
     Primary,
     Secondary,
@@ -81,6 +82,7 @@ pub enum ButtonType {
     Dark,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
 pub enum TextType {
     Success,

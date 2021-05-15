@@ -99,28 +99,6 @@ impl SocketCanAPI {
         Ok(())
     }
 
-    fn run_can_iface_mut<T, F: Fn(&mut CANSocket) -> Result<T, ComServerError>>(&mut self, func: F) -> Result<T, ComServerError> {
-        match self.sockcan_iface.write() {
-            Ok(mut r) => {
-                match r.as_mut() {
-                    Some(x) => func(x),
-                    None => Err(ComServerError {
-                        err_code: 99,
-                        err_desc: "Can Socket was null!".into(),
-    
-                    })
-                }
-            },
-            Err(_) => {
-                Err(ComServerError {
-                    err_code: 99,
-                    err_desc: "Write guard failed on CAN Socket".into(),
-
-                })
-            }
-        }
-    }
-
     fn run_can_iface<T, F: Fn(&CANSocket) -> Result<T, ComServerError>>(&self, func: F) -> Result<T, ComServerError> {
         match self.sockcan_iface.read() {
             Ok(r) => {

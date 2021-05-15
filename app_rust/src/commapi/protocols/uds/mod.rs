@@ -1,6 +1,6 @@
 use self::diag_session_control::DiagSession;
 use super::{CautionLevel, CommandError, DTC, DiagCfg, ECUCommand, ProtocolError, ProtocolResult, ProtocolServer, Selectable};
-use crate::commapi::{comm_api::{ComServer, FilterType, ISO15765Config}, iface::{Interface, InterfaceConfig, InterfaceType, IsoTPInterface, PayloadFlag}};
+use crate::commapi::{comm_api::{ComServer, FilterType}, iface::{InterfaceConfig, InterfaceType, IsoTPInterface, PayloadFlag}};
 use std::sync::atomic::Ordering::Relaxed;
 use std::{
     sync::{
@@ -506,7 +506,7 @@ impl ProtocolServer for UDSECU {
                 std::thread::sleep(std::time::Duration::from_micros(100))
             }
             println!("UDS Diag server stop!");
-            interface.close();
+            let _res = interface.close();
         });
 
         let mut ecu = UDSECU {

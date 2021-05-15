@@ -12,8 +12,6 @@ use crate::commapi::{
 
 use self::{json_session::JsonDiagSessionMsg, kwp2000_session::KWP2000DiagSessionMsg};
 
-use super::diag_manual::DiagManualMessage;
-
 pub mod custom_session;
 pub mod json_session;
 pub mod kwp2000_session;
@@ -33,7 +31,6 @@ pub enum SessionMsg {
     UDS(UDSDiagSessionMsg),
     JSON(JsonDiagSessionMsg),
     Custom(CustomDiagSessionMsg),
-    ExitSession,
 }
 
 impl DiagMessageTrait for SessionMsg {
@@ -43,7 +40,6 @@ impl DiagMessageTrait for SessionMsg {
             SessionMsg::UDS(u) => u.is_back(),
             SessionMsg::JSON(j) => j.is_back(),
             SessionMsg::Custom(c) => c.is_back(),
-            SessionMsg::ExitSession => true,
         }
     }
 }

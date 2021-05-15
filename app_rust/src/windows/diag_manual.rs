@@ -19,7 +19,6 @@ use super::{
 #[derive(Debug, Clone)]
 pub enum DiagManualMessage {
     LaunchFileBrowser,
-    LoadFile(String),
     PickECU(ECUDiagSettings),
     LaunchKWP,
     LaunchKWPCustom,
@@ -27,7 +26,6 @@ pub enum DiagManualMessage {
     LaunchUDSCustom,
     LaunchCustom,
     LaunchCustomCustom,
-    Back,
     Session(SessionMsg),
 
     //User input queues
@@ -116,7 +114,6 @@ impl DiagManual {
             }
         }
         match msg {
-            DiagManualMessage::Back => {}
             DiagManualMessage::LaunchFileBrowser => {
                 if let nfd::Response::Okay(f_path) =
                     nfd::open_file_dialog(Some("json"), None).unwrap_or(nfd::Response::Cancel)
@@ -267,7 +264,7 @@ impl DiagManual {
             return;
         }
 
-        if let SessionType::JSON(ecu, connection) = &session_type {
+        if let SessionType::JSON(_,_) = &session_type {
             match DiagSession::new(&session_type, self.server.clone(), None) {
                 Ok(session) => self.session = Some(session),
                 Err(e) => self.status = format!("Error init diag session: {}", e.get_description()),
