@@ -76,12 +76,7 @@ impl ComServer for DpduAPI {
         unimplemented!()
     }
 
-    fn add_can_filter(
-        &mut self,
-        filter: FilterType,
-        id: u32,
-        mask: u32,
-    ) -> Result<u32, ComServerError> {
+    fn add_can_filter(&mut self, f: FilterType) -> Result<u32, ComServerError> {
         unimplemented!()
     }
 
@@ -89,7 +84,7 @@ impl ComServer for DpduAPI {
         unimplemented!()
     }
 
-    fn add_iso15765_filter(&mut self, id: u32, mask: u32, resp_id: u32) -> Result<u32, ComServerError> {
+    fn add_iso15765_filter(&mut self, f: FilterType) -> Result<u32, ComServerError> {
         unimplemented!()
     }
 

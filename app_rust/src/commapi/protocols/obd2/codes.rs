@@ -1,6 +1,6 @@
 use crate::commapi::protocols::DTC;
 
-pub (crate) fn get_dtc_desc(dtc: &DTC) -> String {
+pub(crate) fn get_dtc_desc(dtc: &DTC) -> String {
     match dtc.error.as_str() {
         "P0100" => "Mass or Volume Air Flow Circuit Malfunction",
         "P0101" => "Mass or Volume Air Flow Circuit Range/Performance Problem",

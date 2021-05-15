@@ -1,7 +1,4 @@
-use std::{
-    borrow::BorrowMut,
-    time::Instant,
-};
+use std::{borrow::BorrowMut, time::Instant};
 
 use iced::{time, Column, Container, Length, Row, Space, Subscription};
 use log_view::{LogType, LogView};
@@ -9,7 +6,8 @@ use log_view::{LogType, LogView};
 use crate::{
     commapi::{
         comm_api::{ComServer, ISO15765Config},
-        protocols::{kwp2000::KWP2000ECU, ProtocolServer, DTCState},
+        iface::{InterfaceConfig, InterfaceType, PayloadFlag, IFACE_CFG},
+        protocols::{kwp2000::KWP2000ECU, DTCState, DiagCfg, ProtocolServer},
     },
     themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize},
     windows::window,
@@ -23,7 +21,6 @@ pub enum KWP2000DiagSessionMsg {
     DisconnectECU,
     Back,
     PollServer(Instant),
-    LoadErrorDefinition,
     ClearLogs,
     ClearErrors,
     ReadCodes,
@@ -167,7 +164,26 @@ impl SessionTrait for KWP2000DiagSession {
     fn update(&mut self, msg: &Self::msg) -> Option<Self::msg> {
         match msg {
             KWP2000DiagSessionMsg::ConnectECU => {
-                match KWP2000ECU::start_diag_session(self.server.clone(), &self.ecu, None) {
+                let mut cfg = InterfaceConfig::new();
+                cfg.add_param(IFACE_CFG::BAUDRATE, self.ecu.baud);
+                cfg.add_param(IFACE_CFG::EXT_CAN_ADDR, self.ecu.use_ext_can as u32);
+                cfg.add_param(IFACE_CFG::EXT_ISOTP_ADDR, self.ecu.use_ext_isotp as u32);
+                cfg.add_param(IFACE_CFG::ISOTP_BS, self.ecu.block_size);
+                cfg.add_param(IFACE_CFG::ISOTP_ST_MIN, self.ecu.sep_time);
+
+                let diag_cfg = DiagCfg {
+                    send_id: self.ecu.send_id,
+                    recv_id: self.ecu.recv_id,
+                    global_id: None,
+                };
+
+                match KWP2000ECU::start_diag_session(
+                    &self.server,
+                    InterfaceType::IsoTp,
+                    cfg,
+                    Some(vec![PayloadFlag::ISOTP_PAD_FRAME]),
+                    diag_cfg,
+                ) {
                     Ok(server) => {
                         window::disable_home();
                         self.diag_server = Some(server);
@@ -237,26 +253,38 @@ impl SessionTrait for KWP2000DiagSession {
                                 );
                                 self.can_clear_codes = true;
                                 for x in &errors {
-                                    let status = if !x.check_engine_on {
-                                        " MIL ON "
-                                    } else {
-                                        "  "
-                                    };
+                                    let status = if !x.check_engine_on { " MIL ON " } else { "  " };
                                     match &x.state {
                                         &DTCState::Permanent => {
-                                            self.logview.add_msg(format!("{} {} - Permanent DTC", x.error, status).as_str(), LogType::Error);
-                                        },
+                                            self.logview.add_msg(
+                                                format!("{} {} - Permanent DTC", x.error, status)
+                                                    .as_str(),
+                                                LogType::Error,
+                                            );
+                                        }
                                         &DTCState::Stored => {
-                                            self.logview.add_msg(format!("{} {} - Stored DTC", x.error, status).as_str(), LogType::Error);
-                                        },
+                                            self.logview.add_msg(
+                                                format!("{} {} - Stored DTC", x.error, status)
+                                                    .as_str(),
+                                                LogType::Error,
+                                            );
+                                        }
                                         &DTCState::Pending => {
-                                            self.logview.add_msg(format!("{} {} - Pending DTC", x.error, status).as_str(), LogType::Warn);
-                                        },
+                                            self.logview.add_msg(
+                                                format!("{} {} - Pending DTC", x.error, status)
+                                                    .as_str(),
+                                                LogType::Warn,
+                                            );
+                                        }
                                         &DTCState::None => {
-                                            self.logview.add_msg(format!("{} {} - New DTC", x.error, status).as_str(), LogType::Info);
-                                        },
+                                            self.logview.add_msg(
+                                                format!("{} {} - New DTC", x.error, status)
+                                                    .as_str(),
+                                                LogType::Info,
+                                            );
+                                        }
                                     }
-                                    
+
                                     println!("{}", x);
                                 }
                             }

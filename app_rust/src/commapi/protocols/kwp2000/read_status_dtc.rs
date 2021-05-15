@@ -1,4 +1,4 @@
-use crate::commapi::protocols::{DTC, ProtocolResult, ProtocolServer};
+use crate::commapi::protocols::{ProtocolResult, ProtocolServer, DTC};
 
 use super::KWP2000ECU;
 

@@ -12,8 +12,6 @@ use crate::commapi::{
 
 use self::{json_session::JsonDiagSessionMsg, kwp2000_session::KWP2000DiagSessionMsg};
 
-use super::diag_manual::DiagManualMessage;
-
 pub mod custom_session;
 pub mod json_session;
 pub mod kwp2000_session;
@@ -33,7 +31,6 @@ pub enum SessionMsg {
     UDS(UDSDiagSessionMsg),
     JSON(JsonDiagSessionMsg),
     Custom(CustomDiagSessionMsg),
-    ExitSession,
 }
 
 impl DiagMessageTrait for SessionMsg {
@@ -43,7 +40,6 @@ impl DiagMessageTrait for SessionMsg {
             SessionMsg::UDS(u) => u.is_back(),
             SessionMsg::JSON(j) => j.is_back(),
             SessionMsg::Custom(c) => c.is_back(),
-            SessionMsg::ExitSession => true,
         }
     }
 }
@@ -86,18 +82,23 @@ impl DiagSession {
         ecu: Option<ISO15765Config>,
     ) -> SessionResult<Self> {
         Ok(match session_type {
-            SessionType::UDS => {
-                Self::UDS(UDSDiagSession::new(comm_server, ecu.ok_or(SessionError::Other("Null ECU configuration!?".into()))?)?)
-            },
-            SessionType::KWP => {
-                Self::KWP(KWP2000DiagSession::new(comm_server, ecu.ok_or(SessionError::Other("Null ECU configuration!?".into()))?)?)
-            },
-            SessionType::Custom => {
-                Self::Custom(CustomDiagSession::new(comm_server, ecu.ok_or(SessionError::Other("Null ECU configuration!?".into()))?)?)
-            },
-            SessionType::JSON(ecu_data, settings) => {
-                Self::JSON(JsonDiagSession::new(comm_server, ecu_data.clone(), settings.clone())?)
-            }
+            SessionType::UDS => Self::UDS(UDSDiagSession::new(
+                comm_server,
+                ecu.ok_or(SessionError::Other("Null ECU configuration!?".into()))?,
+            )?),
+            SessionType::KWP => Self::KWP(KWP2000DiagSession::new(
+                comm_server,
+                ecu.ok_or(SessionError::Other("Null ECU configuration!?".into()))?,
+            )?),
+            SessionType::Custom => Self::Custom(CustomDiagSession::new(
+                comm_server,
+                ecu.ok_or(SessionError::Other("Null ECU configuration!?".into()))?,
+            )?),
+            SessionType::JSON(ecu_data, settings) => Self::JSON(JsonDiagSession::new(
+                comm_server,
+                ecu_data.clone(),
+                settings.clone(),
+            )?),
         })
     }
 

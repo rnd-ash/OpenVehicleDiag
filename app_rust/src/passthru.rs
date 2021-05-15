@@ -1,10 +1,10 @@
+use j2534_rust::FilterType::FLOW_CONTROL_FILTER;
+use j2534_rust::*;
 use lazy_static::lazy_static;
 use libloading::Library;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use std::{ffi::*, fmt};
-use j2534_rust::FilterType::FLOW_CONTROL_FILTER;
-use j2534_rust::*;
 
 lazy_static! {
     pub static ref DRIVER: Arc<RwLock<Option<PassthruDrv>>> = Arc::new(RwLock::new(None));
@@ -141,7 +141,7 @@ fn ret_res<T>(res: i32, ret: T) -> Result<T> {
 
 impl PassthruDrv {
     pub fn load_lib(path: String) -> std::result::Result<PassthruDrv, libloading::Error> {
-        let lib =  unsafe {Library::new(path)? };
+        let lib = unsafe { Library::new(path)? };
         unsafe {
             let open_fn = *lib.get::<PassThruOpenFn>(b"PassThruOpen\0")?.into_raw();
             let close_fn = *lib.get::<PassThruCloseFn>(b"PassThruClose\0")?.into_raw();
@@ -201,6 +201,7 @@ impl PassthruDrv {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_connected(&self) -> bool {
         self.is_connected
     }
@@ -365,6 +366,7 @@ impl PassthruDrv {
 
     //type PassThruStartPeriodicMsgFn = unsafe extern "stdcall" fn(channel_id: u32, msg: *const PASSTHRU_MSG, msg_id: *mut u32, time_interval: u32) -> i32;
     /// Returns message ID
+    #[allow(dead_code)]
     pub fn start_periodic_msg(
         &self,
         channel_id: u32,
@@ -384,6 +386,7 @@ impl PassthruDrv {
     }
 
     //type PassThruStopPeriodicMsgFn = unsafe extern "stdcall" fn(channel_id: u32, msg_id: u32) -> i32;
+    #[allow(dead_code)]
     pub fn stop_periodic_msg(&self, channel_id: u32, msg_id: u32) -> Result<()> {
         ret_res(unsafe { (&self.stop_periodic_fn)(channel_id, msg_id) }, ())
     }
@@ -405,30 +408,26 @@ impl PassthruDrv {
 
         let mut filter_id: u32 = 0;
         let res = match flow_control.as_ref() {
-            None => {
-                unsafe {
-                    (&self.start_filter_fn)(
-                        channel_id,
-                        tmp,
-                        mask as *const PASSTHRU_MSG,
-                        pattern as *const PASSTHRU_MSG,
-                        std::ptr::null() as *const PASSTHRU_MSG,
-                        &mut filter_id as *mut u32,
-                    )
-                }
+            None => unsafe {
+                (&self.start_filter_fn)(
+                    channel_id,
+                    tmp,
+                    mask as *const PASSTHRU_MSG,
+                    pattern as *const PASSTHRU_MSG,
+                    std::ptr::null() as *const PASSTHRU_MSG,
+                    &mut filter_id as *mut u32,
+                )
             },
-            Some(fc) => {
-                unsafe {
-                    (&self.start_filter_fn)(
-                        channel_id,
-                        tmp,
-                        mask as *const PASSTHRU_MSG,
-                        pattern as *const PASSTHRU_MSG,
-                        fc as *const PASSTHRU_MSG,
-                        &mut filter_id as *mut u32,
-                    )
-                }
-            }
+            Some(fc) => unsafe {
+                (&self.start_filter_fn)(
+                    channel_id,
+                    tmp,
+                    mask as *const PASSTHRU_MSG,
+                    pattern as *const PASSTHRU_MSG,
+                    fc as *const PASSTHRU_MSG,
+                    &mut filter_id as *mut u32,
+                )
+            },
         };
         ret_res(res, filter_id)
     }
@@ -443,6 +442,7 @@ impl PassthruDrv {
     }
 
     //type PassThruSetProgrammingVoltageFn = unsafe extern "stdcall" fn(device_id: u32, pin_number: u32, voltage: u32) -> i32;
+    #[allow(dead_code)]
     pub fn set_programming_voltage(&self, dev_id: u32, pin: u32, voltage: u32) -> Result<()> {
         ret_res(unsafe { (&self.set_prog_v_fn)(dev_id, pin, voltage) }, ())
     }
@@ -505,6 +505,7 @@ pub enum LoadDeviceError {
 }
 
 impl LoadDeviceError {
+    #[allow(dead_code)]
     pub fn get_err_desc(&self) -> String {
         match &self {
             LoadDeviceError::NoName => "No device name attribute".to_string(),

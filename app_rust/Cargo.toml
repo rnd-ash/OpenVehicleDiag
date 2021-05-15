@@ -1,8 +1,9 @@
 [package]
 name = "openvehiclediag"
-version = "1.0.0"
+version = "1.0.5"
 description = "pen Vehicle Diagnostics (OVD) is a Rust-based open source vehicle ECU diagnostic platform."
 edition = "2018"
+
 [package.metadata.bundle]
 version = "0.6.0"
 authors = ["ashcon"]
@@ -33,6 +34,8 @@ hex-serde = "0.1.0"
 chrono = "0.4.19"
 hex = "0.4.2"
 image = "0.23.12"
+dialog = "0.3.0"
+backtrace = "0.3.59"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.8"

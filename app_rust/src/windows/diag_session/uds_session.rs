@@ -9,9 +9,18 @@ use std::{
 use iced::{time, Column, Container, Length, Row, Space, Subscription};
 use log_view::{LogType, LogView};
 
-use crate::{commapi::{comm_api::{ComServer, ISO15765Config}, protocols::uds::UDSECU, protocols::ProtocolServer}, themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize}, windows::{diag_manual::DiagManualMessage, window}};
+use crate::{
+    commapi::{
+        comm_api::{ComServer, ISO15765Config},
+        iface::{InterfaceConfig, InterfaceType, PayloadFlag, IFACE_CFG},
+        protocols::uds::UDSECU,
+        protocols::{DiagCfg, ProtocolServer},
+    },
+    themes::{button_outlined, text, text_input, title_text, ButtonType, TextType, TitleSize},
+    windows::window,
+};
 
-use super::{log_view, DiagMessageTrait, SessionMsg, SessionResult, SessionTrait};
+use super::{log_view, DiagMessageTrait, SessionResult, SessionTrait};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum UDSDiagSessionMsg {
@@ -19,7 +28,6 @@ pub enum UDSDiagSessionMsg {
     DisconnectECU,
     Back,
     PollServer(Instant),
-    LoadErrorDefinition,
     ClearLogs,
     ClearErrors,
     ReadCodes,
@@ -163,7 +171,26 @@ impl SessionTrait for UDSDiagSession {
     fn update(&mut self, msg: &Self::msg) -> Option<Self::msg> {
         match msg {
             UDSDiagSessionMsg::ConnectECU => {
-                match UDSECU::start_diag_session(self.server.clone(), &self.ecu, None) {
+                let mut cfg = InterfaceConfig::new();
+                cfg.add_param(IFACE_CFG::BAUDRATE, self.ecu.baud);
+                cfg.add_param(IFACE_CFG::EXT_CAN_ADDR, self.ecu.use_ext_can as u32);
+                cfg.add_param(IFACE_CFG::EXT_ISOTP_ADDR, self.ecu.use_ext_isotp as u32);
+                cfg.add_param(IFACE_CFG::ISOTP_BS, self.ecu.block_size);
+                cfg.add_param(IFACE_CFG::ISOTP_ST_MIN, self.ecu.sep_time);
+
+                let diag_cfg = DiagCfg {
+                    send_id: self.ecu.send_id,
+                    recv_id: self.ecu.recv_id,
+                    global_id: None,
+                };
+
+                match UDSECU::start_diag_session(
+                    &self.server,
+                    InterfaceType::IsoTp,
+                    cfg,
+                    Some(vec![PayloadFlag::ISOTP_PAD_FRAME]),
+                    diag_cfg,
+                ) {
                     Ok(server) => {
                         window::disable_home();
                         self.diag_server = Some(server);
@@ -268,15 +295,14 @@ impl SessionTrait for UDSDiagSession {
                     }
                 }
             }
-            _ => {}
+            UDSDiagSessionMsg::Back => {}
         }
         None
     }
 
     fn subscription(&self) -> iced::Subscription<Self::msg> {
         if self.diag_server.is_some() {
-            time::every(std::time::Duration::from_millis(250))
-                .map(UDSDiagSessionMsg::PollServer)
+            time::every(std::time::Duration::from_millis(250)).map(UDSDiagSessionMsg::PollServer)
         } else {
             Subscription::none()
         }
