@@ -1,6 +1,6 @@
 [package]
 name = "openvehiclediag"
-version = "1.0.0"
+version = "1.0.5"
 description = "pen Vehicle Diagnostics (OVD) is a Rust-based open source vehicle ECU diagnostic platform."
 edition = "2018"
 

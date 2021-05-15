@@ -1,7 +1,5 @@
 # Open vehicle diagnostics app
 
-
-
 ## Features (Current)
 * CAN Tracer
 * OBD Toolbox
