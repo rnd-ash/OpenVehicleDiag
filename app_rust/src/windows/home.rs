@@ -129,7 +129,7 @@ impl Home {
                     .push(
                         button_outlined(&mut self.obd_state, "OBD Tools", ButtonType::Primary)
                             .on_press(WindowMessage::GoOBD),
-                    ),
+                    )
             );
         contents.into()
     }
