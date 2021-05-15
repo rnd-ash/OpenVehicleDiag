@@ -1,6 +1,12 @@
 use self::diag_session_control::DiagSession;
-use super::{CautionLevel, CommandError, DTC, DiagCfg, ECUCommand, ProtocolError, ProtocolResult, ProtocolServer, Selectable};
-use crate::commapi::{comm_api::{ComServer, FilterType}, iface::{InterfaceConfig, InterfaceType, IsoTPInterface, PayloadFlag}};
+use super::{
+    CautionLevel, CommandError, DiagCfg, ECUCommand, ProtocolError, ProtocolResult, ProtocolServer,
+    Selectable, DTC,
+};
+use crate::commapi::{
+    comm_api::{ComServer, FilterType},
+    iface::{InterfaceConfig, InterfaceType, IsoTPInterface, PayloadFlag},
+};
 use std::sync::atomic::Ordering::Relaxed;
 use std::{
     sync::{
@@ -439,13 +445,19 @@ impl ProtocolServer for UDSECU {
         diag_cfg: DiagCfg,
     ) -> ProtocolResult<Self> {
         if interface_type != InterfaceType::IsoTp {
-            return Err(ProtocolError::CustomError("UDS Can only be executed over ISO-TP".into()))
+            return Err(ProtocolError::CustomError(
+                "UDS Can only be executed over ISO-TP".into(),
+            ));
         }
 
         let mut interface = IsoTPInterface::new(comm_server.clone_box())?;
 
         interface.setup(&interface_cfg)?;
-        interface.add_filter(FilterType::IsoTP{id: diag_cfg.recv_id, mask: 0xFFFF, fc: diag_cfg.send_id})?;
+        interface.add_filter(FilterType::IsoTP {
+            id: diag_cfg.recv_id,
+            mask: 0xFFFF,
+            fc: diag_cfg.send_id,
+        })?;
 
         let should_run = Arc::new(AtomicBool::new(true));
         let should_run_t = should_run.clone();

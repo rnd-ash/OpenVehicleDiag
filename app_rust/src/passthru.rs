@@ -1,10 +1,10 @@
+use j2534_rust::FilterType::FLOW_CONTROL_FILTER;
+use j2534_rust::*;
 use lazy_static::lazy_static;
 use libloading::Library;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use std::{ffi::*, fmt};
-use j2534_rust::FilterType::FLOW_CONTROL_FILTER;
-use j2534_rust::*;
 
 lazy_static! {
     pub static ref DRIVER: Arc<RwLock<Option<PassthruDrv>>> = Arc::new(RwLock::new(None));
@@ -141,7 +141,7 @@ fn ret_res<T>(res: i32, ret: T) -> Result<T> {
 
 impl PassthruDrv {
     pub fn load_lib(path: String) -> std::result::Result<PassthruDrv, libloading::Error> {
-        let lib =  unsafe {Library::new(path)? };
+        let lib = unsafe { Library::new(path)? };
         unsafe {
             let open_fn = *lib.get::<PassThruOpenFn>(b"PassThruOpen\0")?.into_raw();
             let close_fn = *lib.get::<PassThruCloseFn>(b"PassThruClose\0")?.into_raw();
@@ -409,30 +409,26 @@ impl PassthruDrv {
 
         let mut filter_id: u32 = 0;
         let res = match flow_control.as_ref() {
-            None => {
-                unsafe {
-                    (&self.start_filter_fn)(
-                        channel_id,
-                        tmp,
-                        mask as *const PASSTHRU_MSG,
-                        pattern as *const PASSTHRU_MSG,
-                        std::ptr::null() as *const PASSTHRU_MSG,
-                        &mut filter_id as *mut u32,
-                    )
-                }
+            None => unsafe {
+                (&self.start_filter_fn)(
+                    channel_id,
+                    tmp,
+                    mask as *const PASSTHRU_MSG,
+                    pattern as *const PASSTHRU_MSG,
+                    std::ptr::null() as *const PASSTHRU_MSG,
+                    &mut filter_id as *mut u32,
+                )
             },
-            Some(fc) => {
-                unsafe {
-                    (&self.start_filter_fn)(
-                        channel_id,
-                        tmp,
-                        mask as *const PASSTHRU_MSG,
-                        pattern as *const PASSTHRU_MSG,
-                        fc as *const PASSTHRU_MSG,
-                        &mut filter_id as *mut u32,
-                    )
-                }
-            }
+            Some(fc) => unsafe {
+                (&self.start_filter_fn)(
+                    channel_id,
+                    tmp,
+                    mask as *const PASSTHRU_MSG,
+                    pattern as *const PASSTHRU_MSG,
+                    fc as *const PASSTHRU_MSG,
+                    &mut filter_id as *mut u32,
+                )
+            },
         };
         ret_res(res, filter_id)
     }

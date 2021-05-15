@@ -6,9 +6,20 @@ use commapi::{
 };
 use iced::{Align, Column, Element, Length, Row, Space};
 
-use crate::{commapi::{self, comm_api::{ComServer, FilterType}, iface::{BufferType, DynamicInterface, IFACE_CFG, Interface, InterfaceConfig, InterfacePayload, InterfaceType, PayloadFlag}, protocols::{DiagCfg, kwp2000::read_ecu_identification::read_dcx_mmc_id}}, themes::{
+use crate::{
+    commapi::{
+        self,
+        comm_api::{ComServer, FilterType},
+        iface::{
+            BufferType, DynamicInterface, Interface, InterfaceConfig, InterfacePayload,
+            InterfaceType, PayloadFlag, IFACE_CFG,
+        },
+        protocols::{kwp2000::read_ecu_identification::read_dcx_mmc_id, DiagCfg},
+    },
+    themes::{
         button_coloured, button_outlined, progress_bar, text, title_text, ButtonType, TextType,
-    }};
+    },
+};
 
 use super::diag_home::{ECUDiagSettings, VehicleECUList};
 
@@ -69,7 +80,7 @@ impl DiagScanner {
                 let mut cfg = InterfaceConfig::new();
                 cfg.add_param(IFACE_CFG::BAUDRATE, 500_000);
                 cfg.add_param(IFACE_CFG::EXT_CAN_ADDR, 0);
-                match DynamicInterface::new( &self.adapter, InterfaceType::Can, &cfg) {
+                match DynamicInterface::new(&self.adapter, InterfaceType::Can, &cfg) {
                     Ok(dyn_iface) => self.activate_interface = dyn_iface,
                     Err(e) => {
                         self.status = format!("Could open CAN Interface ({})", e);
@@ -79,16 +90,22 @@ impl DiagScanner {
 
                 // Opening interface was OK
                 match self.activate_interface.exec(|can| {
-                    can.add_filter(FilterType::Pass{id: 0x0000, mask: 0x0000})
+                    can.add_filter(FilterType::Pass {
+                        id: 0x0000,
+                        mask: 0x0000,
+                    })
                 }) {
                     Ok(f_idx) => {
                         // Send the OBD-II get VIN request via CAN. This should wake up the OBD-II port's CAN Iface
                         // on most cars
-                        if let Err(e) = self.activate_interface.send_data(
-                            &[InterfacePayload::new(0x07Df, &[0x09, 0x02])], 0
-                        ) {
+                        if let Err(e) = self
+                            .activate_interface
+                            .send_data(&[InterfacePayload::new(0x07Df, &[0x09, 0x02])], 0)
+                        {
                             self.status = format!("Could not send wake up test packet: {}", e);
-                            self.activate_interface.close().expect("WTF. Could not close CAN Interface!?");
+                            self.activate_interface
+                                .close()
+                                .expect("WTF. Could not close CAN Interface!?");
                         } else {
                             std::thread::sleep(std::time::Duration::from_millis(500));
                             self.filter_idx = f_idx;
@@ -100,7 +117,9 @@ impl DiagScanner {
                     }
                     Err(e) => {
                         // STOP THE CAN INTERFACE
-                        self.activate_interface.close().expect("WTF. Could not close CAN Interface!?");
+                        self.activate_interface
+                            .close()
+                            .expect("WTF. Could not close CAN Interface!?");
                         self.status = format!("Could not set CAN filter ({})", e)
                     }
                 }
@@ -130,7 +149,7 @@ impl DiagScanner {
                 match DynamicInterface::new(&self.adapter, InterfaceType::Can, &cfg) {
                     Ok(iface) => {
                         self.activate_interface = iface;
-                        return Some(DiagScannerMessage::ScanPoll) // Begin the CAN interrogation (Stage 2)
+                        return Some(DiagScannerMessage::ScanPoll); // Begin the CAN interrogation (Stage 2)
                     }
                     Err(e) => {
                         self.status = format!("Error opening new CAN Interface!: {}", e.err_desc);
@@ -189,7 +208,11 @@ impl DiagScanner {
                 if self.clock.elapsed().as_millis() >= 10000 {
                     Some(DiagScannerMessage::IncrementStage)
                 } else {
-                    for frame in &self.activate_interface.recv_data(10000, 0).unwrap_or_default() {
+                    for frame in &self
+                        .activate_interface
+                        .recv_data(10000, 0)
+                        .unwrap_or_default()
+                    {
                         self.can_traffic_id_list.insert(frame.id, true);
                     }
                     Some(DiagScannerMessage::ScanPoll) // Keep polling
@@ -206,15 +229,22 @@ impl DiagScanner {
                     // Send a fake ISO-TP first frame. Tell the potential ECU we are sending 16 bytes to it. If it uses ISO-TP, it'll send back a
                     // flow control message back to OVD
                     self.activate_interface.send_data(
-                        &[InterfacePayload::new(self.curr_scan_id, &[0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])],
-                        0
+                        &[InterfacePayload::new(
+                            self.curr_scan_id,
+                            &[0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                        )],
+                        0,
                     );
                     // Reset the timer
                     self.clock = Instant::now();
                     Some(DiagScannerMessage::ScanPoll)
                 } else {
                     // Keep scanning for response messages
-                    for frame in &self.activate_interface.recv_data(10000, 0).unwrap_or_default() {
+                    for frame in &self
+                        .activate_interface
+                        .recv_data(10000, 0)
+                        .unwrap_or_default()
+                    {
                         if self.can_traffic_id_list.get(&frame.id).is_none() {
                             // Its a new frame we haven't seen before!
                             let payload = &frame.data;
@@ -245,15 +275,23 @@ impl DiagScanner {
                         .stage2_results
                         .get(&keys[self.curr_scan_id as usize])
                         .unwrap();
-                    
-                    match self.activate_interface.add_filter(FilterType::Pass{id: filter_id[0], mask: 0xFFFF}) {
+
+                    match self.activate_interface.add_filter(FilterType::Pass {
+                        id: filter_id[0],
+                        mask: 0xFFFF,
+                    }) {
                         Ok(f_id) => self.filter_idx = f_id,
-                        Err(e) => {todo!("CAN Filter setup failure handling in stage 3: {}", e)}
+                        Err(e) => {
+                            todo!("CAN Filter setup failure handling in stage 3: {}", e)
+                        }
                     }
 
                     self.activate_interface.send_data(
-                        &[InterfacePayload::new(keys[self.curr_scan_id as usize], &[0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], 
-                        0
+                        &[InterfacePayload::new(
+                            keys[self.curr_scan_id as usize],
+                            &[0x10, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                        )],
+                        0,
                     );
                     self.clock = Instant::now();
                     self.curr_scan_id += 1; // For next time
@@ -261,7 +299,11 @@ impl DiagScanner {
                 } else {
                     let keys: Vec<u32> = self.stage2_results.keys().copied().collect();
                     // Scanning current CAN ID entries
-                    for frame in &self.activate_interface.recv_data(10000, 0).unwrap_or_default() {
+                    for frame in &self
+                        .activate_interface
+                        .recv_data(10000, 0)
+                        .unwrap_or_default()
+                    {
                         let payload = &frame.data;
                         if payload[0] == 0x30 && payload.len() == 8 {
                             // Not a false positive! We can add the Config to list!
@@ -272,7 +314,7 @@ impl DiagScanner {
                                 block_size: payload[1] as u32,
                                 sep_time: payload[2] as u32,
                                 use_ext_isotp: false,
-                                use_ext_can: false
+                                use_ext_can: false,
                             })
                         }
                     }
@@ -304,7 +346,6 @@ impl DiagScanner {
                     send_id: ecu.send_id,
                     recv_id: ecu.recv_id,
                     global_id: None,
-                    
                 };
 
                 let mut ecu_res = ECUDiagSettings {
@@ -322,12 +363,11 @@ impl DiagScanner {
                     InterfaceType::IsoTp,
                     cfg,
                     Some(vec![PayloadFlag::ISOTP_PAD_FRAME]),
-                    diag_cfg
-
+                    diag_cfg,
                 ) {
                     Ok(mut s) => {
                         if let Ok(id) = read_dcx_mmc_id(&s) {
-                            ecu_res.name = format!("ECU Part number: {}",id.part_number);
+                            ecu_res.name = format!("ECU Part number: {}", id.part_number);
                             println!("ECU 0x{:04X} supports KWP2000!", ecu.send_id);
                             ecu_res.kwp_support = true;
                         }
@@ -359,9 +399,7 @@ impl DiagScanner {
                     send_id: ecu.send_id,
                     recv_id: ecu.recv_id,
                     global_id: None,
-                    
                 };
-
 
                 // Interrogate the ECU with extended diagnostic session
                 match UDSECU::start_diag_session(
@@ -369,7 +407,7 @@ impl DiagScanner {
                     InterfaceType::IsoTp,
                     cfg,
                     Some(vec![PayloadFlag::ISOTP_PAD_FRAME]),
-                    diag_cfg
+                    diag_cfg,
                 ) {
                     Ok(mut s) => {
                         // TODO find a UDS only CMD to test with

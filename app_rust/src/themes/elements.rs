@@ -89,7 +89,6 @@ impl button::StyleSheet for ButtonStyle {
     }
 }
 
-
 pub struct ButtonTableStyle {
     color: Color,
     selected: bool,
@@ -112,7 +111,6 @@ impl button::StyleSheet for ButtonTableStyle {
                     border_width: 0f32,
                     border_color: WHITE,
                     text_color: self.color,
-                    
                 },
                 super::Style::Dark => button::Style {
                     shadow_offset: Default::default(),
@@ -132,7 +130,6 @@ impl button::StyleSheet for ButtonTableStyle {
                     border_width: 0f32,
                     border_color: WHITE,
                     text_color: self.color,
-                    
                 },
                 super::Style::Dark => button::Style {
                     shadow_offset: Default::default(),
@@ -150,16 +147,23 @@ impl button::StyleSheet for ButtonTableStyle {
         match super::get_theme() {
             super::Style::Light => button::Style {
                 shadow_offset: Default::default(),
-                background: if self.selected { GREY.into() } else { WHITE.into() },
+                background: if self.selected {
+                    GREY.into()
+                } else {
+                    WHITE.into()
+                },
                 border_radius: 0f32,
                 border_width: 0f32,
                 border_color: WHITE,
                 text_color: DARK_BG,
-                
             },
             super::Style::Dark => button::Style {
                 shadow_offset: Default::default(),
-                background: if self.selected { GREY.into() } else { DARK_BG.into() },
+                background: if self.selected {
+                    GREY.into()
+                } else {
+                    DARK_BG.into()
+                },
                 border_radius: 0f32,
                 border_width: 0f32,
                 border_color: DARK_BG,
@@ -181,7 +185,6 @@ impl button::StyleSheet for ButtonTableStyle {
                 border_width: 0f32,
                 border_color: WHITE,
                 text_color: GREY,
-                
             },
             super::Style::Dark => button::Style {
                 shadow_offset: Default::default(),
@@ -418,7 +421,7 @@ impl iced::checkbox::StyleSheet for CheckBox {
                 border_radius: BUTTON_RADIUS,
                 border_width: BUTTON_BORDER_WIDTH,
                 border_color: super::WHITE,
-            }
+            },
         }
     }
 
@@ -437,7 +440,7 @@ impl iced::checkbox::StyleSheet for CheckBox {
                 border_radius: BUTTON_RADIUS,
                 border_width: BUTTON_BORDER_WIDTH,
                 border_color: super::WHITE,
-            }
+            },
         }
     }
 }

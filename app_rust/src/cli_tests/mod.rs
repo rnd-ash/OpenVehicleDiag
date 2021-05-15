@@ -44,7 +44,7 @@ pub mod draw_routine {
                 block_size: 8,
                 sep_time: 20,
                 use_ext_isotp: false,
-                use_ext_can: false
+                use_ext_can: false,
             },
             None,
         )
