@@ -7,7 +7,7 @@ The idea is to make diagnosing and exploring your cars diagnostics functions pos
 This is for my University FYP for my degree at the University of Reading
 
 ### Latest release
-[Version 1.0.5 (15/05/21)](https://github.com/rnd-ash/OpenVehicleDiag/releases/tag/v1.0.0)
+[Version 1.0.5 (15/05/21)](https://github.com/rnd-ash/OpenVehicleDiag/releases/tag/v1.0.5)
 
 ## Demo videos
 Youtube playlist [here](https://youtube.com/playlist?list=PLxrw-4Vt7xtty50LmMoLXN2iKiUknbMng)
