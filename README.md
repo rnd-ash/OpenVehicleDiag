@@ -9,8 +9,10 @@ This is for my University FYP for my degree at the University of Reading
 ### Latest release
 [Version 1.0.5 (15/05/21)](https://github.com/rnd-ash/OpenVehicleDiag/releases/tag/v1.0.0)
 
-## Youtube video playlist
-Videos showing OpenVehicleDiag in use and its development progress can be found [here](https://youtube.com/playlist?list=PLxrw-4Vt7xtty50LmMoLXN2iKiUknbMng)
+## Demo videos
+Youtube playlist [here](https://youtube.com/playlist?list=PLxrw-4Vt7xtty50LmMoLXN2iKiUknbMng)
+
+Alternative [Odysee video](https://odysee.com/@rand_ash:58/openvehiclediag-macchina-j2534-release:4)
 
 ## OpenVehicleDiag ECU JSON Schema
 If you want to create diagnostic JSON for your own ECUs, check out the JSON schema [here](SCHEMA.md)
