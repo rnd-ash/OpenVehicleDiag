@@ -1,4 +1,4 @@
-use std::{fmt::format, mem::size_of};
+use std::{borrow::Borrow, cell::RefCell, fmt::format, mem::size_of, rc::Weak};
 
 
 
@@ -23,7 +23,7 @@ pub enum RegisterDataType {
 pub enum RegisterData {
     Float(f32),
     Integer(u32),
-    String(String),
+    String(super::StringData),
     Bytes(Vec<u8>),
     Byte(u8),
     Short(u16)
@@ -34,7 +34,7 @@ impl RegisterData {
         match &self {
             RegisterData::Float(_) => size_of::<f32>(),
             RegisterData::Integer(_) => 4,
-            RegisterData::String(s) => s.len(),
+            RegisterData::String(s) => s.get_data_len(),
             RegisterData::Bytes(x) => x.len(),
             RegisterData::Byte(_) => 1,
             RegisterData::Short(_) => 2,
@@ -43,15 +43,14 @@ impl RegisterData {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Register<'a> {
-    machine: &'a super::Machine,
+pub struct Register {
     opcode: u8,
     reg_type: RegisterType,
     index: usize,
     data: RegisterData
 }
 
-impl<'a> Register<'a> {
+impl Register {
     pub fn get_name(&self) -> String {
         match self.reg_type {
             RegisterType::RegAb => {
@@ -93,11 +92,19 @@ impl<'a> Register<'a> {
         &self.data
     }
 
+    pub fn get_value_data(&self) -> u32 {
+        todo!()
+    }
+
     pub fn get_array_data(&self, complete: bool) -> super::Result<Vec<u8>> {
         if self.reg_type != RegisterType::RegS {
             Err(super::EdiabasError::InvalidDataType)
         } else {
-            Ok(self.machine.string_registers[self.index].get_data(complete))
+            if let RegisterData::String(s) = &self.data {
+                Ok(s.get_data(complete))
+            } else {
+                Err(super::EdiabasError::InvalidDataType)
+            }
         }
     }
 }

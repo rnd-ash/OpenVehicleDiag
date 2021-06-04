@@ -1,5 +1,7 @@
 use common::raf::Raf;
 
+use crate::machine::Machine;
+
 
 pub enum FileType {
     PRG,
@@ -16,6 +18,9 @@ impl BmwFileReader {
         let f_type = r.read_u32().unwrap();
         r.seek(0);
         println!("INIT {}, file type is {}", path, f_type);
+        //Self{}
+        let mut m = Machine::default();
+        m.load_file(r);
         Self{}
     }
 }
