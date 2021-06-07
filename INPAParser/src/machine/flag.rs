@@ -1,3 +1,5 @@
+use super::EdiabasResult;
+
 
 #[derive(Copy, Clone, Default)]
 pub struct Flag(u32);
@@ -35,7 +37,7 @@ impl Flag {
         self.0 = (self.0 & !0x08) | (state as u32) << 3;
     }
 
-    pub fn update_flags(&mut self, value: u32, length: u32) -> super::Result<()> {
+    pub fn update_flags(&mut self, value: u32, length: u32) -> EdiabasResult<()> {
         let masks: (u32, u32); // Value, Sign
         match length {
             1 => masks = (0x000000FF, 0x00000080),
@@ -48,7 +50,7 @@ impl Flag {
         Ok(())
     }
 
-    pub fn set_overflow(&mut self, v1: u32, v2: u32, res: u32, length: u32) -> super::Result<()> {
+    pub fn set_overflow(&mut self, v1: u32, v2: u32, res: u32, length: u32) -> EdiabasResult<()> {
         let sign_mask: u32;
         match length {
             1 => sign_mask = 0x00000080,
@@ -66,7 +68,7 @@ impl Flag {
         Ok(())
     }
 
-    pub fn set_carry(&mut self, v: u64, length: u32) -> super::Result<()> {
+    pub fn set_carry(&mut self, v: u64, length: u32) -> EdiabasResult<()> {
         let carry_mask: u64;
         match length {
             1 => carry_mask = 0x00000100,

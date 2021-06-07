@@ -1,5 +1,7 @@
 use std::{borrow::Borrow, cell::RefCell, fmt::format, mem::size_of, rc::Weak};
 
+use super::EdiabasResult;
+
 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -21,6 +23,7 @@ pub enum RegisterDataType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RegisterData {
+    None,
     Float(f32),
     Integer(u32),
     String(super::StringData),
@@ -32,6 +35,7 @@ pub enum RegisterData {
 impl RegisterData {
     pub fn get_data_length(&self) -> usize {
         match &self {
+            RegisterData::None => 0,
             RegisterData::Float(_) => size_of::<f32>(),
             RegisterData::Integer(_) => 4,
             RegisterData::String(s) => s.get_data_len(),
@@ -44,13 +48,22 @@ impl RegisterData {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Register {
-    opcode: u8,
-    reg_type: RegisterType,
-    index: usize,
-    data: RegisterData
+    pub opcode: u8,
+    pub reg_type: RegisterType,
+    pub index: usize,
+    pub data: RegisterData
 }
 
 impl Register {
+    pub const fn new(opcode: u8, reg_type: RegisterType, index: usize) -> Self {
+        Self {
+            opcode,
+            reg_type,
+            index,
+            data: RegisterData::None,
+        }
+    }
+
     pub fn get_name(&self) -> String {
         match self.reg_type {
             RegisterType::RegAb => {
@@ -75,7 +88,7 @@ impl Register {
         }
     }
 
-    pub fn get_value_mask(&self) -> super::Result<u32> {
+    pub fn get_value_mask(&self) -> EdiabasResult<u32> {
         match self.get_data_len() {
             1 => Ok(0x000000FF),
             2 => Ok(0x0000FFFF),
@@ -96,7 +109,7 @@ impl Register {
         todo!()
     }
 
-    pub fn get_array_data(&self, complete: bool) -> super::Result<Vec<u8>> {
+    pub fn get_array_data(&self, complete: bool) -> EdiabasResult<Vec<u8>> {
         if self.reg_type != RegisterType::RegS {
             Err(super::EdiabasError::InvalidDataType)
         } else {
@@ -108,3 +121,86 @@ impl Register {
         }
     }
 }
+
+pub const REGISTER_LIST: &'static [Register] = &[
+    Register::new(0x00, RegisterType::RegAb, 0),
+    Register::new(0x01, RegisterType::RegAb, 1),
+    Register::new(0x02, RegisterType::RegAb, 2),
+    Register::new(0x03, RegisterType::RegAb, 3),
+    Register::new(0x04, RegisterType::RegAb, 4),
+    Register::new(0x05, RegisterType::RegAb, 5),
+    Register::new(0x06, RegisterType::RegAb, 6),
+    Register::new(0x07, RegisterType::RegAb, 7),
+    Register::new(0x08, RegisterType::RegAb, 8),
+    Register::new(0x09, RegisterType::RegAb, 9),
+    Register::new(0x0A, RegisterType::RegAb, 10),
+    Register::new(0x0B, RegisterType::RegAb, 11),
+    Register::new(0x0C, RegisterType::RegAb, 12),
+    Register::new(0x0D, RegisterType::RegAb, 13),
+    Register::new(0x0E, RegisterType::RegAb, 14),
+    Register::new(0x0F, RegisterType::RegAb, 15),
+    Register::new(0x10, RegisterType::RegI, 0),
+    Register::new(0x11, RegisterType::RegI, 1),
+    Register::new(0x12, RegisterType::RegI, 2),
+    Register::new(0x13, RegisterType::RegI, 3),
+    Register::new(0x14, RegisterType::RegI, 4),
+    Register::new(0x15, RegisterType::RegI, 5),
+    Register::new(0x16, RegisterType::RegI, 6),
+    Register::new(0x17, RegisterType::RegI, 7),
+    Register::new(0x18, RegisterType::RegL, 0),
+    Register::new(0x19, RegisterType::RegL, 1),
+    Register::new(0x1A, RegisterType::RegL, 2),
+    Register::new(0x1B, RegisterType::RegL, 3),
+    Register::new(0x1C, RegisterType::RegS, 0),
+    Register::new(0x1D, RegisterType::RegS, 1),
+    Register::new(0x1E, RegisterType::RegS, 2),
+    Register::new(0x1F, RegisterType::RegS, 3),
+    Register::new(0x20, RegisterType::RegS, 4),
+    Register::new(0x21, RegisterType::RegS, 5),
+    Register::new(0x22, RegisterType::RegS, 6),
+    Register::new(0x23, RegisterType::RegS, 7),
+    Register::new(0x24, RegisterType::RegF, 0),
+    Register::new(0x25, RegisterType::RegF, 1),
+    Register::new(0x26, RegisterType::RegF, 2),
+    Register::new(0x27, RegisterType::RegF, 3),
+    Register::new(0x28, RegisterType::RegF, 4),
+    Register::new(0x29, RegisterType::RegF, 5),
+    Register::new(0x2A, RegisterType::RegF, 6),
+    Register::new(0x2B, RegisterType::RegF, 7),
+    Register::new(0x2C, RegisterType::RegS, 8),
+    Register::new(0x2D, RegisterType::RegS, 9),
+    Register::new(0x2E, RegisterType::RegS, 10),
+    Register::new(0x2F, RegisterType::RegS, 11),
+    Register::new(0x30, RegisterType::RegS, 12),
+    Register::new(0x31, RegisterType::RegS, 13),
+    Register::new(0x32, RegisterType::RegS, 14),
+    Register::new(0x33, RegisterType::RegS, 15),
+    Register::new(0x80, RegisterType::RegAb, 16),
+    Register::new(0x81, RegisterType::RegAb, 17),
+    Register::new(0x82, RegisterType::RegAb, 18),
+    Register::new(0x83, RegisterType::RegAb, 19),
+    Register::new(0x84, RegisterType::RegAb, 20),
+    Register::new(0x85, RegisterType::RegAb, 21),
+    Register::new(0x86, RegisterType::RegAb, 22),
+    Register::new(0x87, RegisterType::RegAb, 23),
+    Register::new(0x88, RegisterType::RegAb, 24),
+    Register::new(0x89, RegisterType::RegAb, 25),
+    Register::new(0x8A, RegisterType::RegAb, 26),
+    Register::new(0x8B, RegisterType::RegAb, 27),
+    Register::new(0x8C, RegisterType::RegAb, 28),
+    Register::new(0x8D, RegisterType::RegAb, 29),
+    Register::new(0x8E, RegisterType::RegAb, 30),
+    Register::new(0x8F, RegisterType::RegAb, 31),
+    Register::new(0x90, RegisterType::RegI, 8),
+    Register::new(0x91, RegisterType::RegI, 9),
+    Register::new(0x92, RegisterType::RegI, 10),
+    Register::new(0x93, RegisterType::RegI, 11),
+    Register::new(0x94, RegisterType::RegI, 12),
+    Register::new(0x95, RegisterType::RegI, 13),
+    Register::new(0x96, RegisterType::RegI, 14),
+    Register::new(0x97, RegisterType::RegI, 15),
+    Register::new(0x98, RegisterType::RegL, 4),
+    Register::new(0x99, RegisterType::RegL, 5),
+    Register::new(0x9A, RegisterType::RegL, 6),
+    Register::new(0x9B, RegisterType::RegL, 7),
+];

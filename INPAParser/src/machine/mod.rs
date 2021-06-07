@@ -1,11 +1,11 @@
-use core::num;
-use std::{collections::HashMap, convert::TryInto};
+use core::{num, panic};
+use std::{borrow::BorrowMut, collections::{HashMap, VecDeque}, convert::TryInto, fs::File, thread::Result, vec};
 
 use common::raf::{self, Raf, RafError};
 
-use crate::machine::operations::read_decrypt_bytes;
+use crate::machine::{opcode::OP_CODE_LIST, operand::OpAddrMode, operations::read_decrypt_bytes};
 
-use self::{opcode::OpCode, operand::Operand, register::Register, string_data::StringData};
+use self::{flag::Flag, opcode::OpCode, operand::{Operand, OperandData}, register::{REGISTER_LIST, Register}, string_data::StringData};
 
 pub (crate) mod register;
 pub (crate) mod flag;
@@ -14,6 +14,7 @@ pub (crate) mod operand;
 pub (crate) mod arg_info;
 pub (crate) mod opcode;
 pub (crate) mod string_data;
+mod op_funcs;
 
 pub const JOB_INIT_NAME: &str = "INITIALISIERUNG";
 pub const JOB_NAME_EXIT: &str = "ENDE";
@@ -21,10 +22,10 @@ pub const JOB_NAME_IDENT: &str = "IDENTIFIKATION";
 
 pub const BYTE_ARRAY_0: [u8; 1] = [0];
 
-pub type OperationDelegate = fn(m: &Machine, oc: &OpCode, arg0: &Operand, arg1: &Operand) -> ();
-pub type VJobDelegate = fn(m: &Machine, ) -> ();
+pub type OperationDelegate = dyn Fn(&mut Machine, &mut OpCode, &mut Operand, &mut Operand) -> EdiabasResult<()>;
+pub type VJobDelegate = fn(m: &mut Machine) -> ();
 pub type AbortJobDelegate = fn() -> bool;
-pub type ProgressJobDelegate = fn(m: &Machine) -> ();
+pub type ProgressJobDelegate = fn(m: &mut Machine) -> ();
 pub type ErrorRaisedDelegate = fn() -> ();
 
 #[derive(Debug, Clone, Default)]
@@ -38,6 +39,33 @@ pub struct UsesInfo(String);
 pub struct DescriptionInfos {
     pub global_comments: Vec<String>,
     pub job_comments: HashMap<String, Vec<String>>
+}
+
+#[derive(Debug, Clone)]
+pub enum ResultType
+{
+    TypeB,  // 8 bit
+    TypeW,  // 16 bit
+    TypeD,  // 32 bit
+    TypeC,  // 8 bit char
+    TypeI,  // 16 bit signed
+    TypeL,  // 32 bit signed
+    TypeR,  // float
+    TypeS,  // string
+    TypeY,  // array
+}
+
+impl Default for ResultType {
+    fn default() -> Self {
+        Self::TypeB
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ResultData {
+    res_type: ResultType,
+    name: String,
+    op_data: OperandData
 }
 
 #[derive(Debug, Clone, Default)]
@@ -55,11 +83,33 @@ pub struct JobInfos {
     pub job_name_dict: HashMap<String, u32>
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct TableInfo {
+    pub name: String,
+    pub table_offset: u32,
+    pub table_column_offset: u32,
+    pub columns: u32,
+    pub rows: u32,
+    column_name_dict: HashMap<String, u32>,
+    seek_column_strings_dict: Vec<HashMap<String, u32>>,
+    seek_column_value_dict: Vec<HashMap<u32, u32>>,
+    table_entries: Vec<Vec<u32>>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TableInfos {
+    table_info_array: Vec<TableInfo>,
+    table_name_dict: HashMap<String, u32>
+}
+
+#[derive(Debug)]
 pub enum EdiabasError {
     InvalidDataLength,
     InvalidAddressMode,
     InvalidDataType,
     NullData,
+    OpCodeOutOfRange,
+    OpCodeMappingInvalid,
     RafError(RafError)
 }
 
@@ -69,42 +119,78 @@ impl From<raf::RafError> for EdiabasError {
     }
 }
 
-pub type Result<T> = std::result::Result<T, EdiabasError>;
+pub type EdiabasResult<T> = std::result::Result<T, EdiabasError>;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct Machine {
-    pub float_registers: Vec<Register>,
-    pub string_registers: Vec<Register>,
-    pub byte_registers: Vec<Register>,
-    pub max_array_size: u64
+    pub max_array_size: u32,
+    pub table_item_buffer: Vec<u8>,
+    pub uses_info: UsesInfos,
+    pub job_info: JobInfos,
+    pub tables: TableInfos,
+    pub req_init: bool,
+    pub raf: Option<Raf>,
+    disposed: bool,
+    job_running: bool,
+    job_std: bool,
+    job_std_exit: bool,
+    close_fs: bool,
+    stack: VecDeque<u8>,
+    arg_info: arg_info::ArgInfo,
+    arg_info_std: arg_info::ArgInfo,
+    result_dict: HashMap<String, ResultData>,
+    result_sys_dict: HashMap<String, ResultData>,
+    result_request_dict: HashMap<String, bool>,
+    results_sets: Vec<HashMap<String, ResultData>>,
+    results_sets_tmp: Vec<HashMap<String, ResultData>>,
+    config_dict: HashMap<String, String>,
+    group_mapping_dict: HashMap<String, String>,
+    info_progress_range: i64,
+    info_progress_pos: i64,
+    info_progress_text: String,
+    results_job_status: String,
+    abort_job_delegate: Option<AbortJobDelegate>,
+    progress_func: Option<ProgressJobDelegate>,
+    error_delegate: Option<ErrorRaisedDelegate>,
+    error_trap_mask: u32,
+    error_trap_bit_nr: i32,
+    byte_registers: Vec<u8>,
+    float_registers: Vec<f32>,
+    string_registers: Vec<StringData>,
+    flags: Flag,
+    pc_counter: u32,
+    table_idx: i32,
+    table_row_idx: i32,
+    token_idx: u32,
+    job_end: bool,
+
 }
 
 impl Machine {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            table_item_buffer: vec![0; 1024],
+            error_trap_bit_nr: -1,
+            table_idx: -1,
+            table_row_idx: -1,
+            max_array_size: 1024,
+            ..Default::default()
+        }
     }
 
-    pub fn get_float_register_by_idx(&self, idx: usize) -> &Register {
-        &self.float_registers[idx]
-    }
-
-    pub fn get_string_register_by_idx(&self, idx: usize) -> &Register {
-        &self.string_registers[idx]
-    }
-
-    pub fn get_byte_register_by_idx(&self, idx: usize) -> &Register {
-        &self.byte_registers[idx]
-    }
 
     pub fn load_file(&mut self, f: &mut Raf) {
-        f.seek(0);
-        //self.read_all_uses(f);
-        println!("Job infos: {:#?}", self.read_descriptions(f));
-        self.read_all_jobs(f);
+
+        self.uses_info = self.read_all_uses(f);
+        self.job_info = self.read_all_jobs(f);
+        self.tables = self.read_all_tables(f);
+        self.req_init = true;
+        self.raf = Some(f.clone());
+        self.exec_job_private(JOB_INIT_NAME, true);
     }
 
     fn read_all_uses(&mut self, f: &mut Raf) -> UsesInfos {
-        let mut buffer: Vec<u8>;
+        let buffer: Vec<u8>;
         f.seek(0x7C);
         buffer = f.read_bytes(4).expect("Could not read header bytes");
         let uses_offsets = i32::from_le_bytes(buffer[0..4].try_into().unwrap());
@@ -114,10 +200,16 @@ impl Machine {
             return infos;
         }
         f.seek(uses_offsets as usize);
-        let uses_count = f.read_u32().unwrap();
+        let uses_count = f.read_i32().unwrap();
         println!("{} use infos", uses_count);
-        // TODO
-        todo!()
+
+        let mut uses_buffer: [u8; 0x100] = [0; 0x100];
+        for _ in 0..uses_count {
+            read_decrypt_bytes(f, &mut uses_buffer, 0, 0x100);
+            let name = String::from_utf8(Vec::from(uses_buffer)).unwrap().trim_matches(char::from(0)).to_string();
+            infos.0.push(UsesInfo(name))
+        }
+        infos
     }
 
     fn read_descriptions(&mut self, f: &mut Raf) -> DescriptionInfos {
@@ -211,7 +303,7 @@ impl Machine {
         job_list
     }
 
-    pub fn read_all_jobs(&mut self, f: &mut Raf) {
+    pub fn read_all_jobs(&mut self, f: &mut Raf) -> JobInfos {
         let list = self.read_job_list(f, None);
         // TODO Read jobs from other info files
         let num_jobs = list.len();
@@ -234,6 +326,240 @@ impl Machine {
             job_infos_local.job_info_array[index] = j.clone();
             index += 1;
         }
-        println!("Job list: {:#?}", job_infos_local);
+        return job_infos_local;
+    }
+
+    pub fn read_all_tables(&mut self, f: &mut Raf) -> TableInfos {
+        f.seek(0x84);
+        let mut buffer = f.read_bytes(4).unwrap();
+        let table_offset = i32::from_le_bytes(buffer[0..4].try_into().unwrap());
+        println!("Table offset: {}",table_offset);
+        let mut table_infos = TableInfos::default();
+
+        if table_offset < 0 {
+            return table_infos
+        }
+        f.seek(table_offset as usize);
+        read_decrypt_bytes(f, &mut buffer, 0, 4);
+        let table_count = i32::from_le_bytes(buffer[0..4].try_into().unwrap());
+        
+        let mut table_start = f.pos;
+        for i in 0..table_count {
+            let table = self.read_table(f, table_start);
+            table_infos.table_info_array.push(table.clone());
+            table_infos.table_name_dict.insert(table.name.to_ascii_uppercase(), i as u32);
+            table_start += 0x50;
+        }
+        println!("Table infos: {:#?}", table_infos);
+        table_infos
+    }
+
+    fn read_table(&mut self, f: &mut Raf, offset: usize) -> TableInfo {
+        f.seek(offset);
+        let mut buffer: [u8; 0x50] = [0; 0x50];
+        read_decrypt_bytes(f, &mut buffer, 0, 0x50);
+        let name = String::from_utf8(Vec::from(&buffer[0..0x40])).unwrap().trim_matches(char::from(0)).to_string();
+        TableInfo {
+            name,
+            table_offset: u32::from_le_bytes(buffer[0x40..0x44].try_into().unwrap()),
+            table_column_offset: u32::from_le_bytes(buffer[0x44..0x48].try_into().unwrap()),
+            columns: u32::from_le_bytes(buffer[0x48..0x4C].try_into().unwrap()),
+            rows: u32::from_le_bytes(buffer[0x4C..].try_into().unwrap()),
+            ..Default::default()
+        }
+    }
+
+    fn get_table_index(&mut self, f: &mut Raf, table: &mut TableInfo) {
+        if !table.table_entries.is_empty() {
+            return
+        }
+
+        f.seek(table.table_column_offset as usize);
+        let mut column_name_dict: HashMap<String, u32> = HashMap::new();
+        let mut table_entries: Vec<Vec<u32>> = vec![Vec::new(); table.rows as usize + 1];
+        for i in 0..table.rows as usize {
+            table_entries[i] = vec![0u32; table.columns as usize];
+            for x in 0..table.columns as usize {
+                table_entries[i][x] = f.pos as u32;
+                let mut l = 0;
+                for k in 0..self.table_item_buffer.len() {
+                    l = k;
+                    read_decrypt_bytes(f, &mut self.table_item_buffer, k, 1);
+                    if self.table_item_buffer[k] == 0 {
+                        break;
+                    }
+                }
+                if i == 0 {
+                    let column_name = String::from_utf8(Vec::from(&self.table_item_buffer[0..l])).unwrap();
+                    column_name_dict.insert(column_name, i as u32);
+                }
+            }
+        }
+        table.column_name_dict = column_name_dict;
+        table.table_entries = table_entries;
+    }
+
+    fn get_table_string(&mut self, f: &mut Raf, string_offset: u32) -> String {
+        f.seek(string_offset as usize);
+        let mut l = 0;
+        for x in 0..self.table_item_buffer.len() {
+            l = x;
+            read_decrypt_bytes(f, &mut self.table_item_buffer, x, 1);
+            if self.table_item_buffer[x] == 0 {
+                break;
+            }
+        }
+        String::from_utf8(Vec::from(&self.table_item_buffer[0..l])).unwrap()
+    }
+
+    fn get_table_idx(&mut self, f: &mut Raf, table_idx: u32) -> u32 {
+        todo!()
+    }
+
+    fn get_job_info(&self, name: &str) -> Option<JobInfo> {
+        match self.job_info.job_name_dict.get_key_value(&name.to_ascii_uppercase()) {
+            Some((_, idx)) => Some(self.job_info.job_info_array[*idx as usize].clone()),
+            None => None
+        } 
+    }
+
+    fn exec_job_private(&mut self, name: &str, recursive: bool) {
+        // Assumed SGFS is already open
+        match self.get_job_info(name) {
+            Some(j) => {
+                match j.uses_info {
+                    Some(info) => {
+                        todo!("Cannot run jobs from other PRG files. This job requires {}", info.0)
+                    },
+                    None => {
+                        let mut tmp = self.raf.as_mut().unwrap().clone();
+                        self.exec_job_private_fs(name, recursive, &mut tmp, j)
+                    }
+                }
+            },
+            None => {
+                eprintln!("Warning. Job {} not found!", name);
+                return
+            }
+        }
+    }
+
+    fn exec_job_private_fs(&mut self,  name: &str, recursive: bool, fs: &mut Raf, info: JobInfo) {
+        println!("Executing JOB {}", name);
+        if !self.req_init && !recursive {
+            todo!("Request init  job");
+        }
+        let mut buffer : [u8; 2] = [0; 2];
+        let mut res_set_tmp: Vec<HashMap<String, ResultData>> = Vec::new();
+
+        self.result_dict.clear();
+        self.result_sys_dict.clear();
+        self.stack.clear();
+        
+        self.string_registers.iter_mut().for_each(|mut s|{
+            s.clear();
+        });
+        self.error_trap_bit_nr = -1;
+        self.error_trap_mask = 0;
+        self.info_progress_range = -1;
+        self.info_progress_pos = -1;
+        self.info_progress_text.clear();
+        self.results_job_status.clear();
+        self.max_array_size = info.size;
+        self.pc_counter = info.offset;
+
+        let mut arg0 = Operand::new(OpAddrMode::None, OperandData::None, OperandData::None, OperandData::None);
+        let mut arg1 = Operand::new(OpAddrMode::None, OperandData::None, OperandData::None, OperandData::None);
+        let mut found_first_eoj = false;
+        while !self.job_end {
+            let pc_counter_old = self.pc_counter;
+            fs.seek(self.pc_counter as usize);
+            read_decrypt_bytes(fs, &mut buffer, 0, 2);
+            let op_code_val = buffer[0];
+            let op_addr_mode = buffer[1];
+
+            let op_addr_mode0: OpAddrMode = unsafe { ::std::mem::transmute((op_addr_mode & 0xF0) >> 4) };
+            let op_addr_mode1: OpAddrMode = unsafe { ::std::mem::transmute((op_addr_mode & 0x0F) >> 0) };
+
+            let mut oc = unsafe { OP_CODE_LIST.get(op_code_val as usize) }.expect(&format!("No op code for op_code_val {}", op_code_val)).clone();
+            
+
+            arg0 = self.get_op_arg(fs, op_addr_mode0).expect("Error init op_arg");
+            arg1 = self.get_op_arg(fs, op_addr_mode1).expect("Error init op_arg");
+            self.pc_counter = fs.pos as u32;
+            println!("Adress modes: {:?}, {:?}", op_addr_mode0, op_addr_mode1);
+            println!("Executing {}, Arg0: {:?}, Arg1: {:?}", oc.pneumonic, arg0, arg1);
+
+            if oc.arg0_is_near_addr && op_addr_mode0 == OpAddrMode::Imm32 {
+                let label_addr = self.pc_counter + arg0.data1.get_integer().unwrap();
+                arg0.data1 = OperandData::Integer(label_addr)
+            }
+
+            if let Some(del) = &self.abort_job_delegate {
+                if del() {
+                    panic!("Job aborted!!")
+                }
+            }
+
+            if let Some(func) = oc.op_func {
+                if let Err(e) = func(self, &mut oc, &mut arg0, &mut arg1) {
+                    panic!("Execution failed. Error: {:?}", e);
+                }
+            }
+        }
+    }
+
+    pub fn get_op_arg(&mut self, fs: &mut Raf, addr_mode: OpAddrMode) -> EdiabasResult<Operand> {
+        let mut buffer: [u8; 5] = [0; 5];
+        match addr_mode {
+            OpAddrMode::None => { Ok(Operand::new(addr_mode, OperandData::None, OperandData::None, OperandData::None)) },
+            OpAddrMode::RegS |
+            OpAddrMode::RegAb |
+            OpAddrMode::RegI |
+            OpAddrMode::RegL => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 1);
+                let oa_reg = Self::get_register(buffer[0])?;
+                Ok(Operand::new(addr_mode, OperandData::Register(oa_reg), OperandData::None, OperandData::None))
+            }
+            OpAddrMode::Imm8 => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 1);
+                Ok(Operand::new(addr_mode, OperandData::Integer(buffer[0] as u32), OperandData::None, OperandData::None))
+            },
+            OpAddrMode::Imm16 => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 2);
+                Ok(Operand::new(addr_mode, OperandData::Integer(u16::from_le_bytes(buffer[0..2].try_into().unwrap()) as u32), OperandData::None, OperandData::None))
+            },
+            OpAddrMode::Imm32 => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 4);
+                Ok(Operand::new(addr_mode, OperandData::Integer(u32::from_le_bytes(buffer[0..4].try_into().unwrap())), OperandData::None, OperandData::None))
+            },
+            OpAddrMode::ImmStr => todo!(),
+            OpAddrMode::IdxImm => todo!(),
+            OpAddrMode::IdxReg => todo!(),
+            OpAddrMode::IdxRegImm => todo!(),
+            OpAddrMode::IdxImmLenImm => todo!(),
+            OpAddrMode::IdxImmLenReg => todo!(),
+            OpAddrMode::IdxRegLenImm => todo!(),
+            OpAddrMode::IdxRegLenReg => todo!(),
+        }
+    }
+
+    pub fn get_register(opcode: u8) -> EdiabasResult<Register> {
+        let result: Register;
+        if opcode <= 0x33 {
+            result = REGISTER_LIST[opcode as usize].clone();
+        } else if opcode >= 0x80 {
+            let idx: usize = (opcode - 0x80 + 0x34) as usize;
+            if idx >= REGISTER_LIST.len() {
+                return Err(EdiabasError::OpCodeOutOfRange)
+            }
+            result = REGISTER_LIST[idx].clone();
+        } else {
+            return Err(EdiabasError::OpCodeOutOfRange)
+        }
+        if result.opcode != opcode {
+            return Err(EdiabasError::OpCodeMappingInvalid)
+        }
+        Ok(result)
     }
 }

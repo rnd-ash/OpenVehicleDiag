@@ -16,6 +16,11 @@ impl StringData {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.data.clear();
+        self.length = 0;
+    }
+
     pub fn new_array_length(&mut self, length: u32) {
         if length as usize > self.data.len() {
             self.data = vec![0; length as usize]

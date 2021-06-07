@@ -1,8 +1,9 @@
 use std::borrow::{Borrow, Cow};
 
-use super::{EdiabasError, Machine, register::Register};
+use super::{EdiabasError, EdiabasResult, Machine, register::Register};
 
 
+#[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OpAddrMode {
     None = 0,
@@ -41,6 +42,12 @@ pub enum OperandData {
     Register(Register)
 }
 
+impl Default for OperandData {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 impl OperandData {
     pub fn get_data_type(&self) -> OperandDataType {
         match self {
@@ -52,29 +59,29 @@ impl OperandData {
         }
     }
 
-    pub fn get_bytes(&self) -> super::Result<&[u8]> {
+    pub fn get_bytes(&self) -> super::EdiabasResult<&[u8]> {
         if let Self::Bytes(x) = self { Ok(&x) } else { Err(super::EdiabasError::InvalidDataType) }
     }
 
-    pub fn get_integer(&self) -> super::Result<&u32> {
+    pub fn get_integer(&self) -> EdiabasResult<&u32> {
         if let Self::Integer(x) = self { Ok(&x) } else { Err(super::EdiabasError::InvalidDataType) }
     }
 
-    pub fn get_float(&self) -> super::Result<&f32> {
+    pub fn get_float(&self) -> EdiabasResult<&f32> {
         if let Self::Float(x) = self { Ok(&x) } else { Err(super::EdiabasError::InvalidDataType) }
     }
 
-    pub fn get_register(&self) -> super::Result<&Register> {
+    pub fn get_register(&self) -> EdiabasResult<&Register> {
         if let Self::Register(x) = self { Ok(&x) } else { Err(super::EdiabasError::InvalidDataType) }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Operand {
-    addr_mode: OpAddrMode,
-    data1: OperandData,
-    data2: OperandData,
-    data3: OperandData,
+    pub addr_mode: OpAddrMode,
+    pub data1: OperandData,
+    pub data2: OperandData,
+    pub data3: OperandData,
 }
 
 impl Operand {
@@ -85,6 +92,10 @@ impl Operand {
             data2,
             data3
         }
+    }
+
+    pub fn set_addr_mode(&mut self, mode: OpAddrMode) {
+        self.addr_mode = mode;
     }
 
     pub fn get_data_type(&self) -> OperandDataType {
@@ -102,7 +113,7 @@ impl Operand {
         }
     }
 
-    pub fn get_value_mask(&self, m: &Machine, data_length: u32) -> super::Result<u32> {
+    pub fn get_value_mask(&self, m: &Machine, data_length: u32) -> EdiabasResult<u32> {
         let mut tmp = data_length;
         if data_length == 0 {
             tmp = self.get_data_length(m,false)?;
@@ -115,7 +126,7 @@ impl Operand {
         }
     }
 
-    pub fn get_data_length(&self, m: &Machine, write: bool) -> super::Result<u32> {
+    pub fn get_data_length(&self, m: &Machine, write: bool) -> EdiabasResult<u32> {
         match self.addr_mode {
             OpAddrMode::RegS |
             OpAddrMode::ImmStr => Ok(self.get_array_data(m)?.len() as u32),
@@ -136,7 +147,7 @@ impl Operand {
         }
     }
 
-    pub fn get_raw_data(&self, m: &super::Machine) -> super::Result<OperandData> {
+    pub fn get_raw_data(&self, m: &super::Machine) -> EdiabasResult<OperandData> {
         match &self.addr_mode {
             OpAddrMode::RegS |
             OpAddrMode::RegAb |
@@ -170,7 +181,7 @@ impl Operand {
                     index += * self.data3.get_integer()?;
                 }
                 let required_length: u64 = index as u64 + 1;
-                if required_length > m.max_array_size {
+                if required_length > m.max_array_size as u64 {
                     // TODO SetError
                     return Ok(OperandData::Bytes(Vec::from(super::BYTE_ARRAY_0)))
                 }
@@ -196,7 +207,7 @@ impl Operand {
                     self.data3.get_register()?.get_value_data()
                 };
                 let required_length: u64 = index as u64 + len as u64;
-                if required_length > m.max_array_size {
+                if required_length > m.max_array_size as u64 {
                     // TODO SetError
                     return Ok(OperandData::Bytes(Vec::from(super::BYTE_ARRAY_0)))
                 }
@@ -215,7 +226,7 @@ impl Operand {
     }
 
 
-    pub fn get_value_data(&self, len: u32, m: &super::Machine) -> super::Result<u32> {
+    pub fn get_value_data(&self, len: u32, m: &super::Machine) -> EdiabasResult<u32> {
         match self.get_raw_data(m)? {
             OperandData::Bytes(b) => {
                 if len == 0 {
@@ -239,15 +250,19 @@ impl Operand {
         }
     }
 
-    pub fn get_float_data(&self, m: &Machine) -> super::Result<f32> {
+    pub fn get_float_data(&self, m: &Machine) -> EdiabasResult<f32> {
         Ok(*self.get_raw_data(m)?.get_float()?)
     }
 
-    pub fn get_array_data(&self, m: &Machine) -> super::Result<Vec<u8>> {
+    pub fn get_array_data(&self, m: &Machine) -> EdiabasResult<Vec<u8>> {
         Ok(Vec::from(self.get_raw_data(m)?.get_bytes()?))
     }
 
-    pub fn get_string_data(&self, m: &Machine) -> super::Result<Cow<str>> {
+    pub fn get_int_data(&self, m: &Machine) -> EdiabasResult<u32> {
+        Ok(*self.get_raw_data(m)?.get_integer()?)
+    }
+
+    pub fn get_string_data(&self, m: &Machine) -> EdiabasResult<Cow<str>> {
         let data = self.get_array_data(m)?;
         todo!();
         //Ok(String::from_utf8_lossy(&data).clone())

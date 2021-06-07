@@ -2,12 +2,13 @@ use std::io::Read;
 
 use common::raf::Raf;
 
+use super::EdiabasResult;
 use super::opcode::OpCode;
 use super::operand::Operand;
 use super::Machine;
 use super::operand::OperandDataType;
 
-pub fn op_a2_fix(m: &mut Machine, op_code: &OpCode, arg0: &Operand, arg1: &Operand) -> super::Result<()> {
+pub fn op_a2_fix(m: &mut Machine, op_code: &OpCode, arg0: &Operand, arg1: &Operand) -> EdiabasResult<()> {
     if arg0.get_data_type() != OperandDataType::Register {
         return Err(super::EdiabasError::InvalidDataType)
     }

@@ -1,6 +1,6 @@
 
-#[derive(Debug, Clone)]
-struct ArgInfo {
+#[derive(Debug, Clone, Default)]
+pub struct ArgInfo {
     data: Vec<u8>,
     pub string_list: Vec<String>
 }
