@@ -10,9 +10,8 @@ pub struct JobInfo {
     args_first: String,
     args: String,
     results: String,
-    arg_limit: String
+    arg_limit: String,
 }
-
 
 pub struct FiniteStateMachine {
     request_init: bool,
@@ -28,12 +27,9 @@ impl FiniteStateMachine {
             self.execute_init_job();
         }
         let mut buffer: [u8; 2] = [0, 0];
-
     }
 
-    pub fn execute_job_by_name(&mut self, name: &str, is_recersive: bool) {
-
-    }
+    pub fn execute_job_by_name(&mut self, name: &str, is_recersive: bool) {}
 
     pub fn execute_init_job(&mut self) {
         let job_running = self.job_running;
@@ -41,6 +37,5 @@ impl FiniteStateMachine {
         {
             self.execute_job_by_name(JOB_INIT_NAME, true);
         }
-
     }
 }

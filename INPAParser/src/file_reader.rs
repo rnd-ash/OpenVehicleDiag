@@ -2,15 +2,12 @@ use common::raf::Raf;
 
 use crate::machine::Machine;
 
-
 pub enum FileType {
     PRG,
-    GRP
+    GRP,
 }
 
-pub struct BmwFileReader{
-
-}
+pub struct BmwFileReader {}
 
 impl BmwFileReader {
     pub fn new(path: &str, r: &mut Raf) -> Self {
@@ -19,8 +16,8 @@ impl BmwFileReader {
         r.seek(0);
         println!("INIT {}, file type is {}", path, f_type);
         //Self{}
-        let mut m = Machine::default();
+        let mut m = Machine::new();
         m.load_file(r);
-        Self{}
+        Self {}
     }
 }

@@ -1,20 +1,33 @@
 use core::{num, panic};
-use std::{borrow::BorrowMut, collections::{HashMap, VecDeque}, convert::TryInto, fs::File, thread::Result, vec};
+use std::{
+    borrow::BorrowMut,
+    collections::{HashMap, VecDeque},
+    convert::TryInto,
+    fs::File,
+    thread::Result,
+    vec,
+};
 
 use common::raf::{self, Raf, RafError};
 
 use crate::machine::{opcode::OP_CODE_LIST, operand::OpAddrMode, operations::read_decrypt_bytes};
 
-use self::{flag::Flag, opcode::OpCode, operand::{Operand, OperandData}, register::{REGISTER_LIST, Register}, string_data::StringData};
+use self::{
+    flag::Flag,
+    opcode::OpCode,
+    operand::{Operand, OperandData},
+    register::{Register, REGISTER_LIST},
+    string_data::StringData,
+};
 
-pub (crate) mod register;
-pub (crate) mod flag;
-pub (crate) mod operations;
-pub (crate) mod operand;
-pub (crate) mod arg_info;
-pub (crate) mod opcode;
-pub (crate) mod string_data;
+pub(crate) mod arg_info;
+pub(crate) mod flag;
 mod op_funcs;
+pub(crate) mod opcode;
+pub(crate) mod operand;
+pub(crate) mod operations;
+pub(crate) mod register;
+pub(crate) mod string_data;
 
 pub const JOB_INIT_NAME: &str = "INITIALISIERUNG";
 pub const JOB_NAME_EXIT: &str = "ENDE";
@@ -22,7 +35,8 @@ pub const JOB_NAME_IDENT: &str = "IDENTIFIKATION";
 
 pub const BYTE_ARRAY_0: [u8; 1] = [0];
 
-pub type OperationDelegate = dyn Fn(&mut Machine, &mut OpCode, &mut Operand, &mut Operand) -> EdiabasResult<()>;
+pub type OperationDelegate =
+    dyn Fn(&mut Machine, &mut OpCode, &mut Operand, &mut Operand) -> EdiabasResult<()>;
 pub type VJobDelegate = fn(m: &mut Machine) -> ();
 pub type AbortJobDelegate = fn() -> bool;
 pub type ProgressJobDelegate = fn(m: &mut Machine) -> ();
@@ -34,25 +48,23 @@ pub struct UsesInfos(Vec<UsesInfo>);
 #[derive(Debug, Clone, Default)]
 pub struct UsesInfo(String);
 
-
 #[derive(Debug, Clone, Default)]
 pub struct DescriptionInfos {
     pub global_comments: Vec<String>,
-    pub job_comments: HashMap<String, Vec<String>>
+    pub job_comments: HashMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone)]
-pub enum ResultType
-{
-    TypeB,  // 8 bit
-    TypeW,  // 16 bit
-    TypeD,  // 32 bit
-    TypeC,  // 8 bit char
-    TypeI,  // 16 bit signed
-    TypeL,  // 32 bit signed
-    TypeR,  // float
-    TypeS,  // string
-    TypeY,  // array
+pub enum ResultType {
+    TypeB, // 8 bit
+    TypeW, // 16 bit
+    TypeD, // 32 bit
+    TypeC, // 8 bit char
+    TypeI, // 16 bit signed
+    TypeL, // 32 bit signed
+    TypeR, // float
+    TypeS, // string
+    TypeY, // array
 }
 
 impl Default for ResultType {
@@ -65,7 +77,7 @@ impl Default for ResultType {
 pub struct ResultData {
     res_type: ResultType,
     name: String,
-    op_data: OperandData
+    op_data: OperandData,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -74,13 +86,13 @@ pub struct JobInfo {
     pub offset: u32,
     pub size: u32,
     pub array_size: u32,
-    pub uses_info: Option<UsesInfo>
+    pub uses_info: Option<UsesInfo>,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct JobInfos {
     pub job_info_array: Vec<JobInfo>,
-    pub job_name_dict: HashMap<String, u32>
+    pub job_name_dict: HashMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -99,18 +111,18 @@ pub struct TableInfo {
 #[derive(Debug, Clone, Default)]
 pub struct TableInfos {
     table_info_array: Vec<TableInfo>,
-    table_name_dict: HashMap<String, u32>
+    table_name_dict: HashMap<String, u32>,
 }
 
 #[derive(Debug)]
 pub enum EdiabasError {
-    InvalidDataLength,
-    InvalidAddressMode,
-    InvalidDataType,
-    NullData,
-    OpCodeOutOfRange,
-    OpCodeMappingInvalid,
-    RafError(RafError)
+    InvalidDataLength(&'static str, &'static str),
+    InvalidAddressMode(&'static str, &'static str),
+    InvalidDataType(&'static str, &'static str),
+    NullData(&'static str, &'static str),
+    OpCodeOutOfRange(&'static str, &'static str),
+    OpCodeMappingInvalid(&'static str, &'static str),
+    RafError(RafError),
 }
 
 impl From<raf::RafError> for EdiabasError {
@@ -163,24 +175,29 @@ pub struct Machine {
     table_row_idx: i32,
     token_idx: u32,
     job_end: bool,
-
 }
 
 impl Machine {
     pub fn new() -> Self {
-        Self {
+        let mut ret = Self {
             table_item_buffer: vec![0; 1024],
             error_trap_bit_nr: -1,
             table_idx: -1,
             table_row_idx: -1,
             max_array_size: 1024,
+            byte_registers: vec![0; 32],
+            float_registers: vec![0f32; 16],
+            job_running: false,
             ..Default::default()
-        }
+        };
+        ret.string_registers = vec![StringData::new(ret.max_array_size); 16];
+        ret
     }
 
-
     pub fn load_file(&mut self, f: &mut Raf) {
-
+        if self.raf.is_some() {
+            return;
+        }
         self.uses_info = self.read_all_uses(f);
         self.job_info = self.read_all_jobs(f);
         self.tables = self.read_all_tables(f);
@@ -194,7 +211,7 @@ impl Machine {
         f.seek(0x7C);
         buffer = f.read_bytes(4).expect("Could not read header bytes");
         let uses_offsets = i32::from_le_bytes(buffer[0..4].try_into().unwrap());
-        println!("Uses offset: {}",uses_offsets);
+        println!("Uses offset: {}", uses_offsets);
         let mut infos = UsesInfos(Vec::new());
         if uses_offsets < 0 {
             return infos;
@@ -206,7 +223,10 @@ impl Machine {
         let mut uses_buffer: [u8; 0x100] = [0; 0x100];
         for _ in 0..uses_count {
             read_decrypt_bytes(f, &mut uses_buffer, 0, 0x100);
-            let name = String::from_utf8(Vec::from(uses_buffer)).unwrap().trim_matches(char::from(0)).to_string();
+            let name = String::from_utf8(Vec::from(uses_buffer))
+                .unwrap()
+                .trim_matches(char::from(0))
+                .to_string();
             infos.0.push(UsesInfo(name))
         }
         infos
@@ -216,34 +236,38 @@ impl Machine {
         f.seek(0x90);
         let buffer = f.read_bytes(4).unwrap();
         let description_offset = i32::from_le_bytes(buffer[0..4].try_into().unwrap());
-        println!("Description offset: {}",description_offset);
+        println!("Description offset: {}", description_offset);
         let mut description_info_locals = DescriptionInfos::default();
         if description_offset < 0 {
-            return description_info_locals
+            return description_info_locals;
         }
         f.seek(description_offset as usize);
         let num_bytes = f.read_i32().unwrap();
         println!("Description byte size: {}", num_bytes);
         let mut comment_list: Vec<String> = Vec::new();
         let mut record_offset = 0;
-        let mut record_buffer: [u8; 1100] = [0;  1100];
+        let mut record_buffer: [u8; 1100] = [0; 1100];
         let mut previous_job_name: Option<String> = None;
         for _ in 0..num_bytes {
             read_decrypt_bytes(f, &mut record_buffer, record_offset, 1);
-            record_offset+=1;
+            record_offset += 1;
             if record_offset >= 1098 {
-                record_offset+=1;
+                record_offset += 1;
                 record_buffer[record_offset as usize] = 10;
             }
             if record_buffer[record_offset as usize - 1] == 10 {
                 record_buffer[record_offset as usize] = 0;
-                let comment = String::from_utf8(Vec::from(&record_buffer[0..record_offset as usize - 1])).unwrap();
+                let comment =
+                    String::from_utf8(Vec::from(&record_buffer[0..record_offset as usize - 1]))
+                        .unwrap();
                 if comment.to_ascii_uppercase().starts_with("JOBNAME:") {
                     match &previous_job_name {
                         None => description_info_locals.global_comments = comment_list.clone(),
                         Some(s) => {
                             if !description_info_locals.job_comments.contains_key(s) {
-                                description_info_locals.job_comments.insert(s.clone(), comment_list.clone());
+                                description_info_locals
+                                    .job_comments
+                                    .insert(s.clone(), comment_list.clone());
                             }
                         }
                     }
@@ -258,7 +282,9 @@ impl Machine {
             None => description_info_locals.global_comments = comment_list.clone(),
             Some(s) => {
                 if !description_info_locals.job_comments.contains_key(s) {
-                    description_info_locals.job_comments.insert(s.clone(), comment_list.clone());
+                    description_info_locals
+                        .job_comments
+                        .insert(s.clone(), comment_list.clone());
                 }
             }
         }
@@ -278,7 +304,7 @@ impl Machine {
 
         let mut job_list: Vec<JobInfo> = Vec::new();
         if job_list_offset < 0 {
-            return job_list
+            return job_list;
         }
         f.seek(job_list_offset as usize);
         let num_jobs = f.read_i32().unwrap();
@@ -289,7 +315,10 @@ impl Machine {
             f.seek(job_start as usize);
             let len = job_buffer.len();
             read_decrypt_bytes(f, &mut job_buffer, 0, len);
-            let job_name_string = String::from_utf8(Vec::from(&job_buffer[0..0x40])).unwrap().trim_matches(char::from(0)).to_string();
+            let job_name_string = String::from_utf8(Vec::from(&job_buffer[0..0x40]))
+                .unwrap()
+                .trim_matches(char::from(0))
+                .to_string();
             let job_address = u32::from_le_bytes(job_buffer[0x40..].try_into().unwrap());
             job_list.push(JobInfo {
                 name: job_name_string,
@@ -316,7 +345,9 @@ impl Machine {
             let key = j.name.to_ascii_uppercase();
             let mut add_job = true;
             if j.uses_info.is_some() {
-                if key == JOB_INIT_NAME.to_ascii_uppercase() || key == JOB_NAME_EXIT.to_ascii_uppercase() {
+                if key == JOB_INIT_NAME.to_ascii_uppercase()
+                    || key == JOB_NAME_EXIT.to_ascii_uppercase()
+                {
                     add_job = false;
                 }
             }
@@ -333,21 +364,23 @@ impl Machine {
         f.seek(0x84);
         let mut buffer = f.read_bytes(4).unwrap();
         let table_offset = i32::from_le_bytes(buffer[0..4].try_into().unwrap());
-        println!("Table offset: {}",table_offset);
+        println!("Table offset: {}", table_offset);
         let mut table_infos = TableInfos::default();
 
         if table_offset < 0 {
-            return table_infos
+            return table_infos;
         }
         f.seek(table_offset as usize);
         read_decrypt_bytes(f, &mut buffer, 0, 4);
         let table_count = i32::from_le_bytes(buffer[0..4].try_into().unwrap());
-        
+
         let mut table_start = f.pos;
         for i in 0..table_count {
             let table = self.read_table(f, table_start);
             table_infos.table_info_array.push(table.clone());
-            table_infos.table_name_dict.insert(table.name.to_ascii_uppercase(), i as u32);
+            table_infos
+                .table_name_dict
+                .insert(table.name.to_ascii_uppercase(), i as u32);
             table_start += 0x50;
         }
         println!("Table infos: {:#?}", table_infos);
@@ -358,7 +391,10 @@ impl Machine {
         f.seek(offset);
         let mut buffer: [u8; 0x50] = [0; 0x50];
         read_decrypt_bytes(f, &mut buffer, 0, 0x50);
-        let name = String::from_utf8(Vec::from(&buffer[0..0x40])).unwrap().trim_matches(char::from(0)).to_string();
+        let name = String::from_utf8(Vec::from(&buffer[0..0x40]))
+            .unwrap()
+            .trim_matches(char::from(0))
+            .to_string();
         TableInfo {
             name,
             table_offset: u32::from_le_bytes(buffer[0x40..0x44].try_into().unwrap()),
@@ -371,7 +407,7 @@ impl Machine {
 
     fn get_table_index(&mut self, f: &mut Raf, table: &mut TableInfo) {
         if !table.table_entries.is_empty() {
-            return
+            return;
         }
 
         f.seek(table.table_column_offset as usize);
@@ -390,7 +426,8 @@ impl Machine {
                     }
                 }
                 if i == 0 {
-                    let column_name = String::from_utf8(Vec::from(&self.table_item_buffer[0..l])).unwrap();
+                    let column_name =
+                        String::from_utf8(Vec::from(&self.table_item_buffer[0..l])).unwrap();
                     column_name_dict.insert(column_name, i as u32);
                 }
             }
@@ -417,46 +454,51 @@ impl Machine {
     }
 
     fn get_job_info(&self, name: &str) -> Option<JobInfo> {
-        match self.job_info.job_name_dict.get_key_value(&name.to_ascii_uppercase()) {
+        match self
+            .job_info
+            .job_name_dict
+            .get_key_value(&name.to_ascii_uppercase())
+        {
             Some((_, idx)) => Some(self.job_info.job_info_array[*idx as usize].clone()),
-            None => None
-        } 
+            None => None,
+        }
     }
 
     fn exec_job_private(&mut self, name: &str, recursive: bool) {
         // Assumed SGFS is already open
         match self.get_job_info(name) {
-            Some(j) => {
-                match j.uses_info {
-                    Some(info) => {
-                        todo!("Cannot run jobs from other PRG files. This job requires {}", info.0)
-                    },
-                    None => {
-                        let mut tmp = self.raf.as_mut().unwrap().clone();
-                        self.exec_job_private_fs(name, recursive, &mut tmp, j)
-                    }
+            Some(j) => match j.uses_info {
+                Some(info) => {
+                    todo!(
+                        "Cannot run jobs from other PRG files. This job requires {}",
+                        info.0
+                    )
+                }
+                None => {
+                    let mut tmp = self.raf.as_mut().unwrap().clone();
+                    self.exec_job_private_fs(name, recursive, &mut tmp, j)
                 }
             },
             None => {
                 eprintln!("Warning. Job {} not found!", name);
-                return
+                return;
             }
         }
     }
 
-    fn exec_job_private_fs(&mut self,  name: &str, recursive: bool, fs: &mut Raf, info: JobInfo) {
+    fn exec_job_private_fs(&mut self, name: &str, recursive: bool, fs: &mut Raf, info: JobInfo) {
         println!("Executing JOB {}", name);
         if !self.req_init && !recursive {
             todo!("Request init  job");
         }
-        let mut buffer : [u8; 2] = [0; 2];
+        let mut buffer: [u8; 2] = [0; 2];
         let mut res_set_tmp: Vec<HashMap<String, ResultData>> = Vec::new();
 
         self.result_dict.clear();
         self.result_sys_dict.clear();
         self.stack.clear();
-        
-        self.string_registers.iter_mut().for_each(|mut s|{
+
+        self.string_registers.iter_mut().for_each(|mut s| {
             s.clear();
         });
         self.error_trap_bit_nr = -1;
@@ -468,8 +510,18 @@ impl Machine {
         self.max_array_size = info.size;
         self.pc_counter = info.offset;
 
-        let mut arg0 = Operand::new(OpAddrMode::None, OperandData::None, OperandData::None, OperandData::None);
-        let mut arg1 = Operand::new(OpAddrMode::None, OperandData::None, OperandData::None, OperandData::None);
+        let mut arg0 = Operand::new(
+            OpAddrMode::None,
+            OperandData::None,
+            OperandData::None,
+            OperandData::None,
+        );
+        let mut arg1 = Operand::new(
+            OpAddrMode::None,
+            OperandData::None,
+            OperandData::None,
+            OperandData::None,
+        );
         let mut found_first_eoj = false;
         while !self.job_end {
             let pc_counter_old = self.pc_counter;
@@ -478,20 +530,30 @@ impl Machine {
             let op_code_val = buffer[0];
             let op_addr_mode = buffer[1];
 
-            let op_addr_mode0: OpAddrMode = unsafe { ::std::mem::transmute((op_addr_mode & 0xF0) >> 4) };
-            let op_addr_mode1: OpAddrMode = unsafe { ::std::mem::transmute((op_addr_mode & 0x0F) >> 0) };
+            let op_addr_mode0: OpAddrMode =
+                unsafe { ::std::mem::transmute((op_addr_mode & 0xF0) >> 4) };
+            let op_addr_mode1: OpAddrMode =
+                unsafe { ::std::mem::transmute((op_addr_mode & 0x0F) >> 0) };
 
-            let mut oc = unsafe { OP_CODE_LIST.get(op_code_val as usize) }.expect(&format!("No op code for op_code_val {}", op_code_val)).clone();
-            
+            let mut oc = unsafe { OP_CODE_LIST.get(op_code_val as usize) }
+                .expect(&format!("No op code for op_code_val {}", op_code_val))
+                .clone();
 
-            arg0 = self.get_op_arg(fs, op_addr_mode0).expect("Error init op_arg");
-            arg1 = self.get_op_arg(fs, op_addr_mode1).expect("Error init op_arg");
+            arg0 = self
+                .get_op_arg(fs, op_addr_mode0)
+                .expect("Error init op_arg");
+            arg1 = self
+                .get_op_arg(fs, op_addr_mode1)
+                .expect("Error init op_arg");
             self.pc_counter = fs.pos as u32;
-            println!("Adress modes: {:?}, {:?}", op_addr_mode0, op_addr_mode1);
-            println!("Executing {}, Arg0: {:?}, Arg1: {:?}", oc.pneumonic, arg0, arg1);
+            //println!("Adress modes: {:?}, {:?}. Op code: {}", op_addr_mode0, op_addr_mode1, op_code_val);
+            println!(
+                "Executing {}, Arg0: {:?}, Arg1: {:?}",
+                oc.pneumonic, arg0, arg1
+            );
 
             if oc.arg0_is_near_addr && op_addr_mode0 == OpAddrMode::Imm32 {
-                let label_addr = self.pc_counter + arg0.data1.get_integer().unwrap();
+                let label_addr = self.pc_counter + *arg0.data1.get_integer().unwrap();
                 arg0.data1 = OperandData::Integer(label_addr)
             }
 
@@ -512,27 +574,51 @@ impl Machine {
     pub fn get_op_arg(&mut self, fs: &mut Raf, addr_mode: OpAddrMode) -> EdiabasResult<Operand> {
         let mut buffer: [u8; 5] = [0; 5];
         match addr_mode {
-            OpAddrMode::None => { Ok(Operand::new(addr_mode, OperandData::None, OperandData::None, OperandData::None)) },
-            OpAddrMode::RegS |
-            OpAddrMode::RegAb |
-            OpAddrMode::RegI |
-            OpAddrMode::RegL => {
+            OpAddrMode::None => Ok(Operand::new(
+                addr_mode,
+                OperandData::None,
+                OperandData::None,
+                OperandData::None,
+            )),
+            OpAddrMode::RegS | OpAddrMode::RegAb | OpAddrMode::RegI | OpAddrMode::RegL => {
                 read_decrypt_bytes(fs, &mut buffer, 0, 1);
                 let oa_reg = Self::get_register(buffer[0])?;
-                Ok(Operand::new(addr_mode, OperandData::Register(oa_reg), OperandData::None, OperandData::None))
+                Ok(Operand::new(
+                    addr_mode,
+                    OperandData::Register(oa_reg),
+                    OperandData::None,
+                    OperandData::None,
+                ))
             }
             OpAddrMode::Imm8 => {
                 read_decrypt_bytes(fs, &mut buffer, 0, 1);
-                Ok(Operand::new(addr_mode, OperandData::Integer(buffer[0] as u32), OperandData::None, OperandData::None))
-            },
+                Ok(Operand::new(
+                    addr_mode,
+                    OperandData::Integer(buffer[0] as u32),
+                    OperandData::None,
+                    OperandData::None,
+                ))
+            }
             OpAddrMode::Imm16 => {
                 read_decrypt_bytes(fs, &mut buffer, 0, 2);
-                Ok(Operand::new(addr_mode, OperandData::Integer(u16::from_le_bytes(buffer[0..2].try_into().unwrap()) as u32), OperandData::None, OperandData::None))
-            },
+                Ok(Operand::new(
+                    addr_mode,
+                    OperandData::Integer(
+                        u16::from_le_bytes(buffer[0..2].try_into().unwrap()) as u32
+                    ),
+                    OperandData::None,
+                    OperandData::None,
+                ))
+            }
             OpAddrMode::Imm32 => {
                 read_decrypt_bytes(fs, &mut buffer, 0, 4);
-                Ok(Operand::new(addr_mode, OperandData::Integer(u32::from_le_bytes(buffer[0..4].try_into().unwrap())), OperandData::None, OperandData::None))
-            },
+                Ok(Operand::new(
+                    addr_mode,
+                    OperandData::Integer(u32::from_le_bytes(buffer[0..4].try_into().unwrap())),
+                    OperandData::None,
+                    OperandData::None,
+                ))
+            }
             OpAddrMode::ImmStr => todo!(),
             OpAddrMode::IdxImm => todo!(),
             OpAddrMode::IdxReg => todo!(),
@@ -544,6 +630,8 @@ impl Machine {
         }
     }
 
+    pub fn set_error() {}
+
     pub fn get_register(opcode: u8) -> EdiabasResult<Register> {
         let result: Register;
         if opcode <= 0x33 {
@@ -551,14 +639,14 @@ impl Machine {
         } else if opcode >= 0x80 {
             let idx: usize = (opcode - 0x80 + 0x34) as usize;
             if idx >= REGISTER_LIST.len() {
-                return Err(EdiabasError::OpCodeOutOfRange)
+                return Err(EdiabasError::OpCodeOutOfRange("mod", "get_register"));
             }
             result = REGISTER_LIST[idx].clone();
         } else {
-            return Err(EdiabasError::OpCodeOutOfRange)
+            return Err(EdiabasError::OpCodeOutOfRange("mod", "get_register"));
         }
         if result.opcode != opcode {
-            return Err(EdiabasError::OpCodeMappingInvalid)
+            return Err(EdiabasError::OpCodeMappingInvalid("mod", "get_register"));
         }
         Ok(result)
     }

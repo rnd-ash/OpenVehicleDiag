@@ -2,13 +2,12 @@ use std::io::Read;
 
 use common::raf::Raf;
 
-pub mod decoder;
 pub mod bmw_comm;
-pub mod sg_functions;
+pub mod decoder;
 pub mod file_reader;
 pub mod fsm;
 pub mod machine;
-
+pub mod sg_functions;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

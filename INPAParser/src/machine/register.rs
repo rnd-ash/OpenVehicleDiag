@@ -1,8 +1,12 @@
-use std::{borrow::Borrow, cell::RefCell, fmt::format, mem::size_of, rc::Weak};
+use std::{
+    borrow::{Borrow, BorrowMut},
+    cell::RefCell,
+    fmt::format,
+    mem::size_of,
+    rc::Weak,
+};
 
-use super::EdiabasResult;
-
-
+use super::{operand::OperandData, EdiabasError, EdiabasResult, Machine};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RegisterType {
@@ -10,7 +14,7 @@ pub enum RegisterType {
     RegI,  // 16 bit
     RegL,  // 32 bit
     RegF,  // float
-    RegS   // String
+    RegS,  // String
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -18,7 +22,7 @@ pub enum RegisterDataType {
     Float,
     Integer,
     ByteArray,
-    Byte
+    Byte,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,7 +33,20 @@ pub enum RegisterData {
     String(super::StringData),
     Bytes(Vec<u8>),
     Byte(u8),
-    Short(u16)
+    Short(u16),
+}
+
+impl From<OperandData> for RegisterData {
+    fn from(x: OperandData) -> Self {
+        match x {
+            OperandData::None => Self::None,
+            OperandData::Bytes(b) => Self::Bytes(b.clone()),
+            OperandData::Integer(i) => Self::Integer(i),
+            OperandData::Float(f) => Self::Float(f),
+            OperandData::String(s) => Self::String(s.clone()),
+            OperandData::Register(r) => panic!("Impossible to set register to register data!"),
+        }
+    }
 }
 
 impl RegisterData {
@@ -51,7 +68,7 @@ pub struct Register {
     pub opcode: u8,
     pub reg_type: RegisterType,
     pub index: usize,
-    pub data: RegisterData
+    pub data: RegisterData,
 }
 
 impl Register {
@@ -68,11 +85,11 @@ impl Register {
         match self.reg_type {
             RegisterType::RegAb => {
                 if self.index > 15 {
-                    format!("A{:X}", self.index-16)
+                    format!("A{:X}", self.index - 16)
                 } else {
                     format!("B{:X}", self.index)
                 }
-            },
+            }
             RegisterType::RegI => format!("I{:X}", self.index),
             RegisterType::RegL => format!("L{:X}", self.index),
             RegisterType::RegF => format!("F{:X}", self.index),
@@ -84,7 +101,7 @@ impl Register {
         match self.reg_type {
             RegisterType::RegF => RegisterDataType::Float,
             RegisterType::RegS => RegisterDataType::ByteArray,
-            _ => RegisterDataType::Integer
+            _ => RegisterDataType::Integer,
         }
     }
 
@@ -93,7 +110,10 @@ impl Register {
             1 => Ok(0x000000FF),
             2 => Ok(0x0000FFFF),
             4 => Ok(0xFFFFFFFF),
-            _ => Err(super::EdiabasError::InvalidDataLength)
+            _ => Err(super::EdiabasError::InvalidDataLength(
+                "register",
+                "get_value_mask",
+            )),
         }
     }
 
@@ -111,13 +131,102 @@ impl Register {
 
     pub fn get_array_data(&self, complete: bool) -> EdiabasResult<Vec<u8>> {
         if self.reg_type != RegisterType::RegS {
-            Err(super::EdiabasError::InvalidDataType)
+            Err(super::EdiabasError::InvalidDataType(
+                "register",
+                "get_array_data",
+            ))
         } else {
             if let RegisterData::String(s) = &self.data {
                 Ok(s.get_data(complete))
             } else {
-                Err(super::EdiabasError::InvalidDataType)
+                Err(super::EdiabasError::InvalidDataType(
+                    "register",
+                    "get_array_data",
+                ))
             }
+        }
+    }
+
+    pub fn set_raw_data(&mut self, v: RegisterData, m: &mut Machine) -> EdiabasResult<()> {
+        if self.reg_type == RegisterType::RegS {
+            if let RegisterData::Bytes(bytes) = &v {
+                self.set_array_data(m, &bytes, false)
+            } else {
+                Err(EdiabasError::InvalidDataType("register", "set_raw_data"))
+            }
+        } else if self.reg_type == RegisterType::RegF {
+            if let RegisterData::Float(f) = &v {
+                self.set_float_data(m, *f)
+            } else {
+                Err(EdiabasError::InvalidDataType("register", "set_raw_data"))
+            }
+        } else {
+            if let RegisterData::Integer(i) = &v {
+                self.set_value_data(m, *i)
+            } else {
+                Err(EdiabasError::InvalidDataType("register", "set_raw_data"))
+            }
+        }
+    }
+
+    pub fn set_float_data(&mut self, m: &mut Machine, f: f32) -> EdiabasResult<()> {
+        if self.reg_type == RegisterType::RegF {
+            m.float_registers[self.index] = f;
+            Ok(())
+        } else {
+            Err(EdiabasError::InvalidDataType("register", "set_float_data"))
+        }
+    }
+
+    /// keep_length default: false
+    pub fn set_array_data(
+        &mut self,
+        m: &mut Machine,
+        a: &[u8],
+        keep_length: bool,
+    ) -> EdiabasResult<()> {
+        if self.reg_type == RegisterType::RegS {
+            {
+                let mut reg = m.string_registers[self.index].borrow_mut().clone();
+                reg.set_data(m, a, keep_length);
+                m.string_registers[self.index] = reg;
+            }
+            Ok(())
+        } else {
+            Err(EdiabasError::InvalidDataType("register", "set_array_data"))
+        }
+    }
+
+    pub fn clear_data(&mut self, m: &mut Machine) -> EdiabasResult<()> {
+        if self.reg_type == RegisterType::RegS {
+            m.string_registers[self.index].clear();
+            Ok(())
+        } else {
+            Err(EdiabasError::InvalidDataType("register", "clear_data"))
+        }
+    }
+
+    pub fn set_value_data(&mut self, m: &mut Machine, data: u32) -> EdiabasResult<()> {
+        match self.reg_type {
+            RegisterType::RegAb => {
+                m.byte_registers[self.index] = data as u8;
+                Ok(())
+            }
+            RegisterType::RegI => {
+                let offset = self.index << 1;
+                m.byte_registers[offset] = data as u8;
+                m.byte_registers[offset + 1] = (data >> 8) as u8;
+                Ok(())
+            }
+            RegisterType::RegL => {
+                let offset = self.index << 2;
+                m.byte_registers[offset] = data as u8;
+                m.byte_registers[offset + 1] = (data >> 8) as u8;
+                m.byte_registers[offset + 2] = (data >> 16) as u8;
+                m.byte_registers[offset + 3] = (data >> 24) as u8;
+                Ok(())
+            }
+            _ => Err(EdiabasError::InvalidDataType("register", "set_value_data")),
         }
     }
 }

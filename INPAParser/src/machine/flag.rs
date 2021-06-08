@@ -1,6 +1,5 @@
 use super::EdiabasResult;
 
-
 #[derive(Copy, Clone, Default)]
 pub struct Flag(u32);
 
@@ -11,12 +10,11 @@ impl std::fmt::Debug for Flag {
             .field("Zero", &(self.0 & 0x02 != 0))
             .field("Sign", &(self.0 & 0x04 != 0))
             .field("Overflow", &(self.0 & 0x08 != 0))
-        .finish()
+            .finish()
     }
 }
 
 impl Flag {
-
     #[inline(always)]
     pub fn set_carry_bit(&mut self, state: bool) {
         self.0 = (self.0 & !0x01) | state as u32;
@@ -43,7 +41,12 @@ impl Flag {
             1 => masks = (0x000000FF, 0x00000080),
             2 => masks = (0x0000FFFF, 0x00008000),
             4 => masks = (0xFFFFFFFF, 0x80000000),
-            _ => return Err(super::EdiabasError::InvalidDataLength)
+            _ => {
+                return Err(super::EdiabasError::InvalidDataLength(
+                    "flag",
+                    "update_flags",
+                ))
+            }
         }
         self.set_zero_bit(value & masks.0 == 0);
         self.set_sign_bit(value & masks.0 == 0);
@@ -56,7 +59,12 @@ impl Flag {
             1 => sign_mask = 0x00000080,
             2 => sign_mask = 0x00008000,
             4 => sign_mask = 0x80000000,
-            _ => return Err(super::EdiabasError::InvalidDataLength)
+            _ => {
+                return Err(super::EdiabasError::InvalidDataLength(
+                    "flag",
+                    "set_overflow",
+                ))
+            }
         }
         if (v1 & sign_mask) != (v2 & sign_mask) {
             self.set_overflow_bit(false);
@@ -74,7 +82,7 @@ impl Flag {
             1 => carry_mask = 0x00000100,
             2 => carry_mask = 0x00001000,
             4 => carry_mask = 0x10000000,
-            _ => return Err(super::EdiabasError::InvalidDataLength)
+            _ => return Err(super::EdiabasError::InvalidDataLength("flag", "set_carry")),
         }
         self.set_carry_bit((v & carry_mask) != 0);
         Ok(())

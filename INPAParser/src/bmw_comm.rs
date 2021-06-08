@@ -1,4 +1,3 @@
-
 #[allow(non_camel_case_types, unused_attributes)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BusType {
@@ -32,7 +31,7 @@ pub enum BusType {
     IBUS,
     LECAN,
     IKCAN,
-    UNKNOWN
+    UNKNOWN,
 }
 
 pub trait EcuLogisticTrait {
@@ -52,15 +51,22 @@ pub struct EcuLogisticEntry<'a> {
     name: &'a str,
     shortname: &'a str,
     bus: BusType,
-    sub_bus_list: &'a[BusType],
+    sub_bus_list: &'a [BusType],
     sgbd: &'a str,
     column: i32,
     row: i32,
-    sub_diag_addr: Option<u32>
+    sub_diag_addr: Option<u32>,
 }
 
 impl<'a> EcuLogisticEntry<'a> {
-    const fn new(addr: u32, name: &'a str, bus: BusType, sgbd: &'a str, col: i32, row: i32) -> Self {
+    const fn new(
+        addr: u32,
+        name: &'a str,
+        bus: BusType,
+        sgbd: &'a str,
+        col: i32,
+        row: i32,
+    ) -> Self {
         Self {
             addr,
             name,
@@ -201,7 +207,7 @@ const ECU_LOGISTICS_E36: &'static [EcuLogisticEntry] = &[
     EcuLogisticEntry::new(234, "DSP_BT", BusType::KBUS, "D_00ea", -1, -1),
     EcuLogisticEntry::new(237, "VIDEO", BusType::KBUS, "D_00ed", 4, 7),
     EcuLogisticEntry::new(240, "CIDB", BusType::KBUS, "D_00f0", 4, 6),
-    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2)
+    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2),
 ];
 
 #[allow(dead_code)]
@@ -292,7 +298,7 @@ const ECU_LOGISTICS_E38: &'static [EcuLogisticEntry] = &[
     EcuLogisticEntry::new(234, "DSP_BT", BusType::KBUS, "D_00ea", -1, -1),
     EcuLogisticEntry::new(237, "VIDEO", BusType::IBUS, "D_00ed", 4, 7),
     EcuLogisticEntry::new(240, "CIDB", BusType::IBUS, "D_00f0", 4, 6),
-    EcuLogisticEntry::new(245, "LKM", BusType::IBUS, "D_00f5|d_szm", 4, 2)
+    EcuLogisticEntry::new(245, "LKM", BusType::IBUS, "D_00f5|d_szm", 4, 2),
 ];
 
 #[allow(dead_code)]
@@ -383,7 +389,7 @@ const ECU_LOGISTICS_E39: &'static [EcuLogisticEntry] = &[
     EcuLogisticEntry::new(234, "DSP_BT", BusType::KBUS, "D_00ea", -1, -1),
     EcuLogisticEntry::new(237, "VIDEO", BusType::KBUS, "D_00ed", 4, 7),
     EcuLogisticEntry::new(240, "CIDB", BusType::KBUS, "D_00f0", 4, 6),
-    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2)
+    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2),
 ];
 
 #[allow(dead_code)]
@@ -474,7 +480,7 @@ const ECU_LOGISTICS_E46: &'static [EcuLogisticEntry] = &[
     EcuLogisticEntry::new(234, "DSP_BT", BusType::UNKNOWN, "D_00ea", -1, -1),
     EcuLogisticEntry::new(237, "VIDEO", BusType::KBUS, "D_00ed", 4, 7),
     EcuLogisticEntry::new(240, "CIDB", BusType::KBUS, "D_00f0", 4, 6),
-    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2)
+    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2),
 ];
 
 #[allow(dead_code)]
@@ -565,7 +571,7 @@ const ECU_LOGISTICS_E52: &'static [EcuLogisticEntry] = &[
     EcuLogisticEntry::new(234, "DSP_BT", BusType::UNKNOWN, "D_00ea", -1, -1),
     EcuLogisticEntry::new(237, "VIDEO", BusType::KBUS, "D_00ed", 4, 7),
     EcuLogisticEntry::new(240, "CIDB", BusType::KBUS, "D_00f0", 4, 6),
-    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2)
+    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2),
 ];
 
 #[allow(dead_code)]
@@ -656,7 +662,7 @@ const ECU_LOGISTICS_E53: &'static [EcuLogisticEntry] = &[
     EcuLogisticEntry::new(234, "DSP_BT", BusType::UNKNOWN, "D_00ea", -1, -1),
     EcuLogisticEntry::new(237, "VIDEO", BusType::KBUS, "D_00ed", 4, 7),
     EcuLogisticEntry::new(240, "CIDB", BusType::KBUS, "D_00f0", 4, 6),
-    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2)
+    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2),
 ];
 
 #[allow(dead_code)]
@@ -746,7 +752,7 @@ const ECU_LOGISTICS_E83: &'static [EcuLogisticEntry] = &[
     EcuLogisticEntry::new(218, "SM", BusType::KBUS, "D_00da", 1, 4),
     EcuLogisticEntry::new(224, "IRIS", BusType::UNKNOWN, "D_00e0", -1, -1),
     EcuLogisticEntry::new(156, "CVM", BusType::KBUS, "D_009c", 2, 3),
-    EcuLogisticEntry::new(234, "DSP_BT", BusType::UNKNOWN, "D_00ea", -1, -1)
+    EcuLogisticEntry::new(234, "DSP_BT", BusType::UNKNOWN, "D_00ea", -1, -1),
 ];
 
 #[allow(dead_code)]
@@ -838,7 +844,7 @@ const ECU_LOGISTICS_E85: &'static [EcuLogisticEntry] = &[
     EcuLogisticEntry::new(234, "DSP_BT", BusType::UNKNOWN, "D_00ea", -1, -1),
     EcuLogisticEntry::new(237, "VIDEO", BusType::KBUS, "D_00ed", 4, 7),
     EcuLogisticEntry::new(240, "CIDB", BusType::KBUS, "D_00f0", 4, 6),
-    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2)
+    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2),
 ];
 
 #[allow(dead_code)]
@@ -927,5 +933,5 @@ const ECU_LOGISTICS_R50: &'static [EcuLogisticEntry] = &[
     EcuLogisticEntry::new(218, "SM", BusType::KBUS, "D_00da", 0, 4),
     EcuLogisticEntry::new(224, "IRIS", BusType::KBUS, "D_00e0", -1, -1),
     EcuLogisticEntry::new(234, "DSP_BT", BusType::UNKNOWN, "D_00ea", -1, -1),
-    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2)
+    EcuLogisticEntry::new(245, "LKM", BusType::KBUS, "D_00f5|d_szm", 4, 2),
 ];
