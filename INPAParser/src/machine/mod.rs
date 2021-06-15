@@ -548,7 +548,7 @@ impl Machine {
             self.pc_counter = fs.pos as u32;
             //println!("Adress modes: {:?}, {:?}. Op code: {}", op_addr_mode0, op_addr_mode1, op_code_val);
             println!(
-                "Executing {}, Arg0: {:?}, Arg1: {:?}",
+                "\n\n--Executing {}--\nArg0: {:?}\nArg1: {:?}",
                 oc.pneumonic, arg0, arg1
             );
 
@@ -565,6 +565,7 @@ impl Machine {
 
             if let Some(func) = oc.op_func {
                 if let Err(e) = func(self, &mut oc, &mut arg0, &mut arg1) {
+                    println!("ERROR: {:?}", e);
                     panic!("Execution failed. Error: {:?}", e);
                 }
             }

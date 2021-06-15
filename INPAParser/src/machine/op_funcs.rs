@@ -12,6 +12,9 @@ pub fn op_move(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
+    let data_type_0 = arg0.get_data_type();
+    let data_type_1 = arg1.get_data_type();
+
     todo!();
 }
 
@@ -442,7 +445,8 @@ pub fn op_xstopf(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    println!("Stopping frequent");
+    Ok(())
 }
 
 pub fn op_xkeyb(

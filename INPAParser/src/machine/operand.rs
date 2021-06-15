@@ -194,14 +194,14 @@ impl Operand {
         match &self.addr_mode {
             OpAddrMode::RegS | OpAddrMode::RegAb | OpAddrMode::RegI | OpAddrMode::RegL => {
                 if let OperandData::Register(r) = &self.data1 {
-                    match r.get_raw_data() {
+                    match r.get_raw_data(m)? {
                         RegisterData::None => Ok(OperandData::None),
-                        RegisterData::Float(f) => Ok(OperandData::Float(*f)),
-                        RegisterData::Integer(i) => Ok(OperandData::Integer(*i)),
+                        RegisterData::Float(f) => Ok(OperandData::Float(f)),
+                        RegisterData::Integer(i) => Ok(OperandData::Integer(i)),
                         RegisterData::String(s) => Ok(OperandData::String(s.clone())),
                         RegisterData::Bytes(b) => Ok(OperandData::Bytes(b.clone())),
-                        RegisterData::Byte(b) => Ok(OperandData::Integer(*b as u32)),
-                        RegisterData::Short(s) => Ok(OperandData::Integer(*s as u32)),
+                        RegisterData::Byte(b) => Ok(OperandData::Integer(b as u32)),
+                        RegisterData::Short(s) => Ok(OperandData::Integer(s as u32)),
                     }
                 } else {
                     Err(super::EdiabasError::InvalidDataType(
@@ -220,7 +220,7 @@ impl Operand {
                 if self.addr_mode == OpAddrMode::IdxImm {
                     index = *self.data2.get_integer()?;
                 } else {
-                    index = self.data2.get_register()?.get_value_data();
+                    index = self.data2.get_register()?.get_value_data(m)?;
                 }
 
                 if self.addr_mode == OpAddrMode::IdxRegLenImm {
@@ -247,14 +247,14 @@ impl Operand {
                 {
                     *self.data2.get_integer()?
                 } else {
-                    self.data2.get_register()?.get_value_data()
+                    self.data2.get_register()?.get_value_data(m)?
                 };
                 let mut len = if self.addr_mode == OpAddrMode::IdxImmLenImm
                     || self.addr_mode == OpAddrMode::IdxImmLenReg
                 {
                     *self.data3.get_integer()?
                 } else {
-                    self.data3.get_register()?.get_value_data()
+                    self.data3.get_register()?.get_value_data(m)?
                 };
                 let required_length: u64 = index as u64 + len as u64;
                 if required_length > m.max_array_size as u64 {

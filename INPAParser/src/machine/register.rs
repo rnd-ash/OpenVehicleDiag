@@ -71,6 +71,13 @@ pub struct Register {
     pub data: RegisterData,
 }
 
+impl std::fmt::Display for Register {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("Register{{ OC: {}, TYPE: {:?}, IDX: {}, Data: {:?} }}", self.opcode, self.reg_type, self.index, self.data))
+    }
+}
+
+
 impl Register {
     pub const fn new(opcode: u8, reg_type: RegisterType, index: usize) -> Self {
         Self {
@@ -121,12 +128,47 @@ impl Register {
         self.data.get_data_length() as u32
     }
 
-    pub fn get_raw_data(&self) -> &RegisterData {
-        &self.data
+    pub fn get_raw_data(&self,  m: &Machine) -> EdiabasResult<RegisterData> {
+        match self.reg_type {
+            RegisterType::RegAb => Ok(RegisterData::Byte(self.get_value_data(m)? as u8)),
+            RegisterType::RegI => Ok(RegisterData::Short(self.get_value_data(m)? as u16)),
+            RegisterType::RegL => Ok(RegisterData::Integer(self.get_value_data(m)?)),
+            RegisterType::RegF => Ok(RegisterData::Float(self.get_float_data(m)?)),
+            RegisterType::RegS => Ok(RegisterData::Bytes(self.get_array_data(false)?))
+        }
     }
 
-    pub fn get_value_data(&self) -> u32 {
-        todo!()
+    pub fn get_float_data(&self, m: &Machine) -> EdiabasResult<f32> {
+        if self.reg_type != RegisterType::RegF {
+            return Err(EdiabasError::InvalidDataType("register", "get_float_data"))
+        }
+        if self.get_data_len() != 4 {
+            return Err(EdiabasError::InvalidDataLength("register", "get_float_data"))
+        }
+        Ok(m.float_registers[self.index])
+    }
+
+    pub fn get_value_data(&self, m: &Machine) -> EdiabasResult<u32> {
+        match self.reg_type {
+            RegisterType::RegAb => Ok(m.byte_registers[self.index as usize] as u32),
+            RegisterType::RegI => {
+                let offset = self.index << 1;
+                Ok(
+                    (m.byte_registers[offset] as u32) +
+                    ((m.byte_registers[offset+1] as u32) << 8)
+                )
+            },
+            RegisterType::RegL => {
+                let offset = self.index << 2;
+                Ok(
+                    (m.byte_registers[offset] as u32) +
+                    ((m.byte_registers[offset+1] as u32) << 8) +
+                    ((m.byte_registers[offset+2] as u32) << 16) + 
+                    ((m.byte_registers[offset+3] as u32) << 24)
+                )
+            },
+            _ => Err(EdiabasError::InvalidDataLength("register", "get_value_data"))
+        }
     }
 
     pub fn get_array_data(&self, complete: bool) -> EdiabasResult<Vec<u8>> {
