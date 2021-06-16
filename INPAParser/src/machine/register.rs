@@ -68,15 +68,7 @@ pub struct Register {
     pub opcode: u8,
     pub reg_type: RegisterType,
     pub index: usize,
-    pub data: RegisterData,
 }
-
-impl std::fmt::Display for Register {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Register{{ OC: {}, TYPE: {:?}, IDX: {}, Data: {:?} }}", self.opcode, self.reg_type, self.index, self.data))
-    }
-}
-
 
 impl Register {
     pub const fn new(opcode: u8, reg_type: RegisterType, index: usize) -> Self {
@@ -84,7 +76,6 @@ impl Register {
             opcode,
             reg_type,
             index,
-            data: RegisterData::None,
         }
     }
 
@@ -112,8 +103,8 @@ impl Register {
         }
     }
 
-    pub fn get_value_mask(&self) -> EdiabasResult<u32> {
-        match self.get_data_len() {
+    pub fn get_value_mask(&self, m: &Machine) -> EdiabasResult<u32> {
+        match self.get_data_len(m) {
             1 => Ok(0x000000FF),
             2 => Ok(0x0000FFFF),
             4 => Ok(0xFFFFFFFF),
@@ -124,8 +115,14 @@ impl Register {
         }
     }
 
-    pub fn get_data_len(&self) -> u32 {
-        self.data.get_data_length() as u32
+    pub fn get_data_len(&self, m: &Machine) -> u32 {
+        match self.reg_type {
+            RegisterType::RegAb => 1,
+            RegisterType::RegI => 2,
+            RegisterType::RegL => 4,
+            RegisterType::RegF => 4,
+            RegisterType::RegS => self.get_array_data(m, false).unwrap_or(Vec::new()).len() as u32,
+        }
     }
 
     pub fn get_raw_data(&self,  m: &Machine) -> EdiabasResult<RegisterData> {
@@ -134,7 +131,7 @@ impl Register {
             RegisterType::RegI => Ok(RegisterData::Short(self.get_value_data(m)? as u16)),
             RegisterType::RegL => Ok(RegisterData::Integer(self.get_value_data(m)?)),
             RegisterType::RegF => Ok(RegisterData::Float(self.get_float_data(m)?)),
-            RegisterType::RegS => Ok(RegisterData::Bytes(self.get_array_data(false)?))
+            RegisterType::RegS => Ok(RegisterData::Bytes(self.get_array_data(m, false)?))
         }
     }
 
@@ -142,7 +139,7 @@ impl Register {
         if self.reg_type != RegisterType::RegF {
             return Err(EdiabasError::InvalidDataType("register", "get_float_data"))
         }
-        if self.get_data_len() != 4 {
+        if self.get_data_len(m) != 4 {
             return Err(EdiabasError::InvalidDataLength("register", "get_float_data"))
         }
         Ok(m.float_registers[self.index])
@@ -171,21 +168,14 @@ impl Register {
         }
     }
 
-    pub fn get_array_data(&self, complete: bool) -> EdiabasResult<Vec<u8>> {
+    pub fn get_array_data(&self, m: &Machine, complete: bool) -> EdiabasResult<Vec<u8>> {
         if self.reg_type != RegisterType::RegS {
             Err(super::EdiabasError::InvalidDataType(
                 "register",
                 "get_array_data",
             ))
         } else {
-            if let RegisterData::String(s) = &self.data {
-                Ok(s.get_data(complete))
-            } else {
-                Err(super::EdiabasError::InvalidDataType(
-                    "register",
-                    "get_array_data",
-                ))
-            }
+            Ok(m.string_registers[self.index].get_data(complete))
         }
     }
 

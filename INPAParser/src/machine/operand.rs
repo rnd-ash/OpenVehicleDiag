@@ -215,7 +215,7 @@ impl Operand {
             }
             OpAddrMode::IdxImm | OpAddrMode::IdxReg | OpAddrMode::IdxRegImm => {
                 let arg1_data = self.data1.get_register()?;
-                let data_array = arg1_data.get_array_data(true)?;
+                let data_array = arg1_data.get_array_data(m,true)?;
                 let mut index: u32;
                 if self.addr_mode == OpAddrMode::IdxImm {
                     index = *self.data2.get_integer()?;
@@ -241,8 +241,8 @@ impl Operand {
             | OpAddrMode::IdxImmLenReg
             | OpAddrMode::IdxRegLenImm
             | OpAddrMode::IdxRegLenReg => {
-                let data_array = self.data1.get_register()?.get_array_data(true)?;
-                let mut index = if self.addr_mode == OpAddrMode::IdxImmLenImm
+                let data_array = self.data1.get_register()?.get_array_data(m, true)?;
+                let index = if self.addr_mode == OpAddrMode::IdxImmLenImm
                     || self.addr_mode == OpAddrMode::IdxImmLenReg
                 {
                     *self.data2.get_integer()?
@@ -277,6 +277,7 @@ impl Operand {
         }
     }
 
+    /// Default 0
     pub fn get_value_data(&mut self, len: u32, m: &super::Machine) -> EdiabasResult<u32> {
         match self.get_raw_data(m)? {
             OperandData::Bytes(b) => {
@@ -319,10 +320,9 @@ impl Operand {
         Ok(*self.get_raw_data(m)?.get_integer()?)
     }
 
-    pub fn get_string_data(&mut self, m: &Machine) -> EdiabasResult<Cow<str>> {
+    pub fn get_string_data(&mut self, m: &Machine) -> EdiabasResult<String> {
         let data = self.get_array_data(m)?;
-        todo!();
-        //Ok(String::from_utf8_lossy(&data).clone())
+        Ok(String::from_utf8(data).unwrap().clone())
     }
 
     /// Len default: 1

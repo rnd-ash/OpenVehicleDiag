@@ -8,6 +8,7 @@ pub mod file_reader;
 pub mod fsm;
 pub mod machine;
 pub mod sg_functions;
+mod virtual_iface;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

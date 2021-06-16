@@ -10,7 +10,7 @@ use std::{
 
 use common::raf::{self, Raf, RafError};
 
-use crate::machine::{opcode::OP_CODE_LIST, operand::OpAddrMode, operations::read_decrypt_bytes};
+use crate::{machine::{opcode::OP_CODE_LIST, operand::OpAddrMode, operations::read_decrypt_bytes}, virtual_iface::VirtualIface};
 
 use self::{
     flag::Flag,
@@ -123,6 +123,8 @@ pub enum EdiabasError {
     OpCodeOutOfRange(&'static str, &'static str),
     OpCodeMappingInvalid(&'static str, &'static str),
     RafError(RafError),
+    InvalidSrcDataType(&'static str, &'static str),
+    InvalidTargDataType(&'static str, &'static str),
 }
 
 impl From<raf::RafError> for EdiabasError {
@@ -175,6 +177,7 @@ pub struct Machine {
     table_row_idx: i32,
     token_idx: u32,
     job_end: bool,
+    pub iface: VirtualIface
 }
 
 impl Machine {
@@ -620,7 +623,17 @@ impl Machine {
                     OperandData::None,
                 ))
             }
-            OpAddrMode::ImmStr => todo!(),
+            OpAddrMode::ImmStr => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 2);
+                let len = u16::from_le_bytes(buffer[0..2].try_into().unwrap());
+                let mut buf = vec![0u8; len as usize];
+                read_decrypt_bytes(fs, &mut buf, 0, len as usize);
+                Ok(Operand::new(
+                    addr_mode, 
+                    OperandData::Bytes(buf), 
+                    OperandData::None, 
+                    OperandData::None))
+            },
             OpAddrMode::IdxImm => todo!(),
             OpAddrMode::IdxReg => todo!(),
             OpAddrMode::IdxRegImm => todo!(),
@@ -650,5 +663,9 @@ impl Machine {
             return Err(EdiabasError::OpCodeMappingInvalid("mod", "get_register"));
         }
         Ok(result)
+    }
+
+    pub fn set_result_data(&mut self, data: ResultData) {
+        //let key
     }
 }

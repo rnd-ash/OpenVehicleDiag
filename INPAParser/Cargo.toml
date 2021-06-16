@@ -17,3 +17,4 @@ path = "src/lib.rs"
 [dependencies]
 serde_json = "1.0"
 common = { path = "../common" }
+bitfield = "0.13.2"

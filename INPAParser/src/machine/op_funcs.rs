@@ -1,10 +1,6 @@
 use crate::machine::operand::OperandDataType;
 
-use super::{
-    opcode::OpCode,
-    operand::{OpAddrMode, Operand, OperandData},
-    EdiabasError, EdiabasResult, Machine,
-};
+use super::{EdiabasError, EdiabasResult, Machine, opcode::OpCode, operand::{OpAddrMode, Operand, OperandData}, register::{RegisterData, RegisterDataType}};
 
 pub fn op_move(
     m: &mut Machine,
@@ -15,7 +11,43 @@ pub fn op_move(
     let data_type_0 = arg0.get_data_type();
     let data_type_1 = arg1.get_data_type();
 
-    todo!();
+    if data_type_0 == OperandDataType::Integer {
+        let len = get_args_value_length(m, arg0, arg1)?;
+        let value = arg1.get_value_data(len, m)?;
+        arg0.set_raw_data(m, OperandData::Integer(value), len);
+        m.flags.set_carry_bit(false);
+        m.flags.set_overflow_bit(false);
+        m.flags.update_flags(value, len);
+    } else if data_type_0 == OperandDataType::Bytes {
+        if data_type_1 == OperandDataType::Integer {
+            let len = get_args_value_length(m, arg0, arg1)?;
+            let value = arg1.get_value_data(len, m)?;
+            arg0.set_raw_data(m, OperandData::Integer(value), len);
+            m.flags.set_carry_bit(false);
+            m.flags.set_overflow_bit(false);
+            m.flags.update_flags(value, 1);
+        } else if data_type_1 == OperandDataType::Bytes {
+            let mut src = arg1.get_raw_data(m)?;
+            if arg0.addr_mode == OpAddrMode::RegS && src.get_data_type() == OperandDataType::Bytes {
+                let mut dest = arg0.get_array_data(m)?;
+                let source = src.get_bytes()?;
+                while dest.len() < source.len() {
+                    dest.push(0);
+                }
+                let len = dest.len();
+                dest.copy_from_slice(&source[0..len]);
+                arg0.set_raw_data(m, OperandData::Bytes(dest), 1)?;
+            } else {
+                arg0.set_raw_data(m, arg1.get_raw_data(m)?, 1)?;
+            }
+        } else {
+            return Err(EdiabasError::InvalidSrcDataType("op_funcs", "op_move"))
+        }
+    } else {
+        return Err(EdiabasError::InvalidTargDataType("op_funcs", "op_move"))
+    }
+
+    Ok(())
 }
 
 pub fn op_clear(
@@ -24,7 +56,19 @@ pub fn op_clear(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    let mut arg0_data = &mut arg0.data1;
+    let reg = arg0_data.get_register()?;
+    match &reg.get_data_type() {
+        RegisterDataType::Float => reg.set_float_data(m, 0f32)?,
+        RegisterDataType::Integer => reg.set_value_data(m, 0)?,
+        RegisterDataType::ByteArray => reg.clear_data(m)?,
+        RegisterDataType::Byte => reg.set_value_data(m, 0)?,
+    }
+    m.flags.set_carry_bit(false);
+    m.flags.set_zero_bit(true);
+    m.flags.set_sign_bit(false);
+    m.flags.set_overflow_bit(false);
+    Ok(())
 }
 
 pub fn op_comp(
@@ -381,7 +425,7 @@ pub fn op_xconnect(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    println!("Simulating interface connect");
+    m.iface.connect();
     Ok(())
 }
 
@@ -400,7 +444,36 @@ pub fn op_xsetpar(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    let data = arg0.get_array_data(m)?;
+    let mut len = data.len();
+    let mut data_len = 0;
+    if len >= 2 {
+        match data[1] {
+            0x00 => { data_len = 2 },
+            0x01 => { data_len = 4 },
+            0xFF => { data_len = 1 },
+            _ => {}
+        }
+    }
+    let mut pars_array: Vec<u32> = Vec::new();
+    if data_len > 0 && (len & data_len == 0) {
+        len /= data_len;
+        pars_array = vec![0u32; len];
+        for i in 0..len {
+            let offset = i * data_len;
+            let mut value = data[offset + 0] as u32;
+            if data_len >= 2 {
+                value |= (data[offset + 1] as u32) << 8;
+            }
+            if data_len >= 4 {
+                value |= (data[offset + 2] as u32) << 16|
+                         (data[offset + 3] as u32) << 24;
+            }
+            pars_array[i] = value;
+        }
+    }
+    m.iface.set_comm_params(&pars_array);
+    Ok(())
 }
 
 pub fn op_xawlen(
@@ -409,7 +482,21 @@ pub fn op_xawlen(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    let data = arg0.get_array_data(m)?;
+    let mut len = data.len();
+    if len & 0x01 != 0x00 {
+        return Err(EdiabasError::InvalidDataLength("op_funcs", "op_xawlen"))
+    }
+
+    len >>= 1;
+    let mut answer_array: Vec<u16> = vec![0u16; len];
+    for i in 0..len {
+        let offset = i << 1;
+        let value = data[offset + 0] as u16 | (data[offset + 1] as u16) << 8;
+        answer_array[i] = value;
+    }
+    m.iface.set_answer_len(&answer_array);
+    Ok(())
 }
 
 pub fn op_xsend(
@@ -527,7 +614,8 @@ pub fn op_ergi(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    println!("STRING: {} - {}", arg0.get_string_data(m)?, arg0.get_value_data(2, m)?);
+    todo!()
 }
 
 pub fn op_ergr(
@@ -626,7 +714,8 @@ pub fn op_xreps(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    m.iface.set_comm_repeats(arg0.get_value_data(1, m)?);
+    Ok(())
 }
 
 pub fn op_gettmr(
@@ -752,7 +841,30 @@ pub fn op_atsp(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    if arg0.data1.get_data_type() != OperandDataType::Register {
+        return Err(EdiabasError::InvalidDataType("op_funcs", "op_atsp"))
+    }
+    if arg0.get_data_type() != OperandDataType::Integer {
+        return Err(EdiabasError::InvalidDataType("op_funcs", "op_atsp"))
+    }
+    let mut value = 0u32;
+    let length = arg0.get_value_data(0, m)?;
+    let pos = arg1.get_value_data(0, m)?;
+
+    if m.stack.len() < length as usize {
+        return Ok(()); // TODO EDIABAS_BIP_0005
+    }
+
+    let mut idx = pos - length;
+    
+    for i in 0..length {
+        value <<= 8;
+        value |= m.stack[idx as usize] as u32;
+        idx += 1;
+    }
+    arg0.set_raw_data(m, OperandData::Integer(value), 1)?;
+    m.flags.update_flags(value, length);
+    Ok(())
 }
 
 pub fn op_swap(
@@ -1140,4 +1252,8 @@ pub fn op_tabline(
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
     todo!();
+}
+
+pub fn get_args_value_length(m: &Machine, arg0: &mut Operand, _arg1: &mut Operand) -> EdiabasResult<u32> {
+    arg0.get_data_length(m, true)
 }
