@@ -1,4 +1,4 @@
-use crate::machine::operand::OperandDataType;
+use crate::machine::{ResultType, operand::OperandDataType};
 
 use super::{EdiabasError, EdiabasResult, Machine, opcode::OpCode, operand::{OpAddrMode, Operand, OperandData}, register::{RegisterData, RegisterDataType}};
 
@@ -302,7 +302,11 @@ pub fn op_eoj(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    if arg0.addr_mode != OpAddrMode::None {
+        m.results_job_status = arg0.get_string_data(m)?;
+    }
+    m.job_end = true;
+    Ok(())
 }
 
 pub fn op_push(
@@ -614,8 +618,12 @@ pub fn op_ergi(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    println!("STRING: {} - {}", arg0.get_string_data(m)?, arg0.get_value_data(2, m)?);
-    todo!()
+    m.set_result_data(super::ResultData {
+        res_type: ResultType::TypeI,
+        name: arg0.get_string_data(m)?,
+        op_data: arg1.get_raw_data(m)?,
+    });
+    Ok(())
 }
 
 pub fn op_ergr(

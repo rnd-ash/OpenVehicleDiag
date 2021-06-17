@@ -209,6 +209,22 @@ impl Machine {
         self.exec_job_private(JOB_INIT_NAME, true);
     }
 
+    pub fn get_job_names(&self) -> Vec<String> {
+        let mut ret: Vec<String> = Vec::new();
+
+        for (job, _) in &self.job_info.job_name_dict {
+            if job != JOB_INIT_NAME && job != JOB_NAME_EXIT {
+                ret.push(job.clone());
+            }
+        }
+        ret
+    }
+
+    pub fn simulate_job(&mut self, name: &str) {
+        self.job_end = false;
+        self.exec_job_private(name, false);
+    }
+
     fn read_all_uses(&mut self, f: &mut Raf) -> UsesInfos {
         let buffer: Vec<u8>;
         f.seek(0x7C);
@@ -492,7 +508,7 @@ impl Machine {
     fn exec_job_private_fs(&mut self, name: &str, recursive: bool, fs: &mut Raf, info: JobInfo) {
         println!("Executing JOB {}", name);
         if !self.req_init && !recursive {
-            todo!("Request init  job");
+            todo!("Request init job");
         }
         let mut buffer: [u8; 2] = [0; 2];
         let mut res_set_tmp: Vec<HashMap<String, ResultData>> = Vec::new();
@@ -501,7 +517,7 @@ impl Machine {
         self.result_sys_dict.clear();
         self.stack.clear();
 
-        self.string_registers.iter_mut().for_each(|mut s| {
+        self.string_registers.iter_mut().for_each(|s| {
             s.clear();
         });
         self.error_trap_bit_nr = -1;
@@ -549,7 +565,6 @@ impl Machine {
                 .get_op_arg(fs, op_addr_mode1)
                 .expect("Error init op_arg");
             self.pc_counter = fs.pos as u32;
-            //println!("Adress modes: {:?}, {:?}. Op code: {}", op_addr_mode0, op_addr_mode1, op_code_val);
             println!(
                 "\n\n--Executing {}--\nArg0: {:?}\nArg1: {:?}",
                 oc.pneumonic, arg0, arg1
@@ -573,6 +588,12 @@ impl Machine {
                 }
             }
         }
+        if self.result_dict.len() > 0 {
+            self.results_sets_tmp.push(self.result_dict.clone());
+        }
+        println!("Execution of {} - {:?}", name, self.result_dict);
+        self.result_dict.clear();
+
     }
 
     pub fn get_op_arg(&mut self, fs: &mut Raf, addr_mode: OpAddrMode) -> EdiabasResult<Operand> {
@@ -666,6 +687,7 @@ impl Machine {
     }
 
     pub fn set_result_data(&mut self, data: ResultData) {
-        //let key
+        let key = data.name.to_ascii_uppercase();
+        self.result_dict.insert(key, data);
     }
 }

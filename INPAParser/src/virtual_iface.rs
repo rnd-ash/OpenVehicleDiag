@@ -29,4 +29,9 @@ impl VirtualIface {
     pub fn set_answer_len(&mut self, len: &[u16]) {
         Self::log_msg(format!("Setting answer array length to {:04X?}", len))
     }
+
+    pub fn send_receive_bytes(&mut self, out: &[u8]) -> Vec<u8> {
+        Self::log_msg(format!("Sending bytes: {:02X?}", out));
+        Vec::new()
+    }
 }

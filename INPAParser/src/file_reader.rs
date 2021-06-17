@@ -18,6 +18,11 @@ impl BmwFileReader {
         //Self{}
         let mut m = Machine::new();
         m.load_file(r);
+
+        for job_name in &m.get_job_names() {
+            m.simulate_job(job_name);
+        }
+
         Self {}
     }
 }
