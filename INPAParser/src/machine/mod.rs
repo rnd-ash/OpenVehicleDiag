@@ -125,6 +125,7 @@ pub enum EdiabasError {
     RafError(RafError),
     InvalidSrcDataType(&'static str, &'static str),
     InvalidTargDataType(&'static str, &'static str),
+    Todo // Debug only
 }
 
 impl From<raf::RafError> for EdiabasError {
@@ -194,6 +195,7 @@ impl Machine {
             ..Default::default()
         };
         ret.string_registers = vec![StringData::new(ret.max_array_size); 16];
+        ret.iface = VirtualIface::new();
         ret
     }
 
@@ -565,10 +567,6 @@ impl Machine {
                 .get_op_arg(fs, op_addr_mode1)
                 .expect("Error init op_arg");
             self.pc_counter = fs.pos as u32;
-            println!(
-                "\n\n--Executing {}--\nArg0: {:?}\nArg1: {:?}",
-                oc.pneumonic, arg0, arg1
-            );
 
             if oc.arg0_is_near_addr && op_addr_mode0 == OpAddrMode::Imm32 {
                 let label_addr = self.pc_counter + *arg0.data1.get_integer().unwrap();
@@ -584,6 +582,10 @@ impl Machine {
             if let Some(func) = oc.op_func {
                 if let Err(e) = func(self, &mut oc, &mut arg0, &mut arg1) {
                     println!("ERROR: {:?}", e);
+                    println!(
+                        "\n\n--OC NAME {}--\nArg0: {:?}\nArg1: {:?}",
+                        oc.pneumonic, arg0, arg1
+                    );
                     panic!("Execution failed. Error: {:?}", e);
                 }
             }
@@ -655,13 +657,81 @@ impl Machine {
                     OperandData::None, 
                     OperandData::None))
             },
-            OpAddrMode::IdxImm => todo!(),
-            OpAddrMode::IdxReg => todo!(),
-            OpAddrMode::IdxRegImm => todo!(),
-            OpAddrMode::IdxImmLenImm => todo!(),
-            OpAddrMode::IdxImmLenReg => todo!(),
-            OpAddrMode::IdxRegLenImm => todo!(),
-            OpAddrMode::IdxRegLenReg => todo!(),
+            OpAddrMode::IdxImm => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 3);
+                let oa_reg = Self::get_register(buffer[0])?;
+                let idx = u16::from_le_bytes(buffer[1..3].try_into().unwrap());
+                Ok(Operand::new(
+                    addr_mode, 
+                    OperandData::Register(oa_reg), 
+                    OperandData::Integer(idx as u32), 
+                    OperandData::None))
+            },
+            OpAddrMode::IdxReg => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 2);
+                let oa_reg_0 = Self::get_register(buffer[0])?;
+                let oa_reg_1 = Self::get_register(buffer[1])?;
+                Ok(Operand::new(
+                    addr_mode, 
+                    OperandData::Register(oa_reg_0), 
+                    OperandData::Register(oa_reg_1), 
+                    OperandData::None))
+            },
+            OpAddrMode::IdxRegImm => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 4);
+                let oa_reg_0 = Self::get_register(buffer[0])?;
+                let oa_reg_1 = Self::get_register(buffer[1])?;
+                let inc = u16::from_le_bytes(buffer[2..4].try_into().unwrap());
+                Ok(Operand::new(
+                    addr_mode, 
+                    OperandData::Register(oa_reg_0), 
+                    OperandData::Register(oa_reg_1), 
+                    OperandData::Integer(inc as u32)))
+            },
+            OpAddrMode::IdxImmLenImm => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 5);
+                let oa_reg = Self::get_register(buffer[0])?;
+                let idx = u16::from_le_bytes(buffer[1..3].try_into().unwrap());
+                let len = u16::from_le_bytes(buffer[3..5].try_into().unwrap());
+                Ok(Operand::new(
+                    addr_mode, 
+                    OperandData::Register(oa_reg), 
+                    OperandData::Integer(idx as u32), 
+                    OperandData::Integer(len as u32)))
+            },
+            OpAddrMode::IdxImmLenReg => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 4);
+                let oa_reg = Self::get_register(buffer[0])?;
+                let idx = u16::from_le_bytes(buffer[1..3].try_into().unwrap());
+                let len = buffer[3];
+                Ok(Operand::new(
+                    addr_mode, 
+                    OperandData::Register(oa_reg), 
+                    OperandData::Integer(idx as u32), 
+                    OperandData::Integer(len as u32)))
+            },
+            OpAddrMode::IdxRegLenImm => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 4);
+                let oa_reg = Self::get_register(buffer[0])?;
+                let oa_idx = Self::get_register(buffer[1])?;
+                let len = u16::from_le_bytes(buffer[2..4].try_into().unwrap());
+                Ok(Operand::new(
+                    addr_mode, 
+                    OperandData::Register(oa_reg), 
+                    OperandData::Register(oa_idx), 
+                    OperandData::Integer(len as u32)))
+            },
+            OpAddrMode::IdxRegLenReg => {
+                read_decrypt_bytes(fs, &mut buffer, 0, 3);
+                let oa_reg = Self::get_register(buffer[0])?;
+                let oa_idx = Self::get_register(buffer[1])?;
+                let oa_len = Self::get_register(buffer[2])?;
+                Ok(Operand::new(
+                    addr_mode, 
+                    OperandData::Register(oa_reg), 
+                    OperandData::Register(oa_idx), 
+                    OperandData::Register(oa_len)))
+            },
         }
     }
 

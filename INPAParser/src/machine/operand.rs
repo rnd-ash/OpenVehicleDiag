@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, Cow};
+use std::{borrow::{Borrow, Cow}, vec};
 
 use crate::machine::register::RegisterData;
 
@@ -326,24 +326,56 @@ impl Operand {
     }
 
     /// Len default: 1
-    pub fn set_raw_data(&mut self, m: &mut Machine, v: OperandData, len: u32) -> EdiabasResult<()> {
+    pub fn set_raw_data(&mut self, m: &mut Machine, data: OperandData, data_len: u32) -> EdiabasResult<()> {
         match self.addr_mode {
-            OpAddrMode::RegS => self.data1.get_register()?.set_raw_data(v.into(), m),
+            OpAddrMode::RegS => self.data1.get_register()?.set_raw_data(data.into(), m),
             OpAddrMode::RegAb | OpAddrMode::RegI | OpAddrMode::RegL => {
-                self.data1.get_register()?.set_raw_data(v.into(), m)
+                self.data1.get_register()?.set_raw_data(data.into(), m)
             }
-            OpAddrMode::Imm8 => todo!(),
-            OpAddrMode::Imm16 => todo!(),
-            OpAddrMode::Imm32 => todo!(),
-            OpAddrMode::ImmStr => todo!(),
-            OpAddrMode::IdxImm => todo!(),
-            OpAddrMode::IdxReg => todo!(),
-            OpAddrMode::IdxRegImm => todo!(),
-            OpAddrMode::IdxImmLenImm => todo!(),
-            OpAddrMode::IdxImmLenReg => todo!(),
-            OpAddrMode::IdxRegLenImm => todo!(),
-            OpAddrMode::IdxRegLenReg => todo!(),
-            _ => todo!(),
+            OpAddrMode::IdxImm | OpAddrMode::IdxReg | OpAddrMode::IdxRegImm => {
+                let arg_data1 = self.data1.get_register()?;
+                let mut data_array = arg_data1.get_array_data(m, false)?;
+                let mut index = if self.addr_mode == OpAddrMode::IdxImm {
+                    self.data2.get_integer()?.clone()
+                } else {
+                    self.data2.get_register()?.get_value_data(m)?
+                };
+
+                if self.addr_mode == OpAddrMode::IdxRegImm {
+                    index += self.data3.get_integer()?.clone();
+                }
+
+                let len: u32;
+                let mut src: Vec<u8>;
+
+                match data {
+                    OperandData::Integer(i) => {
+                        len = data_len;
+                        let src_value = i;
+                        src = vec![0x00; len as usize];
+                        for i in 0..len {
+                            src[i as usize] = (src_value >> (i << 3)) as u8;
+                        }
+                    },
+                    OperandData::Bytes(b) => {
+                        src = b;
+                        len = src.len() as u32;
+                    },
+                    _ => return Err(EdiabasError::InvalidDataType("operand", "set_raw_data"))
+                }
+
+                let required_len = index + len;
+                if required_len > m.max_array_size {
+                    // TODO Error EDIABAS_BIP_0001
+                    return Ok(())
+                }
+                if data_array.len() < required_len as usize {
+                    data_array.resize(required_len as usize, 0x00);
+                }
+                data_array[index as usize..(index+len) as usize].copy_from_slice(&src[0..len as usize]);
+                arg_data1.set_raw_data(RegisterData::Bytes(data_array), m)
+            }
+            _ => Err(EdiabasError::InvalidAddressMode("operand", "set_raw_data")),
         }
     }
 }

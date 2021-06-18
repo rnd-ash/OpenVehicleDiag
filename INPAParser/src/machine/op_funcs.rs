@@ -77,7 +77,7 @@ pub fn op_comp(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_subb(
@@ -86,7 +86,7 @@ pub fn op_subb(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_adds(
@@ -95,7 +95,7 @@ pub fn op_adds(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_mult(
@@ -104,7 +104,7 @@ pub fn op_mult(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_divs(
@@ -113,7 +113,7 @@ pub fn op_divs(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_and(
@@ -122,7 +122,7 @@ pub fn op_and(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_or(
@@ -131,7 +131,7 @@ pub fn op_or(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xor(
@@ -140,7 +140,7 @@ pub fn op_xor(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_not(
@@ -149,7 +149,7 @@ pub fn op_not(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jump(
@@ -158,7 +158,7 @@ pub fn op_jump(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jc(
@@ -167,7 +167,7 @@ pub fn op_jc(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jae(
@@ -176,7 +176,7 @@ pub fn op_jae(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jz(
@@ -185,7 +185,7 @@ pub fn op_jz(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jnz(
@@ -194,7 +194,7 @@ pub fn op_jnz(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jv(
@@ -203,7 +203,7 @@ pub fn op_jv(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jnv(
@@ -212,7 +212,7 @@ pub fn op_jnv(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jmi(
@@ -221,7 +221,7 @@ pub fn op_jmi(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jpl(
@@ -230,7 +230,7 @@ pub fn op_jpl(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_clrc(
@@ -239,7 +239,7 @@ pub fn op_clrc(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_setc(
@@ -248,7 +248,7 @@ pub fn op_setc(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_asr(
@@ -257,7 +257,7 @@ pub fn op_asr(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_lsl(
@@ -266,7 +266,7 @@ pub fn op_lsl(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_lsr(
@@ -275,7 +275,7 @@ pub fn op_lsr(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_asl(
@@ -284,7 +284,7 @@ pub fn op_asl(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_nop(
@@ -293,7 +293,7 @@ pub fn op_nop(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_eoj(
@@ -359,7 +359,7 @@ pub fn op_scmp(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_scat(
@@ -368,7 +368,7 @@ pub fn op_scat(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_scut(
@@ -377,7 +377,7 @@ pub fn op_scut(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_slen(
@@ -386,7 +386,7 @@ pub fn op_slen(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_spaste(
@@ -395,7 +395,7 @@ pub fn op_spaste(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_serase(
@@ -404,23 +404,7 @@ pub fn op_serase(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    if let OperandData::Register(r) = &arg0.data1 {
-        let mut start_idx: u32;
-        match arg0.addr_mode {
-            OpAddrMode::IdxImm => {
-                start_idx = arg0.get_int_data(m)?;
-            }
-            OpAddrMode::IdxReg => {
-                todo!()
-                //Ok(())
-            }
-            _ => return Err(EdiabasError::InvalidDataType("op_funcs", "op_serase")),
-        }
-        todo!();
-        Ok(())
-    } else {
-        Err(EdiabasError::InvalidDataType("op_funcs", "op_serase"))
-    }
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xconnect(
@@ -439,7 +423,7 @@ pub fn op_xhangup(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xsetpar(
@@ -450,26 +434,26 @@ pub fn op_xsetpar(
 ) -> EdiabasResult<()> {
     let data = arg0.get_array_data(m)?;
     let mut len = data.len();
-    let mut data_len = 0;
+    let mut data_type_len = 0;
     if len >= 2 {
         match data[1] {
-            0x00 => { data_len = 2 },
-            0x01 => { data_len = 4 },
-            0xFF => { data_len = 1 },
+            0x00 => { data_type_len = 2 },
+            0x01 => { data_type_len = 4 },
+            0xFF => { data_type_len = 1 },
             _ => {}
         }
     }
     let mut pars_array: Vec<u32> = Vec::new();
-    if data_len > 0 && (len & data_len == 0) {
-        len /= data_len;
+    if data_type_len > 0 && (len % data_type_len == 0) {
+        len /= data_type_len;
         pars_array = vec![0u32; len];
         for i in 0..len {
-            let offset = i * data_len;
+            let offset = i * data_type_len;
             let mut value = data[offset + 0] as u32;
-            if data_len >= 2 {
+            if data_type_len >= 2 {
                 value |= (data[offset + 1] as u32) << 8;
             }
-            if data_len >= 4 {
+            if data_type_len >= 4 {
                 value |= (data[offset + 2] as u32) << 16|
                          (data[offset + 3] as u32) << 24;
             }
@@ -503,13 +487,15 @@ pub fn op_xawlen(
     Ok(())
 }
 
+/// Sends and receives data
 pub fn op_xsend(
     m: &mut Machine,
     oc: &mut OpCode,
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xsendf(
@@ -518,7 +504,7 @@ pub fn op_xsendf(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xrequf(
@@ -527,7 +513,7 @@ pub fn op_xrequf(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xstopf(
@@ -546,7 +532,7 @@ pub fn op_xkeyb(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xstate(
@@ -555,7 +541,7 @@ pub fn op_xstate(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xreset(
@@ -564,7 +550,7 @@ pub fn op_xreset(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xtype(
@@ -573,7 +559,7 @@ pub fn op_xtype(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xvers(
@@ -582,7 +568,7 @@ pub fn op_xvers(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_ergb(
@@ -591,7 +577,7 @@ pub fn op_ergb(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_ergw(
@@ -600,7 +586,7 @@ pub fn op_ergw(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_ergd(
@@ -609,7 +595,7 @@ pub fn op_ergd(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_ergi(
@@ -632,7 +618,7 @@ pub fn op_ergr(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_ergs(
@@ -641,7 +627,7 @@ pub fn op_ergs(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_a2_flt(
@@ -650,7 +636,7 @@ pub fn op_a2_flt(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_fadd(
@@ -659,7 +645,7 @@ pub fn op_fadd(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_fsub(
@@ -668,7 +654,7 @@ pub fn op_fsub(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_fmul(
@@ -677,7 +663,7 @@ pub fn op_fmul(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_fdiv(
@@ -686,7 +672,7 @@ pub fn op_fdiv(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_ergy(
@@ -695,7 +681,7 @@ pub fn op_ergy(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_enewset(
@@ -704,7 +690,7 @@ pub fn op_enewset(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_etag(
@@ -713,7 +699,7 @@ pub fn op_etag(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xreps(
@@ -732,7 +718,7 @@ pub fn op_gettmr(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_settmr(
@@ -741,7 +727,7 @@ pub fn op_settmr(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_sett(
@@ -750,7 +736,7 @@ pub fn op_sett(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_clrt(
@@ -759,7 +745,7 @@ pub fn op_clrt(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jt(
@@ -768,7 +754,7 @@ pub fn op_jt(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jnt(
@@ -777,7 +763,7 @@ pub fn op_jnt(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_addc(
@@ -786,7 +772,7 @@ pub fn op_addc(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_subc(
@@ -795,7 +781,7 @@ pub fn op_subc(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_break(
@@ -804,7 +790,7 @@ pub fn op_break(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_clrv(
@@ -813,7 +799,7 @@ pub fn op_clrv(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_eerr(
@@ -822,7 +808,7 @@ pub fn op_eerr(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_popf(
@@ -831,7 +817,7 @@ pub fn op_popf(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_pushf(
@@ -840,7 +826,7 @@ pub fn op_pushf(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_atsp(
@@ -881,7 +867,7 @@ pub fn op_swap(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_setspc(
@@ -890,7 +876,7 @@ pub fn op_setspc(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_srevrs(
@@ -899,7 +885,7 @@ pub fn op_srevrs(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_stoken(
@@ -908,7 +894,7 @@ pub fn op_stoken(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_parl(
@@ -917,7 +903,7 @@ pub fn op_parl(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_pars(
@@ -926,7 +912,7 @@ pub fn op_pars(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_f_close(
@@ -935,7 +921,7 @@ pub fn op_f_close(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jg(
@@ -944,7 +930,7 @@ pub fn op_jg(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jge(
@@ -953,7 +939,7 @@ pub fn op_jge(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jl(
@@ -962,7 +948,7 @@ pub fn op_jl(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jle(
@@ -971,7 +957,7 @@ pub fn op_jle(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_ja(
@@ -980,7 +966,7 @@ pub fn op_ja(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_jbe(
@@ -989,7 +975,7 @@ pub fn op_jbe(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_f_open(
@@ -998,7 +984,7 @@ pub fn op_f_open(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_f_read(
@@ -1007,7 +993,7 @@ pub fn op_f_read(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_f_readln(
@@ -1016,7 +1002,7 @@ pub fn op_f_readln(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_f_seek(
@@ -1025,7 +1011,7 @@ pub fn op_f_seek(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_f_seekln(
@@ -1034,7 +1020,7 @@ pub fn op_f_seekln(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_f_tell(
@@ -1043,7 +1029,7 @@ pub fn op_f_tell(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_f_tellln(
@@ -1052,7 +1038,7 @@ pub fn op_f_tellln(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_a2_fix(
@@ -1061,7 +1047,7 @@ pub fn op_a2_fix(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_fix_2_flt(
@@ -1070,7 +1056,7 @@ pub fn op_fix_2_flt(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_parr(
@@ -1079,7 +1065,7 @@ pub fn op_parr(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_test(
@@ -1088,7 +1074,7 @@ pub fn op_test(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_wait(
@@ -1097,7 +1083,7 @@ pub fn op_wait(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_date(
@@ -1106,7 +1092,7 @@ pub fn op_date(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_time(
@@ -1115,7 +1101,7 @@ pub fn op_time(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xbatt(
@@ -1124,7 +1110,7 @@ pub fn op_xbatt(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn n_noneull(
@@ -1133,7 +1119,7 @@ pub fn n_noneull(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xgetport(
@@ -1142,7 +1128,7 @@ pub fn op_xgetport(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xignit(
@@ -1151,7 +1137,7 @@ pub fn op_xignit(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_xraw(
@@ -1160,7 +1146,7 @@ pub fn op_xraw(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_fix_2_hex(
@@ -1169,7 +1155,7 @@ pub fn op_fix_2_hex(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_fix_2_dez(
@@ -1178,7 +1164,7 @@ pub fn op_fix_2_dez(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_tabset(
@@ -1187,7 +1173,7 @@ pub fn op_tabset(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_tabseek(
@@ -1196,7 +1182,7 @@ pub fn op_tabseek(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_tabget(
@@ -1205,7 +1191,7 @@ pub fn op_tabget(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_strcat(
@@ -1214,7 +1200,7 @@ pub fn op_strcat(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_pary(
@@ -1223,7 +1209,7 @@ pub fn op_pary(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_parn(
@@ -1232,7 +1218,7 @@ pub fn op_parn(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_ergc(
@@ -1241,7 +1227,7 @@ pub fn op_ergc(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_ergl(
@@ -1250,7 +1236,7 @@ pub fn op_ergl(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn op_tabline(
@@ -1259,7 +1245,7 @@ pub fn op_tabline(
     arg0: &mut Operand,
     arg1: &mut Operand,
 ) -> EdiabasResult<()> {
-    todo!();
+    Err(EdiabasError::Todo)
 }
 
 pub fn get_args_value_length(m: &Machine, arg0: &mut Operand, _arg1: &mut Operand) -> EdiabasResult<u32> {
