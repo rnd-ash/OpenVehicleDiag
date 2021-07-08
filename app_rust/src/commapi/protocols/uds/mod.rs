@@ -3,10 +3,7 @@ use super::{
     CautionLevel, CommandError, DiagCfg, ECUCommand, ProtocolError, ProtocolResult, ProtocolServer,
     Selectable, DTC,
 };
-use crate::commapi::{
-    comm_api::{ComServer, FilterType},
-    iface::{InterfaceConfig, InterfaceType, IsoTPInterface, PayloadFlag},
-};
+use crate::commapi::{comm_api::{ComServer, FilterType}, iface::{InterfaceConfig, InterfaceType, IsoTPInterface, PayloadFlag}, protocols::DTCState};
 use std::sync::atomic::Ordering::Relaxed;
 use std::{
     sync::{
@@ -557,7 +554,42 @@ impl ProtocolServer for UDSECU {
     }
 
     fn read_errors(&self) -> ProtocolResult<Vec<DTC>> {
-        todo!()
+        // Response is list of bytes starting in 0x59, 0x02 0xFF
+        let mut response = self.run_command(UDSCommand::ReadDTCInformation as u8, &[0x02, 0xFF])?;
+        response.drain(0..3); // Remove first 3 bytes
+        if response.len() % 4 != 0 {
+            // Message is of invalid length. Each DTC should be 3 bytes + Status byte = 4 bytes!
+            return Err(ProtocolError::InvalidResponseSize { expect: (((response.len() + 3) / 4) * 4) + 4, actual: response.len() + 3  })
+        }
+
+        let mut res : Vec<DTC> = Vec::new();
+
+        // Response OK, each DTC = 4 bytes
+        for i in (0..response.len()).step_by(4) {
+            let dtc_raw: u32 = (response[i] as u32) << 16 | (response[i+1] as u32) << 8 | response[i+2] as u32;
+
+            let dtc_string = format!("{:06X}", dtc_raw);
+
+            let status = response[i+3];
+            
+            let dtc_state = if status & 0b00000100 != 0 {
+                DTCState::Pending
+            } else if status & 0b00001000 != 0 {
+                DTCState::Permanent
+            } else if status & 0b00000001 != 0 {
+                DTCState::Stored
+            } else {
+                DTCState::None
+            };
+
+            res.push(DTC {
+                error: dtc_string,
+                state: dtc_state,
+                check_engine_on: status & 0b10000000 != 0, // TODO
+                id: dtc_raw,
+            });
+        }
+        Ok(res)
     }
 
     fn is_in_diag_session(&self) -> bool {
