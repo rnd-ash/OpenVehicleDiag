@@ -222,9 +222,7 @@ impl DiagServer {
     pub fn get_dtc_env_data(&self, dtc: &DTC) -> ProtocolResult<Vec<u8>> {
         match self {
             Self::KWP2000(s) => kwp2000::read_status_dtc::read_status_dtc(s, dtc),
-            Self::UDS(s) => Err(ProtocolError::CustomError(
-                "Not implemented (get_dtc_env_data)".into(),
-            )), // TODO
+            Self::UDS(s) => uds::read_dtc_info::read_dtc_information(s, dtc)
         }
     }
 }
