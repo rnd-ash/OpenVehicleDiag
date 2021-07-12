@@ -16,6 +16,7 @@ use std::{
 
 pub mod diag_session_control;
 pub mod read_data;
+pub mod read_dtc_info;
 
 #[derive(Copy, Clone, Debug, Eq, PartialOrd, PartialEq)]
 /// UDS Commands AKA SID (Service identifiers)

@@ -582,6 +582,7 @@ impl ProtocolServer for KWP2000ECU {
         // 0x02 - Request Hex DTCs as 2 bytes
         // 0xFF00 - Request all DTCs (Mandatory per KWP2000)
         let mut bytes = self.run_command(Service::ReadDTCByStatus.into(), &[0x02, 0xFF, 0x00])?;
+        println!("{:02X?}", bytes);
         bytes.drain(..1);
         let count = bytes[0] as usize;
         bytes.drain(0..1);
