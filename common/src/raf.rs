@@ -6,7 +6,7 @@ use std::io::Read;
 /// Represents a stream of bytes
 /// that can be read in order
 /// or read data at specific offsets
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct Raf {
     /// Data in bytes
     data: Vec<u8>,
@@ -32,12 +32,18 @@ pub enum RafError {
 }
 
 /// Byte order representation struct
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum RafByteOrder {
     /// Big endian
     BE,
     /// Little endian
     LE,
+}
+
+impl Default for RafByteOrder {
+    fn default() -> Self {
+        Self::LE
+    }
 }
 
 impl Raf {
@@ -133,15 +139,12 @@ impl Raf {
     }
 
     /// Reads a C String (Ends in 0x00)
-    pub fn read_cstr(&mut self) -> Result<String> {
+    pub fn read_cstr_bytes(&mut self) -> Result<Vec<u8>> {
         let mut bytes: Vec<u8> = Vec::new();
         loop {
             let next_byte = self.read_u8()?;
             if next_byte == 0 {
-                return match String::from_utf8(bytes) {
-                    Err(_) => Err(RafError::StrParseError),
-                    Ok(s) => Ok(s)
-                }
+                return Ok(bytes)
             } else {
                 bytes.push(next_byte);
             }

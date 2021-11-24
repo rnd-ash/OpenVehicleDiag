@@ -89,18 +89,18 @@ fn decode_ecu(e: &ECU) {
 
     let mut connections = Vec::new();
     for x in e.interface_sub_types.iter() {
-        let connection = if x.comm_params.iter().any(|x| x.param_name == "CP_REQUEST_CANIDENTIFIER") { // Its CAN (ISOTP)
+        let connection = if x.qualifier.contains("CAN") { // Its CAN (ISOTP)
             Connection {
-                baud: x.get_cp_by_name("CP_BAUDRATE").expect("No CAN Baudrate on interface!?"),
-                send_id:  x.get_cp_by_name("CP_REQUEST_CANIDENTIFIER").expect("No CAN Request ID on interface!?"),
-                recv_id:  x.get_cp_by_name("CP_RESPONSE_CANIDENTIFIER").expect("No CAN Response ID on interface!?"),
+                baud: x.get_cp_by_name("CP_BAUDRATE").unwrap_or_default(),
+                send_id:  x.get_cp_by_name("CP_REQUEST_CANIDENTIFIER").unwrap_or_default(),
+                recv_id:  x.get_cp_by_name("CP_RESPONSE_CANIDENTIFIER").unwrap_or_default(),
                 global_send_id: x.get_cp_by_name("CP_GLOBAL_REQUEST_CANIDENTIFIER"),
                 connection_type: common::schema::ConType::ISOTP {
                     blocksize: 8, // Some reason MB always uses 8
                     st_min: x.get_cp_by_name("CP_STMIN_SUG").unwrap_or(20), // Seems default for MB
                     ext_isotp_addr: false, // MB never use extended ISO-TP addresing
-                    ext_can_addr: x.get_cp_by_name("CP_REQUEST_CANIDENTIFIER").unwrap() > 0x7FF
-                        || x.get_cp_by_name("CP_RESPONSE_CANIDENTIFIER").unwrap() > 0x7FF
+                    ext_can_addr: x.get_cp_by_name("CP_REQUEST_CANIDENTIFIER").unwrap_or_default() > 0x7FF
+                        || x.get_cp_by_name("CP_RESPONSE_CANIDENTIFIER").unwrap_or_default() > 0x7FF
                 },
                 server_type: if x.qualifier.contains("UDS") { // Interface type is in qualifier name for ISO-TP
                     common::schema::ServerType::UDS
@@ -110,6 +110,7 @@ fn decode_ecu(e: &ECU) {
             }
         } else {
             // Assume LIN
+            println!("{:?}",x);
             Connection {
                 baud: 10400, // Always for MB's LIN
                 send_id: x.get_cp_by_name("CP_REQTARGETBYTE").expect("No LIN Request ID on interface!?"),
