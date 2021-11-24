@@ -1,5 +1,4 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use std::io::Read;
+use std::{convert::TryInto, io::Read};
 
 /// Random Access file
 ///
@@ -90,6 +89,15 @@ impl Raf {
         Ok(res)
     }
 
+    pub fn read_bytes_as_generic<const SIZE: usize>(&mut self) -> Result<[u8; SIZE]> {
+        if self.pos+SIZE-1 > self.size {
+            return Err(RafError::BufferOverflow);
+        }
+        self.pos += SIZE;
+        Ok(self.data[self.pos-SIZE..self.pos].try_into().unwrap())
+
+    }
+
     /// Seeks to location within the data stored
     pub fn seek(&mut self, pos: usize) {
         self.pos = pos;
@@ -126,15 +134,14 @@ impl Raf {
     }
 
     #[inline]
-    fn read_primitive<T>(
+    fn read_primitive<T, const SIZE: usize>(
         &mut self,
-        size: usize,
-        func_le: fn(&[u8]) -> T,
-        func_be: fn(&[u8]) -> T,
+        func_le: fn([u8; SIZE]) -> T,
+        func_be: fn([u8; SIZE]) -> T,
     ) -> Result<T> {
         match self.bo {
-            RafByteOrder::BE => self.read_bytes(size).map(|r| func_be(&r)),
-            RafByteOrder::LE => self.read_bytes(size).map(|r| func_le(&r)),
+            RafByteOrder::BE => self.read_bytes_as_generic::<SIZE>().map(|r| func_be(r)),
+            RafByteOrder::LE => self.read_bytes_as_generic::<SIZE>().map(|r| func_le(r)),
         }
     }
 
@@ -153,37 +160,37 @@ impl Raf {
 
     /// Reads f32 from data at current position in buffer
     pub fn read_f32(&mut self) -> Result<f32> {
-        self.read_primitive(4, LittleEndian::read_f32, BigEndian::read_f32)
+        self.read_primitive::<f32, 4>(f32::from_le_bytes, f32::from_be_bytes)
     }
 
     /// Reads u64 from data at current position in buffer
     pub fn read_u64(&mut self) -> Result<u64> {
-        self.read_primitive(8, LittleEndian::read_u64, BigEndian::read_u64)
+        self.read_primitive::<u64, 8>(u64::from_le_bytes, u64::from_be_bytes)
     }
 
     /// Reads i64 from data at current position in buffer
     pub fn read_i64(&mut self) -> Result<i64> {
-        self.read_primitive(8, LittleEndian::read_i64, BigEndian::read_i64)
+        self.read_primitive::<i64, 8>(i64::from_le_bytes, i64::from_be_bytes)
     }
 
     /// Reads u32 from data at current position in buffer
     pub fn read_u32(&mut self) -> Result<u32> {
-        self.read_primitive(4, LittleEndian::read_u32, BigEndian::read_u32)
+        self.read_primitive::<u32, 4>(u32::from_le_bytes, u32::from_be_bytes)
     }
 
     /// Reads i32 from data at current position in buffer
     pub fn read_i32(&mut self) -> Result<i32> {
-        self.read_primitive(4, LittleEndian::read_i32, BigEndian::read_i32)
+        self.read_primitive::<i32, 4>(i32::from_le_bytes, i32::from_be_bytes)
     }
 
     /// Reads u16 from data at current position in buffer
     pub fn read_u16(&mut self) -> Result<u16> {
-        self.read_primitive(2, LittleEndian::read_u16, BigEndian::read_u16)
+        self.read_primitive::<u16, 2>(u16::from_le_bytes, u16::from_be_bytes)
     }
 
     /// Reads i16 from data at current position in buffer
     pub fn read_i16(&mut self) -> Result<i16> {
-        self.read_primitive(2, LittleEndian::read_i16, BigEndian::read_i16)
+        self.read_primitive::<i16, 2>(i16::from_le_bytes, i16::from_be_bytes)
     }
 
     /// Reads a single byte from data at current position in buffer
@@ -203,13 +210,5 @@ impl Raf {
         let res = self.data[self.pos];
         self.pos += 1;
         Ok(res)
-    }
-
-    /// Reads utf8 string from data at current position in buffer
-    pub fn read_string(&mut self, len: usize) -> Result<String> {
-        match String::from_utf8(self.read_bytes(len)?) {
-            Err(_) => Err(RafError::StrParseError),
-            Ok(s) => Ok(s),
-        }
     }
 }
