@@ -1,6 +1,5 @@
-use std::{cmp::min, collections::VecDeque, string::FromUtf8Error};
+use std::{cmp::min, collections::VecDeque, convert::TryInto, string::FromUtf8Error};
 use bit_field::BitArray;
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use serde::{Serialize, Deserialize};
 use super::{DataFormat, StringEncoding};
 use serde_with::{serde_as};
@@ -210,13 +209,13 @@ impl Parameter {
                     } else {
                         if buf.len() >= 4 {                        
                             res = match self.byte_order {
-                                ParamByteOrder::BigEndian => BigEndian::read_u32(&buf),
-                                ParamByteOrder::LittleEndian => LittleEndian::read_u32(&buf)
+                                ParamByteOrder::BigEndian => u32::from_be_bytes(buf.try_into().unwrap()),
+                                ParamByteOrder::LittleEndian => u32::from_le_bytes(buf.try_into().unwrap()),
                             }
                         } else if buf.len() >= 2 {
                             res = match self.byte_order {
-                                ParamByteOrder::BigEndian => BigEndian::read_u16(&buf) as u32,
-                                ParamByteOrder::LittleEndian => LittleEndian::read_u16(&buf) as u32
+                                ParamByteOrder::BigEndian => u16::from_be_bytes(buf.try_into().unwrap()) as u32,
+                                ParamByteOrder::LittleEndian => u16::from_le_bytes(buf.try_into().unwrap()) as u32,
                             }
                         }
                         res as u32
