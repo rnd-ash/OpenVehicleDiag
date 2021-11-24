@@ -84,7 +84,7 @@ impl CTFLanguage {
             reader.seek(table_offset + (i*4));
             let string_offset = reader.read_i32()? as usize;
             reader.seek(table_offset + string_offset);
-            self.strings.push(reader.read_cstr()?)
+            self.strings.push(reader.read_cstr_bytes().map(|b| encoding_rs::ISO_8859_10.decode(&b).0.to_string())?)
         }
         Ok(())
     }

@@ -41,7 +41,7 @@ impl ECUInterface {
             reader.seek(com_param_file_offset + (i*4));
             let iface_string_ptr = reader.read_i32()? as usize + com_param_file_offset;
             reader.seek(iface_string_ptr);
-            let com_param = reader.read_cstr()?;
+            let com_param = reader.read_cstr_bytes().map(|b| encoding_rs::ISO_8859_10.decode(&b).0.to_string())?;
             res.com_params.push(com_param);
         }
         Ok(res)

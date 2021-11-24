@@ -32,7 +32,7 @@ pub fn read_bitflag_dump(bit_flag: &mut u32, reader: &mut Raf, dump_size: usize,
 #[allow(dead_code)]
 pub fn read_bitflag_dump_as_string(bit_flag: &mut u32, reader: &mut Raf, dump_size: usize, base_addr: usize) -> super::Result<String> {
     let data = read_bitflag_dump(bit_flag, reader, dump_size, base_addr)?;
-    Ok(String::from_utf8(data).unwrap())
+    Ok(encoding_rs::ISO_8859_10.decode(&data).0.to_string())
 }
 
 
@@ -47,7 +47,8 @@ fn check_and_advance_bitflag(bit_flag: &mut u32) -> bool {
 /// Reads a null terminating C String from the file,
 /// returning it as UTF-8 encoded
 fn read_string(reader: &mut Raf) -> super::Result<String> {
-    reader.read_cstr().map_err(CaesarError::FileError)
+    reader.read_cstr_bytes().map_err(CaesarError::FileError)
+    .map(|b|encoding_rs::ISO_8859_10.decode(&b).0.to_string())
 }
 
 
