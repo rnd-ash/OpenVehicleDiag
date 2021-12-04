@@ -1,4 +1,4 @@
-# Open vehicle diagnostics app
+# Open vehicle diagnostics app (OVD)
 
 ## Features (Current)
 * CAN Tracer
@@ -8,6 +8,13 @@
 
 ## Screenshots
 [See the screenshots folder](screenshots/)
+
+## Building
+### Linux
+Install dependencies with 
+```
+sudo apt -y install libgtk-3-dev
+```
 
 ## Diagnostic adapter API Support
 * SAE J2534 (Passthru)

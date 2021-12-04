@@ -1,0 +1,1 @@
+pub const TRAY_ICON: &[u8] = include_bytes!("../img/launcher.png");

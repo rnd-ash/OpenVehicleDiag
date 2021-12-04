@@ -1,41 +1,28 @@
 use std::{fs::File, io::Write, panic, time};
 use backtrace;
-
 use dialog::DialogBox;
-use iced::{Application, Settings};
-mod cli_tests;
-mod commapi;
-mod passthru;
-mod themes;
-mod widgets;
-mod windows;
-
-use iced::window::Icon;
+use eframe::epi::IconData;
 use image::{GenericImageView, ImageFormat};
-use themes::images::TRAY_ICON;
-use windows::window::MainWindow;
 
-pub const WIN_WIDTH: u32 = 1600;
-pub const WIN_HEIGHT: u32 = 900;
+mod resources;
+mod window;
+mod pages;
+mod dyn_hw;
 
-fn main() -> iced::Result {
-    let mut launcher_settings = Settings::default();
-    launcher_settings.window.resizable = false;
-    launcher_settings.window.size = (WIN_WIDTH, WIN_HEIGHT);
-    launcher_settings.window.min_size = Some((WIN_WIDTH, WIN_HEIGHT));
+use pages::launcher::Launcher;
+use resources::TRAY_ICON;
+use window::*;
 
+fn main() {
+    let mut app = MainWindow::new();
+    let mut native_options = eframe::NativeOptions::default();
     if let Ok(img) = image::load_from_memory_with_format(TRAY_ICON, ImageFormat::Png) {
-        launcher_settings.window.icon =
-            Icon::from_rgba(img.clone().into_bytes(), img.width(), img.height()).ok()
+        native_options.icon_data = Some(IconData {
+            rgba: img.clone().into_bytes(),
+            width: img.width(),
+            height: img.height(),
+        })
     }
-
-    let args = std::env::args();
-    for a in args {
-        if a == "-debug_ui" {
-            themes::set_debug(true)
-        }
-    }
-
     panic::set_hook(Box::new(|info|{
         let backtrace = backtrace::Backtrace::new();
 
@@ -55,6 +42,8 @@ fn main() -> iced::Result {
             .title("Oh no! OpenVehicleDiag crashed")
             .show();
     }));
+    app.add_new_page(Box::new(Launcher::new()));
+    eframe::run_native(Box::new(app), native_options)
 
-    MainWindow::run(launcher_settings)
+    
 }
