@@ -3,12 +3,12 @@ use std::{collections::VecDeque, borrow::BorrowMut};
 use ecu_diagnostics::hardware::Hardware;
 use eframe::{egui, epi};
 
-use crate::pages::status_bar::{self, StatusBar};
+use crate::{pages::status_bar::{self}, dyn_hw::DynHardware};
 
 pub struct MainWindow {
     pages: VecDeque<Box<dyn InterfacePage>>,
     curr_title: String,
-    status_bar: Option<StatusBar>
+    bar: Option<Box<dyn StatusBar>>
 }
 
 impl MainWindow {
@@ -16,41 +16,54 @@ impl MainWindow {
         Self {
             pages: VecDeque::new(),
             curr_title: "OpenVehicleDiag".into(),
-            status_bar: None
+            bar: None
         }
     }
     pub fn add_new_page(&mut self, p: Box<dyn InterfacePage>) {
+        if let Some(bar) = p.get_status_bar() {
+            self.bar = Some(bar)
+        }
         self.pages.push_front(p)
     }
 
     pub fn pop_page(&mut self) {
-        if let Some(p) = self.pages.pop_front() {
+        self.pages.pop_front();
+        if let Some(bar) = self.pages.get_mut(0).map(|x| x.get_status_bar()) {
+            self.bar = bar
         }
     }
 }
 
 impl epi::App for MainWindow {
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        let mut show_status_bar = true;
-        if self.pages.len() > 0 {
-            show_status_bar = self.pages[0].show_status_bar();
-            egui::TopBottomPanel::top("PAGE").show(ctx, |main_win_ui| {
-                let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
-                main_win_ui.allocate_ui_with_layout(main_win_ui.available_size(), layout, |ui| {
-                    match self.pages[0].make_ui(ui) {
-                        PageAction::None => {},
-                        PageAction::Destroy => self.pop_page(),
-                        PageAction::Add(p) => self.add_new_page(p),
-                    } 
-                });
-            });
-        }
-        if show_status_bar {
-            if let Some(bar) = self.status_bar.borrow_mut() {
-                egui::TopBottomPanel::bottom("NAV").show(ctx, |nav| {
-                    bar.make_ui(nav)
+        let stack_size = self.pages.len();
+        if stack_size > 0 {
+            let mut pop_page = false;
+            if let Some(status_bar) = self.bar.borrow_mut() {
+                egui::TopBottomPanel::bottom("NAV").default_height(800.0).show(ctx, |nav| {
+                    status_bar.draw(nav);
+                    if stack_size > 1 {
+                        if nav.button("Back").clicked() {
+                            pop_page = true;
+                        }
+                    }
                 });
             }
+            if pop_page {
+                self.pop_page();
+            }
+            egui::CentralPanel::default().show(ctx, |main_win_ui| {
+                match self.pages[0].make_ui(main_win_ui, frame) {
+                    PageAction::None => {},
+                    PageAction::Destroy => self.pop_page(),
+                    PageAction::Add(p) => self.add_new_page(p),
+                    PageAction::Overwrite(p) => {
+                        self.pages[0] = p;
+                        self.bar = self.pages[0].get_status_bar();
+                    },
+                    PageAction::RePaint => { ctx.request_repaint() }
+                }
+            });
         }
     }
 
@@ -66,11 +79,17 @@ impl epi::App for MainWindow {
 pub enum PageAction {
     None,
     Destroy,
-    Add(Box<dyn InterfacePage>)
+    Add(Box<dyn InterfacePage>),
+    Overwrite(Box<dyn InterfacePage>),
+    RePaint,
 }
 
 pub trait InterfacePage {
-    fn make_ui(&mut self, ui: &mut egui::Ui) -> PageAction;
+    fn make_ui(&mut self, ui: &mut egui::Ui, frame: &mut epi::Frame<'_>) -> PageAction;
     fn get_title(&self) -> &'static str;
-    fn show_status_bar(&self) -> bool;
+    fn get_status_bar(&self) -> Option<Box<dyn StatusBar>>;
+}
+
+pub trait StatusBar {
+    fn draw(&mut self, ui: &mut egui::Ui);
 }

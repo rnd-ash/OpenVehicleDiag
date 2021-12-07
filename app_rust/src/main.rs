@@ -2,6 +2,7 @@ use std::{fs::File, io::Write, panic, time};
 use backtrace;
 use dialog::DialogBox;
 use eframe::epi::IconData;
+use egui::Vec2;
 use image::{GenericImageView, ImageFormat};
 
 mod resources;
@@ -12,6 +13,11 @@ mod dyn_hw;
 use pages::launcher::Launcher;
 use resources::TRAY_ICON;
 use window::*;
+
+// IMPORTANT. On windows, only the i686-pc-windows-msvc target is supported (Due to limitations with J2534 and D-PDU!
+#[cfg(all(target_arch = "x86_64", target_os = "windows"))]
+compile_error!("Windows can ONLY be built using the i686-pc-windows-msvc target!");
+
 
 fn main() {
     let mut app = MainWindow::new();
@@ -43,6 +49,7 @@ fn main() {
             .show();
     }));
     app.add_new_page(Box::new(Launcher::new()));
+    native_options.initial_window_size = Some(Vec2::new(800.0, 600.0));
     eframe::run_native(Box::new(app), native_options)
 
     

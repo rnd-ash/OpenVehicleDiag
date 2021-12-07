@@ -1,4 +1,4 @@
-use std::sync::{Mutex, Arc};
+use std::{sync::{Mutex, Arc}, marker::PhantomData};
 
 use ecu_diagnostics::hardware::{passthru::PassthruDevice, Hardware};
 #[cfg(unix)]
@@ -6,11 +6,26 @@ use ecu_diagnostics::hardware::{socketcan::SocketCanDevice};
 
 #[derive(Clone)]
 pub struct DynHardware {
-    hw: DynHardwareEnum,
-    connected: bool
+    hw: DynHardwareEnum
 }
 
+unsafe impl Send for DynHardware{}
+unsafe impl Sync for DynHardware{}
+
 impl DynHardware {
+    pub fn new_from_passthru(hw: Arc<Mutex<PassthruDevice>>) -> Self {
+        Self {
+            hw: DynHardwareEnum::Passthru(hw),
+        }
+    }
+
+    #[cfg(unix)]
+    pub fn new_from_socketcan(hw: Arc<Mutex<SocketCanDevice>>) -> Self {
+        Self {
+            hw: DynHardwareEnum::SocketCan(hw),
+        }
+    }
+
     pub fn create_iso_tp_channel(&mut self) -> ecu_diagnostics::hardware::HardwareResult<Box<dyn ecu_diagnostics::channel::IsoTPChannel>> {
         self.hw.create_iso_tp_channel()
     }
@@ -27,12 +42,12 @@ impl DynHardware {
         self.hw.read_ignition_voltage()
     }
 
-    pub fn get_capabilities(&mut self) -> ecu_diagnostics::hardware::HardwareCapabilities {
-        self.hw.get_capabilities()
+    pub fn get_info(&mut self) -> ecu_diagnostics::hardware::HardwareInfo {
+        self.hw.get_info()
     }
 
-    pub fn set_connect_state(&mut self, x: bool) {
-        self.connected = x;
+    pub fn is_connected(&self) -> bool {
+        self.hw.is_connected()
     }
 }
 
@@ -42,6 +57,9 @@ enum DynHardwareEnum {
     SocketCan(Arc<Mutex<SocketCanDevice>>),
     Passthru(Arc<Mutex<PassthruDevice>>)
 }
+
+unsafe impl Send for DynHardwareEnum{}
+unsafe impl Sync for DynHardwareEnum{}
 
 impl DynHardwareEnum {
     fn create_iso_tp_channel(&mut self) -> ecu_diagnostics::hardware::HardwareResult<Box<dyn ecu_diagnostics::channel::IsoTPChannel>> {
@@ -76,11 +94,33 @@ impl DynHardwareEnum {
         }
     }
 
-    fn get_capabilities(&mut self) -> ecu_diagnostics::hardware::HardwareCapabilities {
+    fn get_info(&mut self) -> ecu_diagnostics::hardware::HardwareInfo {
         match self {
             #[cfg(unix)]
-            Self::SocketCan(s) => s.lock().unwrap().get_capabilities().clone(),
-            Self::Passthru(p) => p.lock().unwrap().get_capabilities().clone(),
+            Self::SocketCan(s) => s.lock().unwrap().get_info().clone(),
+            Self::Passthru(p) => p.lock().unwrap().get_info().clone(),
+        }
+    }
+
+    fn is_connected(&self) -> bool {
+        match self {
+            #[cfg(unix)]
+            Self::SocketCan(s) => {
+                match s.lock() {
+                    Ok(dev) => {
+                        dev.is_can_channel_open() || dev.is_iso_tp_channel_open()
+                    },
+                    Err(_) => false
+                } 
+            }
+            Self::Passthru(p) => {
+                match p.lock() {
+                    Ok(dev) => {
+                        dev.is_can_channel_open() || dev.is_iso_tp_channel_open()
+                    },
+                    Err(_) => false
+                }  
+            }
         }
     }
 }
