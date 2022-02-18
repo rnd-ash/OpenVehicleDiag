@@ -39,7 +39,15 @@ pub struct CanTracerPage {
     mask_str: String,
     filt_str: String,
     filt: u32,
-    max_y: f32
+    max_y: f32,
+    sending_frame: bool,
+    last_tx_time: Instant,
+    tx_interval: u32,
+    tx_interval_str: String,
+    tx_bin_str: String,
+    tx_id_str: String,
+    tx_data_str: String,
+    tx_can_data: (u32,Vec<u8>),
     //handle: Option<JoinHandle<()>>,
 }
 
@@ -58,7 +66,15 @@ impl CanTracerPage {
             mask: 0x0000,
             mask_str: "0000".into(),
             filt: 0x0000,
-            filt_str: "0000".into()
+            filt_str: "0000".into(),
+            sending_frame: false,
+            last_tx_time: Instant::now(),
+            tx_interval: 50,
+            tx_interval_str: "50".into(),
+            tx_id_str: "0001".into(),
+            tx_data_str: "01 02 03 04 05 06 07 08".into(),
+            tx_bin_str: "".into(),
+            tx_can_data: (0x0001, vec![0,0,0,0,0,0,0,0]),
             //handle: None
         }
     }
@@ -76,6 +92,7 @@ impl InterfacePage for CanTracerPage {
         if let Some(can_channel) = self.channel.borrow_mut() {
             let mut m = self.mask_str.clone();
             let mut f = self.filt_str.clone();
+
             ui.horizontal(|row| {
                 row.label("Enter CAN ID Mask");
                 row.text_edit_singleline(&mut m);
@@ -101,12 +118,85 @@ impl InterfacePage for CanTracerPage {
                     self.filt = parse;
                 }
             }
+            
+            let mut tx_ival = self.tx_interval_str.clone();
+            let mut t = self.sending_frame;
+            let mut cid = self.tx_id_str.clone();
+            let mut data = self.tx_data_str.clone();
+            ui.label("Tx custom frame (EXPERIMENTAL)");
+            ui.horizontal(|row| {
+                row.label("CAN ID (Hex)");
+                row.text_edit_singleline(&mut cid);
+                row.label("CAN Data (Hex)");
+                row.text_edit_singleline(&mut data);
+            });
+            ui.label(self.tx_bin_str.clone());
+
+            self.tx_id_str = cid;
+            self.tx_data_str = data;
+            if !self.tx_id_str.is_empty() {
+                if let Ok(parse) = u32::from_str_radix(&self.tx_id_str, 16) {
+                    self.tx_can_data.0 = parse;
+                }
+            }
+
+
+            ui.horizontal(|row| {
+                row.label("Tx interval (ms)");
+                row.text_edit_singleline(&mut tx_ival);
+                row.checkbox(&mut t, "Send frame");
+            });
+
+            let mut bytes_maybe: Vec<u8> = Vec::new();
+            for s in self.tx_data_str.split(" ") {
+                if let Ok(parsed) = u8::from_str_radix(s, 16) {
+                    bytes_maybe.push(parsed);
+                } else {
+                    bytes_maybe = Vec::new();
+                    break;
+                }
+            }
+            if bytes_maybe.is_empty() {
+                self.tx_bin_str = "INVALID DATA".into();
+            } else if bytes_maybe.len() > 8 {
+                self.tx_bin_str = "DATA TOO BIG (Max 8 bytes)".into();
+            } else {
+                self.tx_can_data.1 = bytes_maybe.clone();
+                let mut s = String::new();
+                for b in &bytes_maybe {
+                    use std::fmt::Write;
+                    write!(s, "{:08b} ", b);
+                }
+                self.tx_bin_str = s;
+            }
+
+            self.tx_interval_str = tx_ival;
+            self.sending_frame = t;
+            if !self.tx_interval_str.is_empty() {
+                if let Ok(parse) = u32::from_str_radix(&self.tx_interval_str, 10) {
+                    self.tx_interval = parse;
+                }
+            }
+            let mut frames : Vec<CanFrame> = Vec::new();
+            if self.sending_frame {
+                if self.last_tx_time.elapsed().as_millis() > self.tx_interval as u128 {
+                    println!("Sending frame");
+                    let f = CanFrame::new(self.tx_can_data.0, &self.tx_can_data.1, false);
+                    if let Err(e) = can_channel.write_packets(vec![f], 50) {
+                        eprintln!("Error sending frame {}", e);
+                    } else {
+                        frames.push(f);
+                    }
+                    self.last_tx_time = Instant::now();
+                }
+            }
+
             if ui.button("Disconnect").clicked() {
                 self.channel.take();
                 self.can_map.clear();
             } else {
                 let start = Instant::now();
-                let f = match can_channel.read_packets(1000, 15) {
+                frames.extend_from_slice(&match can_channel.read_packets(1000, 15) {
                     Ok(mut v) => {
                         v.retain(|f| (f.get_address() & self.mask) == self.filt);
                         v
@@ -115,9 +205,9 @@ impl InterfacePage for CanTracerPage {
                         println!("Error reading : {}", e);
                         Vec::new()
                     }
-                };
-                let num = f.len() as f32;
-                for frame in f {
+                });
+                let num = frames.len() as f32;
+                for frame in frames {
                     self.can_map.insert(frame.get_address(), frame);
                 }
                 let dur = start.elapsed().as_millis();

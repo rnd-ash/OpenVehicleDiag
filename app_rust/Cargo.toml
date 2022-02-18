@@ -29,5 +29,7 @@ dialog = "0.3.0"
 backtrace = "0.3.59"
 #ecu_diagnostics="0.8.2"
 ecu_diagnostics = {git="https://github.com/rnd-ash/ecu_diagnostics"}
+#ecu_diagnostics = {path="../../ecu_diagnostics"}
 eframe = { version = "*", default-features = false, features = ["default_fonts", "egui_glow"] }
 egui="0.15.0"
+env_logger="*"

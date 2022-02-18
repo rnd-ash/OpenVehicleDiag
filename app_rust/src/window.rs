@@ -2,6 +2,7 @@ use std::{collections::VecDeque, borrow::BorrowMut};
 
 use ecu_diagnostics::hardware::Hardware;
 use eframe::{egui, epi};
+use egui::epaint::TessellationOptions;
 
 use crate::{pages::status_bar::{self}, dyn_hw::DynHardware};
 

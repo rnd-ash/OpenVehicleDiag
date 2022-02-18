@@ -20,6 +20,7 @@ compile_error!("Windows can ONLY be built using the i686-pc-windows-msvc target!
 
 
 fn main() {
+    env_logger::init();
     let mut app = MainWindow::new();
     let mut native_options = eframe::NativeOptions::default();
     if let Ok(img) = image::load_from_memory_with_format(TRAY_ICON, ImageFormat::Png) {

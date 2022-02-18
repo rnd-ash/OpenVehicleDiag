@@ -1,4 +1,6 @@
-use ecu_diagnostics::{kwp2000::{Kwp2000DiagnosticServer, Kwp2000ServerOptions, Kwp2000VoidHandler, SessionType}, *, channel::IsoTPSettings, DiagServerResult};
+use std::convert::TryFrom;
+
+use ecu_diagnostics::{kwp2000::{Kwp2000DiagnosticServer, Kwp2000ServerOptions, Kwp2000VoidHandler, SessionType, KWP2000Error, DTCRange}, *, channel::IsoTPSettings, DiagServerResult};
 use egui::{Label, Color32, CollapsingHeader};
 
 use crate::{window::{InterfacePage, PageAction}, dyn_hw::DynHardware, pages::status_bar::MainStatusBar};
@@ -198,6 +200,77 @@ impl Kwp2000Session {
             });
         });
 
+        CollapsingHeader::new("Read / Clear diagnostic trouble codes").default_open(false).show(ui,|sub| {
+            sub.horizontal_wrapped(|row| {
+                if row.button("Identified DTCs (SAE J2012/ISO15031-6)").clicked() {
+                    self.exec_diag_job("Identified DTCs", |server| {
+                        kwp2000::read_stored_dtcs_iso15031(server, DTCRange::All).map(|i| {
+                            let mut res = format!("({} found): \n", i.len());
+                            for dtc in &i {
+                                res.push_str(&format!("{} - CEL: {}, Status: {:?}. RAW: {:04X}\n", dtc.get_name_as_string(), dtc.mil_on, dtc.status, dtc.raw))
+                            }
+                            res
+                        })
+                    });
+                }
+                if row.button("Supported DTCs (SAE J2012/ISO15031-6)").clicked() {
+                    self.exec_diag_job("Supported DTCs", |server| {
+                        kwp2000::read_supported_dtcs_iso15031(server, DTCRange::All).map(|i| {
+                            let mut res = String::new();
+                            for dtc in &i {
+                                res.push_str(&format!("{} (RAW: {:04X})\n", dtc.get_name_as_string(), dtc.raw))
+                            }
+                            res
+                        })
+                    });
+                }
+                if row.button("Identified 2 byte hex DTC and status").clicked() {
+                    self.exec_diag_job("Identified DTCs", |server| {
+                        kwp2000::read_stored_dtcs(server, DTCRange::All).map(|i| {
+                            let mut res = format!("({} found): \n", i.len());
+                            for dtc in &i {
+                                res.push_str(&format!("{} - CEL: {}, Status: {:?}. RAW: {:04X}\n", dtc.get_name_as_string(), dtc.mil_on, dtc.status, dtc.raw))
+                            }
+                            res
+                        })
+                    });
+                }
+                if row.button("Supported 2 byte hex DTC and status").clicked() {
+                    self.exec_diag_job("Supported DTCs", |server| {
+                        kwp2000::read_supported_dtcs(server, DTCRange::All).map(|i| {
+                            let mut res = String::new();
+                            for dtc in &i {
+                                res.push_str(&format!("{} (RAW: {:04X})\n", dtc.get_name_as_string(), dtc.raw))
+                            }
+                            res
+                        })
+                    });
+                }
+                if row.button("Most recent DTC").clicked() {
+                    self.exec_diag_job("Most recent DTC", |server| {
+                        Err(DiagError::NotImplemented("Most recent DTC is not implemented yet".into()))
+                    });
+                }
+                if row.button("Clear stored DTCs").clicked() {
+                    self.exec_diag_job("Clear DTCs", |server| {
+                        kwp2000::clear_dtc(server, kwp2000::ClearDTCRange::AllDTCs).map(|_| "OK".into())
+                    });
+                }
+            });
+        });
+
+        CollapsingHeader::new("Read data by identifier").default_open(false).show(ui,|sub| {
+            sub.horizontal_wrapped(|row| {
+                if row.button("ECU Serial number").clicked() {
+                    self.exec_diag_job("ECU Serial number", |server| {
+                        kwp2000::read_ecu_serial_number(server).map(|pres| {
+                            format!("As ASCII: \"{}\", As BCD: \"{}\"", String::from_utf8_lossy(&pres).to_string(), ecu_diagnostics::helpers::bcd_decode_slice(&pres, None))
+                        })
+                    });
+                }
+            });
+        });
+
         let mut t = self.custom_sbytes_str.clone();
         ui.horizontal_wrapped(|row| {
             row.label("Enter custom payload (HEX) EG '10 92':");
@@ -223,11 +296,70 @@ impl Kwp2000Session {
         });
         self.custom_sbytes_str = t;
 
+        if ui.button("Scrape services (Takes time!)").clicked() {
+            /*
+            let mut msg = String::new();
+            for sid in 0x4000..=0x4FFF as u16 {
+                if let Ok (data) = self.server.as_mut().unwrap().send_byte_array_with_response(&[0x22, (sid >> 8) as u8, sid as u8]) {
+                    use std::fmt::Write;
+                    write!(msg, "{:04X} -> {:02X?}", sid, data);
+                }
+            }
+            */
+            let mut supported_sids : Vec<u8> = vec![];
+            for sid in 0x00..=0xFF as u8 {
+                let supported = match self.server.as_mut().unwrap().send_byte_array_with_response(&[sid]) {
+                    Ok(_) => true,
+                    Err(e) => {
+                        match e {
+                            DiagError::ECUError { code, def } => {
+                                if code == 0x11 {
+                                    false
+                                } else {
+                                    true
+                                }
+                            },
+                            _ => true
+                        }
+                    }
+                };
+                if supported {
+                    supported_sids.push(sid);
+                }
+            }
+            let mut msg = format!("Supported SIDs (HEX): {:02X?}. Descriptions:\n", supported_sids);
+            for x in supported_sids {
+                if x <= 0x0A {
+                    let obd_name: &str = match x {
+                        0x01 => "OBD ShowCurrentData",
+                        0x02 => "OBD ShowFreezeFrameData",
+                        0x03 => "OBD ShowStoredDTCs",
+                        0x04 => "OBD ClearDTCs",
+                        0x05 => "OBD O2TestResultsNonCAN",
+                        0x06 => "OBD ComponentTestResultsCAN",
+                        0x07 => "OBD ShowPendingDTCs",
+                        0x08 => "OBD ControlOnBoardSystem",
+                        0x09 => "OBD RequestVehicleInfo",
+                        0x0A => "OBD ShowPermanentDTCs",
+                        _ => "UNKNOWN OBD SID!"
+                    };
+                    msg.push_str(&format!("{:02X} - {}\n", x, obd_name))
+                } else {
+                    match kwp2000::KWP2000Command::from(x) {
+                        kwp2000::KWP2000Command::CustomSid(_) => msg.push_str(&format!("{:02X} - UNKNOWN KWP SID!\n", x)),
+                        f => msg.push_str(&format!("{:02X} - KWP {:?}\n", x, f))
+                    }
+                }
+            }
+            self.last_response = Some(DiagResponse::Ok(msg));
+        }
+
 
         if let Some(r) = &self.last_response {
             match r {
                 DiagResponse::Ok(msg) => {
-                    ui.colored_label(Color32::from_rgb(0,255,0), msg);
+                    ui.add(Label::new(msg).wrap(true).text_color(Color32::from_rgb(0,255,0)));
+                    //ui.colored_label(Color32::from_rgb(0,255,0), msg);
                 },
                 DiagResponse::Err(e) => {
                     ui.colored_label(Color32::from_rgb(255,0,0), e);
@@ -262,6 +394,7 @@ impl InterfacePage for Kwp2000Session {
                     self.tp_addr_str = "0".into();
                 }
             }
+            let mut custom_addr_parsed = true;
             if self.custom_addr {
                 ui.label("Enter custom tester present address (Hex)");
                 ui.text_edit_singleline(&mut self.tp_addr_str);
@@ -270,35 +403,37 @@ impl InterfacePage for Kwp2000Session {
                     self.error = None;
                 } else {
                     self.error = Some(format!("'{}' is not a valid hex input", self.tp_addr_str));
+                    custom_addr_parsed = false;
                 }
             }
-
-            if ui.button("Connect to ECU!").clicked() {
-                self.session_mode = SessionType::Normal;
-                let kwp = Kwp2000ServerOptions {
-                    send_id: self.addrs.0,
-                    recv_id: self.addrs.1,
-                    read_timeout_ms: 10000,
-                    write_timeout_ms: 10000,
-                    global_tp_id: if self.custom_addr {
-                        self.tp_addr
-                    } else {
-                        0
-                    },
-                    tester_present_interval_ms: 2000,
-                    tester_present_require_response: self.require_resp,
-                };
-                match self.dev.create_iso_tp_channel() {
-                    Ok(channel) => {
-                        match Kwp2000DiagnosticServer::new_over_iso_tp(kwp, channel, self.layer_opts, Kwp2000VoidHandler{}) {
-                            Ok(server) => { self.server = Some(server) }
-                            Err(e) => {
-                                self.error = Some(format!("Error starting KWP2000 server: {}", e))
+            if custom_addr_parsed {
+                if ui.button("Connect to ECU!").clicked() {
+                    self.session_mode = SessionType::Normal;
+                    let kwp = Kwp2000ServerOptions {
+                        send_id: self.addrs.0,
+                        recv_id: self.addrs.1,
+                        read_timeout_ms: 10000,
+                        write_timeout_ms: 10000,
+                        global_tp_id: if self.custom_addr {
+                            self.tp_addr
+                        } else {
+                            0
+                        },
+                        tester_present_interval_ms: 2000,
+                        tester_present_require_response: self.require_resp,
+                    };
+                    match self.dev.create_iso_tp_channel() {
+                        Ok(channel) => {
+                            match Kwp2000DiagnosticServer::new_over_iso_tp(kwp, channel, self.layer_opts, Kwp2000VoidHandler{}) {
+                                Ok(server) => { self.server = Some(server) }
+                                Err(e) => {
+                                    self.error = Some(format!("Error starting KWP2000 server: {}", e))
+                                }
                             }
+                        },
+                        Err(e) => {
+                            self.error = Some(format!("Error starting KWP2000 server: {}", e))
                         }
-                    },
-                    Err(e) => {
-                        self.error = Some(format!("Error starting KWP2000 server: {}", e))
                     }
                 }
             }
