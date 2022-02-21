@@ -33,7 +33,7 @@ nfd = "0.0.4"
 hex-serde = "0.1.0"
 chrono = "0.4.19"
 hex = "0.4.2"
-image = "0.23.12"
+image = "0.24.1"
 dialog = "0.3.0"
 backtrace = "0.3.59"
 
