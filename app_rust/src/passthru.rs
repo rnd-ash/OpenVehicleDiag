@@ -279,7 +279,7 @@ impl PassthruDrv {
                 timeout,
             )
         };
-        if res == PassthruError::ERR_BUFFER_EMPTY as i32 && msg_count != 0 {
+        if (res == PassthruError::ERR_BUFFER_EMPTY as i32 || res == PassthruError::ERR_TIMEOUT as i32) && msg_count != 0 {
             write_array.truncate(msg_count as usize);
             return ret_res(0x00, write_array);
         }
