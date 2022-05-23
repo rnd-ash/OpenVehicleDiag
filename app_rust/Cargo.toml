@@ -45,4 +45,4 @@ shellexpand = "2.0.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 socketcan = "1.7.0"
-socketcan-isotp = "0.1.1"
+socketcan-isotp = "1.0.1"
