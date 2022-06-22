@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use common::raf::Raf;
 use crate::{caesar::{CaesarError, PoolTuple, creader}, ctf::ctf_header::CTFLanguage, ecu::{ECU, com_param::ComParameter}};
 use super::preparation::Preparation;
@@ -45,9 +47,9 @@ impl Default for ServiceType {
 
 #[derive(Debug, Clone, Default)]
 pub struct Service {
-    pub qualifier: String,
-    pub name: Option<String>,
-    pub description: Option<String>,
+    pub qualifier: Cow<'static, str>,
+    pub name: Option<Cow<'static, str>>,
+    pub description: Option<Cow<'static, str>>,
 
     data_class_service_type: u16,
     pub data_class_service_type_shifted: i32,
@@ -61,7 +63,7 @@ pub struct Service {
     q: PoolTuple,
     r: PoolTuple,
 
-    pub input_ref_name: String,
+    pub input_ref_name: Cow<'static, str>,
 
     u_prep: PoolTuple,
     v: PoolTuple,
@@ -70,9 +72,9 @@ pub struct Service {
 
     field50: u16,
 
-    negative_response_name: String,
-    unk_str3: String,
-    unk_str4: String,
+    negative_response_name: Cow<'static, str>,
+    unk_str3: Cow<'static, str>,
+    unk_str4: Cow<'static, str>,
 
     p: PoolTuple,
     diag_service_code: PoolTuple,
@@ -98,7 +100,7 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(reader: &mut Raf, base_addr: usize, pool_idx: usize, lang: &CTFLanguage, parent: &ECU) -> std::result::Result<Self, CaesarError> {
+    pub fn new(reader: &mut Raf, base_addr: usize, pool_idx: usize, lang: & CTFLanguage, parent: &ECU) -> std::result::Result<Self, CaesarError> {
         //println!("Processing Diagnostic service - Base address: 0x{:08X}", base_addr);
         reader.seek(base_addr);
         let mut bitflags = reader.read_u32()?;
@@ -170,7 +172,7 @@ impl Service {
             let prep_entry_bit_pos = reader.read_i32()? as usize;
             let prep_entry_mode = reader.read_u16()?;
 
-            res.input_preparations.push(Preparation::new(reader, lang, prep_base_addr + prep_entry_offset, prep_entry_bit_pos, prep_entry_mode, parent, &res)?);
+            res.input_preparations.push(Preparation::new(reader, lang, prep_base_addr + prep_entry_offset, prep_entry_bit_pos, prep_entry_mode, parent, res.get_byte_count(), &res.input_ref_name)?);
         }
 
 
@@ -192,7 +194,7 @@ impl Service {
                 let prep_entry_bit_pos = reader.read_i32()? as usize;
                 let prep_entry_mode = reader.read_u16()?;
 
-                res_pres_vec.push(Preparation::new(reader, lang, prep_base_addr + prep_entry_offset, prep_entry_bit_pos, prep_entry_mode, parent, &res)?);
+                res_pres_vec.push(Preparation::new(reader, lang, prep_base_addr + prep_entry_offset, prep_entry_bit_pos, prep_entry_mode, parent, res.get_byte_count(), &res.input_ref_name)?);
             }
             res.output_preparations.extend_from_slice(&res_pres_vec);
         }

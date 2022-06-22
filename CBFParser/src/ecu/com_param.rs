@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use common::raf::Raf;
 use crate::caesar::{CaesarError, creader};
 use super::interface::ECUInterface;
@@ -14,7 +16,7 @@ pub struct ComParameter {
     dump_size: i32,
     dump: Vec<u8>,
     pub param_value: i32,
-    pub param_name: String,
+    pub param_name: Cow<'static, str>,
 
     base_addr: usize
 }

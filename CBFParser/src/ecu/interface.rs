@@ -1,18 +1,20 @@
+use std::borrow::Cow;
+
 use common::raf::Raf;
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 
 #[derive(Debug, Clone, Default)]
 pub struct ECUInterface {
-    pub qualifier: String,
-    name: Option<String>,
-    desc: Option<String>,
+    pub qualifier: Cow<'static, str>,
+    name: Option<Cow<'static, str>>,
+    desc: Option<Cow<'static, str>>,
 
-    version_string: String,
+    version_string: Cow<'static, str>,
     version: i32,
     com_param_count: i32,
     com_param_list_offset: i32,
     unk6: i32,
-    pub com_params: Vec<String>,
+    pub com_params: Vec<Cow<'static, str>>,
     base_addr: usize
 }
 
@@ -41,8 +43,9 @@ impl ECUInterface {
             reader.seek(com_param_file_offset + (i*4));
             let iface_string_ptr = reader.read_i32()? as usize + com_param_file_offset;
             reader.seek(iface_string_ptr);
-            let com_param = reader.read_cstr_bytes().map(|b| encoding_rs::ISO_8859_10.decode(&b).0.to_string())?;
-            res.com_params.push(com_param);
+            let cp = reader.read_cstr_bytes()?;
+            let com_param = encoding_rs::ISO_8859_10.decode(&cp).0.to_string();
+            res.com_params.push(Cow::Owned(com_param));
         }
         Ok(res)
     }

@@ -9,7 +9,7 @@ pub fn read_cbf_complete(src: &mut File) -> caesar::Result<caesar::container::Co
     let mut buffer = vec![0; src.metadata().unwrap().len() as usize];
     src.read_exact(&mut buffer)?;
     let mut br = common::raf::Raf::from_bytes(&buffer, common::raf::RafByteOrder::LE);
-    let (mut container, raf) = caesar::container::Container::new(&mut br)?;
-    container.read_ecus(raf)?;
+    let mut container = caesar::container::Container::new(&mut br)?;
+    container.read_ecus(&mut br)?;
     Ok(container)
 }

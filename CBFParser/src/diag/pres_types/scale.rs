@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use common::raf::Raf;
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 
@@ -13,7 +15,7 @@ pub struct Scale {
     pub offset_si: i32,
     pub us_count: i32,
     pub offset_us: i32,
-    pub enum_description: Option<String>,
+    pub enum_description: Option<Cow<'static, str>>,
     pub (crate) unkc: i32,
     pub (crate) base_addr: usize
 }

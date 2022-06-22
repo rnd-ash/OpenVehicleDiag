@@ -1,16 +1,18 @@
+use std::borrow::Cow;
+
 use common::raf::Raf;
 
 use super::CaesarError;
 
 
-pub fn read_bitflag_string(bit_flag: &mut u32, reader: &mut Raf, base_addr: usize) -> super::Result<String> {
+pub fn read_bitflag_string<'a>(bit_flag: &mut u32, reader: &mut Raf, base_addr: usize) -> super::Result<Cow<'a, str>> {
     if check_and_advance_bitflag(bit_flag) {
         let string_offset = reader.read_i32()? as usize;
         let reader_pos = reader.pos;
         reader.seek(string_offset + base_addr);
         let res = read_string(reader).unwrap_or("".into());
         reader.seek(reader_pos);
-        Ok(res)
+        Ok(Cow::Owned(res))
     } else {
         Ok("".into())
     }

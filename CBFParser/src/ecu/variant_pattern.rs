@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use common::raf::Raf;
 use crate::caesar::{CaesarError, creader};
 
@@ -28,7 +30,7 @@ pub struct VariantPattern {
     unk5: i32,
 
     // ECU Vendor name
-    pub vendor_name: String,
+    pub vendor_name: Cow<'static, str>,
 
     // ECU Vendor ID (If using KWP2000)
     kwp_vendor_id: i32,
@@ -49,7 +51,7 @@ pub struct VariantPattern {
     unk19: u32,
     unk20: u32,
 
-    unk21: String,
+    unk21: Cow<'static, str>,
 
     unk22: i32,
     unk23: i32,

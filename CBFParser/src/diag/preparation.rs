@@ -1,3 +1,5 @@
+use std::{borrow::Cow, rc::Rc};
+
 use common::raf::Raf;
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage, ecu::ECU};
 use super::{presentation::Presentation, service::Service};
@@ -27,8 +29,8 @@ impl Default for InferredDataType {
 
 #[derive(Debug, Clone, Default)]
 pub struct Preparation {
-    pub qualifier: String,
-    pub name: Option<String>,
+    pub qualifier: Cow<'static, str>,
+    pub name: Option<Cow<'static, str>>,
 
     unk1: i32,
     unk2: i32,
@@ -46,11 +48,11 @@ pub struct Preparation {
     pub bit_pos: usize,
     mode_cfg: u16,
     pub size_in_bits: i32,
-    pub presentation: Option<Presentation>
+    pub presentation: Option<Rc<Presentation>>
 }
 
 impl Preparation {
-    pub fn new(reader: &mut Raf, lang: &CTFLanguage, base_addr: usize, bit_pos: usize, mode_cfg: u16, parent_ecu: &ECU, parent_service: &Service) -> std::result::Result<Self, CaesarError> {
+    pub fn new(reader: &mut Raf, lang: &CTFLanguage, base_addr: usize, bit_pos: usize, mode_cfg: u16, parent_ecu: &ECU, byte_count: usize, parent_service_name: &str) -> std::result::Result<Self, CaesarError> {
         //println!("Processing Diagnostic preparation - Base address: 0x{:08X}", base_addr);
 
         reader.seek(base_addr);
@@ -79,11 +81,11 @@ impl Preparation {
             ..Default::default()
         };
         res.dump = creader::read_bitflag_dump(&mut bitflags, reader, res.dump_size as usize, base_addr)?;
-        res.size_in_bits = res.get_size_in_bits(parent_ecu, parent_service)?;
+        res.size_in_bits = res.get_size_in_bits(parent_ecu, byte_count, parent_service_name)?;
         Ok(res)
     }
 
-    fn get_size_in_bits(&mut self, parent_ecu: &ECU, parent_diag_service: &Service) -> std::result::Result<i32, CaesarError> {
+    fn get_size_in_bits(&mut self, parent_ecu: &ECU, byte_count: usize, parent_service_name: &str) -> std::result::Result<i32, CaesarError> {
         let mode_e = self.mode_cfg & 0xF000;
         let mode_h = self.mode_cfg & 0x0FF0; // Param type
         let mode_l = self.mode_cfg & 0x000F;
@@ -134,10 +136,10 @@ impl Preparation {
             let reduced_sys_param = self.system_param - 0x10;
             if reduced_sys_param == 0 {
                 // LOWBYTE (&0xFF)
-                result_bit_size =(((parent_diag_service.get_byte_count() & 0xFF) - (self.bit_pos / 8)) * 8) as i32;
+                result_bit_size =(((byte_count & 0xFF) - (self.bit_pos / 8)) * 8) as i32;
                 self.field_type = InferredDataType::ExtendedBitDump;
             } else if reduced_sys_param == 17 {
-                if let Some(referenced_service) = parent_ecu.global_services.iter().find(|x| x.qualifier == parent_diag_service.input_ref_name) {
+                if let Some(referenced_service) = parent_ecu.global_services.iter().find(|x| x.qualifier == parent_service_name) {
                     let has_request_data = referenced_service.get_byte_count() > 0;
                     let mut internal_type = referenced_service.data_class_service_type_shifted;
                     if internal_type & 0xC > 0 && has_request_data {
@@ -148,11 +150,11 @@ impl Preparation {
                     } 
                     if internal_type & 0x10000 != 0 {
                         // reference type is global variable
-                        result_bit_size = parent_diag_service.get_byte_count() as i32;
+                        result_bit_size = byte_count as i32;
                         self.field_type = InferredDataType::UnhandledSP17;
                     } else {
                         self.field_type = InferredDataType::UnhandledSP17;
-                        result_bit_size = parent_diag_service.get_byte_count() as i32 * 8;
+                        result_bit_size = byte_count as i32 * 8;
                     }
                 } else {
                     eprintln!("Warning - 0x410 '{}' has no matching parent diag service", self.qualifier);

@@ -46,9 +46,9 @@ impl CFFHeader {
             dsc_count: creader::read_primitive(&mut bitflags, reader, 0)?,
             dsc_entry_size: creader::read_primitive(&mut bitflags, reader, 0)?,
 
-            cbf_version_string: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
-            gpd_version_string: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
-            xml_string: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?,
+            cbf_version_string: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?.to_string(),
+            gpd_version_string: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?.to_string(),
+            xml_string: creader::read_bitflag_string(&mut bitflags, reader, base_addr)?.to_string(),
             ..Default::default()
         };
 

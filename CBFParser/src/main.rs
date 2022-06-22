@@ -7,6 +7,7 @@ use common::{raf::Raf, schema::{Connection, diag::{DataFormat, StringEncoding, T
 use common::schema::{OvdECU, variant::{ECUVariantDefinition, ECUVariantPattern}, diag::{dtc::ECUDTC, service::{Parameter}}};
 use diag::{preparation::InferredDataType};
 use ecu::ECU;
+use serde_json::to_string;
 use std::io::Read;
 
 pub mod caesar;
@@ -56,7 +57,7 @@ fn read_file(path: &String, str_path: Option<String>, is_dump: bool) {
 
 
     match c {
-        Ok((mut container, reader)) => {
+        Ok(mut container) => {
             if let Some(p) = str_path {
                 if is_dump {
                     return container.dump_strings(p)
@@ -64,7 +65,7 @@ fn read_file(path: &String, str_path: Option<String>, is_dump: bool) {
                     container.load_strings(p);
                 }
             }
-            match container.read_ecus(reader) {
+            match container.read_ecus(&mut br) {
                 Ok(_) => decode_ecu(&container.ecus[0]),
                 Err(e) => {
                     eprintln!("Error decoding ECUS! {:?}", e)
@@ -81,8 +82,8 @@ fn decode_ecu(e: &ECU) {
     println!("Converting ECU {}", e.qualifier);
 
     let mut ecu = OvdECU {
-        name: e.qualifier.clone(),
-        description: e.name.clone().unwrap_or("".into()),
+        name: e.qualifier.to_string(),
+        description: e.name.clone().map(|c| c.to_string()).unwrap_or("".into()),
         variants: Vec::new(),
         connections: Vec::new()
     };
@@ -132,8 +133,8 @@ fn decode_ecu(e: &ECU) {
         }
 
         let mut ecu_variant = ECUVariantDefinition {
-            name: variant.qualifier.clone(),
-            description: variant.name.clone().unwrap_or("".into()),
+            name: variant.qualifier.to_string(),
+            description: variant.name.clone().map(|c| c.to_string()).unwrap_or("".into()),
             patterns: Vec::new(),
             errors: Vec::new(),
             adjustments: Vec::new(),
@@ -145,7 +146,7 @@ fn decode_ecu(e: &ECU) {
         variant.variant_patterns.iter().for_each(|p| {
             ecu_variant.patterns.push(
                 ECUVariantPattern {
-                    vendor: p.vendor_name.clone(),
+                    vendor: p.vendor_name.to_string(),
                     vendor_id: p.get_vendor_id()as u32,
                 }
             );
@@ -153,13 +154,13 @@ fn decode_ecu(e: &ECU) {
 
         variant.dtcs.iter().for_each(|e| {
             let mut error = ECUDTC {
-                description: e.description.clone().unwrap_or("".into()),
-                error_name: e.qualifier.clone(),
-                summary: e.reference.clone().unwrap_or("".into()),
+                description: e.borrow().description.clone().map(|c| c.to_string()).unwrap_or("".into()),
+                error_name: e.borrow().qualifier.to_string(),
+                summary: e.borrow().reference.clone().map(|c| c.to_string()).unwrap_or("".into()),
                 envs: Vec::new()
             };
 
-            for env in &e.envs {
+            for env in &e.borrow().envs {
                 // Ok so envs only have 1 output param (ALWAYS!)
                 // so we can copy the name and description to the output param
                 let prep = &env.output_preparations[0];
@@ -167,8 +168,8 @@ fn decode_ecu(e: &ECU) {
                     if let Some(data_fmt) = pres.create(prep) {
                         // Copy name and description from service
                         let param = Parameter {
-                            name: env.name.clone().unwrap_or(prep.qualifier.clone()),
-                            unit: pres.display_unit.clone().unwrap_or("".into()),
+                            name: env.name.clone().map(|c| c.to_string()).unwrap_or(prep.qualifier.to_string()),
+                            unit: pres.display_unit.clone().map(|c| c.to_string()).unwrap_or("".into()),
                             start_bit: prep.bit_pos,
                             length_bits: prep.size_in_bits as usize,
                             byte_order: common::schema::diag::service::ParamByteOrder::BigEndian,
@@ -187,8 +188,8 @@ fn decode_ecu(e: &ECU) {
 
         variant.services.iter().for_each(|s| {
             let mut service = CService {
-                name: s.qualifier.clone(),
-                description: s.name.clone().unwrap_or("".into()),
+                name: s.qualifier.to_string(),
+                description: s.name.clone().map(|c| c.to_string()).unwrap_or("".into()),
                 //input_type: DataType::None,
                 payload: s.req_bytes.clone(),
                 input_params: Vec::new(),
@@ -200,8 +201,8 @@ fn decode_ecu(e: &ECU) {
                 if let Some(pres) = &p.presentation {
                     if let Some(data_fmt) = pres.create(p) {
                         let mut param = Parameter {
-                            name: p.qualifier.clone(),
-                            unit: pres.display_unit.clone().unwrap_or("".into()),
+                            name: p.qualifier.to_string(),
+                            unit: pres.display_unit.clone().map(|c| c.to_string()).unwrap_or("".into()),
                             start_bit: p.bit_pos,
                             length_bits: p.size_in_bits as usize,
                             byte_order: common::schema::diag::service::ParamByteOrder::BigEndian,
@@ -210,7 +211,7 @@ fn decode_ecu(e: &ECU) {
 
                         };
                         if let Some(name) = pres.description.clone() {
-                            param.name = name;
+                            param.name = name.to_string();
                         }
                         tmp.push(p.dump.clone());
                         service.input_params.push(param);
@@ -222,8 +223,8 @@ fn decode_ecu(e: &ECU) {
                 if let Some(pres) = &p.presentation {
                     if let Some(data_fmt) = pres.create(p) {
                         let mut param = Parameter {
-                            name: p.qualifier.clone(),
-                            unit: pres.display_unit.clone().unwrap_or("".into()),
+                            name: p.qualifier.to_string(),
+                            unit: pres.display_unit.clone().map(|c| c.to_string()).unwrap_or("".into()),
                             start_bit: p.bit_pos,
                             length_bits: p.size_in_bits as usize,
                             byte_order: common::schema::diag::service::ParamByteOrder::BigEndian,
@@ -231,8 +232,8 @@ fn decode_ecu(e: &ECU) {
                             valid_bounds: None,
 
                         };
-                        if let Some(name) = pres.description.clone() {
-                            param.name = name;
+                        if let Some(name) = &pres.description {
+                            param.name = name.to_string();
                         }
                         service.output_params.push(param);
                     }
@@ -280,13 +281,13 @@ fn decode_ecu(e: &ECU) {
             } else {
                 // Create a new service with all the output params!
                 let mut root = service_list[0].clone();
-                root.output_params[0].name = root.description.clone();
+                root.output_params[0].name = root.description.to_string();
                 root.name = format!("DT_{:02X}_{:02X}", root.payload[0], root.payload[1]);
                 root.description = format!("Data download {:02X} {:02X}", root.payload[0], root.payload[1]);
                 for s in service_list[1..].iter_mut() {
                     if s.output_params.len() == 1 {
                         let mut p = s.output_params[0].clone();
-                        p.name = s.description.clone();
+                        p.name = s.description.to_string();
                         root.output_params.push(p);
                     } else {
                         ecu_variant.downloads.push(s.clone());

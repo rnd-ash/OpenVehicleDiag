@@ -1,4 +1,4 @@
-use std::{io::{Read, Write}};
+use std::{io::{Read, Write}, borrow::{Cow, Borrow}, marker::PhantomData};
 use common::raf::Raf;
 use crate::caesar::{CaesarError, creader};
 use super::STUB_HEADER_SIZE;
@@ -13,7 +13,7 @@ pub struct CTFHeader {
     language_table_offset: i32,
     unk7: String,
     base_addr: usize,
-    pub languages: Vec<CTFLanguage>
+    pub languages: Vec<CTFLanguage>,
 }
 
 impl CTFHeader {
@@ -23,12 +23,12 @@ impl CTFHeader {
         let mut res = CTFHeader {
             base_addr,
             unk1: creader::read_primitive(&mut bit_flag, reader, 0i32)?,
-            qualifier: creader::read_bitflag_string(&mut bit_flag, reader, base_addr)?,
+            qualifier: creader::read_bitflag_string(&mut bit_flag, reader, base_addr)?.to_string(),
             unk3: creader::read_primitive(&mut bit_flag, reader, 0i16)? as i32,
             unk4: creader::read_primitive(&mut bit_flag, reader, 0i32)?,
             language_count: creader::read_primitive(&mut bit_flag, reader, 0i32)?,
             language_table_offset: creader::read_primitive(&mut bit_flag, reader, 0i32)?,
-            unk7:  creader::read_bitflag_string(&mut bit_flag, reader, base_addr)?,
+            unk7:  creader::read_bitflag_string(&mut bit_flag, reader, base_addr)?.to_string(),
             ..Default::default()
         };
         let lang_table_offset_relative = res.language_table_offset as usize + base_addr;
@@ -39,10 +39,6 @@ impl CTFHeader {
             res.languages.push(CTFLanguage::new(reader, real_lang_entry_addr, header_size)?)
         }
         Ok(res)
-    }
-
-    pub fn get_languages(&self, idx: usize) -> CTFLanguage {
-        self.languages[idx].clone()
     }
 }
 
@@ -55,7 +51,7 @@ pub struct CTFLanguage {
     string_pool_size: usize,
     offset_string_pool_base: usize,
     string_count: usize,
-    strings: Vec<String>,
+    strings: Vec<Cow<'static, str>>,
     base_addr: usize
 }
 
@@ -66,7 +62,7 @@ impl CTFLanguage {
 
         let mut res = CTFLanguage {
             base_addr,
-            qualifier: creader::read_bitflag_string(&mut language_bit_flags, reader, base_addr)?,
+            qualifier: creader::read_bitflag_string(&mut language_bit_flags, reader, base_addr)?.to_string(),
             language_index: creader::read_primitive(&mut language_bit_flags, reader, 0i16)? as usize,
             string_pool_size: creader::read_primitive(&mut language_bit_flags, reader, 0i32)? as usize,
             offset_string_pool_base: creader::read_primitive(&mut language_bit_flags, reader, 0i32)? as usize,
@@ -84,16 +80,18 @@ impl CTFLanguage {
             reader.seek(table_offset + (i*4));
             let string_offset = reader.read_i32()? as usize;
             reader.seek(table_offset + string_offset);
-            self.strings.push(reader.read_cstr_bytes().map(|b| encoding_rs::ISO_8859_10.decode(&b).0.to_string())?)
+            let b = reader.read_cstr_bytes()?;
+            self.strings.push(Cow::Owned(encoding_rs::ISO_8859_10.decode(&b).0.into_owned()))
         }
         Ok(())
     }
 
-    pub fn get_string(&self, idx: i32) -> Option<String> {
-        if idx < 0 {
-            return None
+    pub fn get_string(&self, idx: i32) -> Option<Cow<'static, str>> {
+        if idx < 0 || idx as usize >= self.strings.len() {
+            None
+        } else {
+            Some(self.strings[idx as usize].clone())
         }
-        self.strings.get(idx as usize).cloned()
     }
 
     pub fn dump_language_table(&self, name: String) -> std::io::Result<()> {
@@ -121,7 +119,7 @@ impl CTFLanguage {
         }).filter_map(|x|x).collect();
 
         for (idx, string) in list {
-            self.strings[idx] = string
+            self.strings[idx] = Cow::Owned(string)
         }
         Ok(())
     }

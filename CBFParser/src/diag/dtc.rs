@@ -1,3 +1,5 @@
+use std::{borrow::Cow, rc::Rc};
+
 use common::raf::Raf;
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 
@@ -5,16 +7,16 @@ use super::service::Service;
 
 #[derive(Debug, Clone, Default)]
 pub struct DTC {
-    pub qualifier: String,
-    pub description: Option<String>,
-    pub reference: Option<String>,
+    pub qualifier: Cow<'static, str>,
+    pub description: Option<Cow<'static, str>>,
+    pub reference: Option<Cow<'static, str>>,
 
     pub (crate) xrefs_start: i32,
     pub (crate) xrefs_count: i32,
     pub base_addr: usize,
 
     pub pool_idx: usize,
-    pub envs: Vec<Service>
+    pub envs: Vec<Rc<Service>>
 }
 
 impl DTC {

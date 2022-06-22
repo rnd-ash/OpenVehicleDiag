@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use common::raf::Raf;
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
 use super::com_param::ComParameter;
@@ -47,9 +49,9 @@ impl Default for ParamName {
 
 #[derive(Debug, Clone, Default)]
 pub struct InterfaceSubType {
-    pub qualifier: String,
-    name: Option<String>,
-    description: Option<String>,
+    pub qualifier: Cow<'static, str>,
+    name: Option<Cow<'static, str>>,
+    description: Option<Cow<'static, str>>,
 
     unk3: i32,
     unk4: i32,

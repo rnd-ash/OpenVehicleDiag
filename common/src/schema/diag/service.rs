@@ -1,4 +1,4 @@
-use std::{cmp::min, collections::VecDeque, convert::TryInto, string::FromUtf8Error};
+use std::{cmp::min, collections::VecDeque, convert::TryInto, string::FromUtf8Error, borrow::Cow};
 use bit_field::BitArray;
 use serde::{Serialize, Deserialize};
 use super::{DataFormat, StringEncoding};
@@ -97,8 +97,8 @@ impl Parameter {
             }
             DataFormat::Bool { pos_name, neg_name } => {
                 return match self.get_number(input)? {
-                    0 => Ok(neg_name.clone().unwrap_or("False".into())),
-                    _ => Ok(pos_name.clone().unwrap_or("True".into()))
+                    0 => Ok(neg_name.clone().unwrap_or("False".into()).to_string()),
+                    _ => Ok(pos_name.clone().unwrap_or("True".into()).to_string())
                 }
             }
             DataFormat::Binary => {
@@ -120,7 +120,7 @@ impl Parameter {
                 let raw = self.get_number(input)? as f32;
                 for v in t {
                     if v.start>= raw && v.end <= raw {
-                        return Ok(v.name.clone());
+                        return Ok(v.name.to_string());
                     }
                 }
                 // Our value wasn't found, undefined value?

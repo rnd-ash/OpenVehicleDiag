@@ -1,18 +1,20 @@
 pub mod dtc;
 pub mod service;
+use std::borrow::Cow;
+
 use serde::{Serialize, Deserialize};
 
 /// Derived from the ODX specification
 /// See https://www.emotive.de/wiki/index.php?title=Diagnoselayer_und_Diagnosedienste#DATA-OBJECT-PRO.C2.ADPER.C2.ADTY_.28DOP.29
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TableData {
-    pub name: String,
+pub struct TableData<'a> {
+    pub name: Cow<'a, str>,
     pub start: f32,
     pub end: f32
 }
 
-impl TableData {
-    pub fn get_name(&self) -> String {
+impl<'a> TableData<'a> {
+    pub fn get_name(&self) -> Cow<'a, str> {
         self.name.clone()
     }
 }
@@ -40,10 +42,10 @@ pub enum DataFormat {
 
     // Below lies interpretations for floats and integers
     /// Shortcut version of table, just for 1 == true, 0 == false
-    Bool{ pos_name: Option<String>, neg_name: Option<String> },
+    Bool{ pos_name: Option<Cow<'static, str>>, neg_name: Option<Cow<'static, str>> },
 
     /// Coded value is assigned to a text name within a table
-    Table(Vec<TableData>),
+    Table(Vec<TableData<'static>>),
     /// Coded value is equal to that of the physical value
     Identical,
     /// Coded value is converted from the physical value using a linear function (y=mx+c)

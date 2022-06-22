@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 
 use common::{raf::Raf, schema::diag::{DataFormat, TableData}};
 use crate::{caesar::{CaesarError, creader}, ctf::ctf_header::CTFLanguage};
@@ -6,8 +6,8 @@ use super::{preparation::Preparation, pres_types::scale::Scale};
 
 #[derive(Debug, Clone, Default)]
 pub struct Presentation {
-    pub qualifier: String,
-    pub description: Option<String>,
+    pub qualifier: Cow<'static, str>,
+    pub description: Option<Cow<'static, str>>,
     pub (crate) scale_table_offset: i32,
     pub scale_count: i32,
     pub (crate) unk5: i32,
@@ -21,13 +21,13 @@ pub struct Presentation {
     pub (crate) unkd: i32,
     pub (crate) unke: i32,
     pub (crate) unkf: i32,
-    pub display_unit: Option<String>,
+    pub display_unit: Option<Cow<'static, str>>,
     pub (crate) unk11: i32,
     pub (crate) unk12: i32,
     pub (crate) unk13: i32,
     pub (crate) unk14: i32,
     pub (crate) unk15: i32,
-    pub description2: Option<String>,
+    pub description2: Option<Cow<'static, str>>,
     pub (crate) unk17: i32,
     pub (crate) unk18: i32,
     pub (crate) unk19: i32,
