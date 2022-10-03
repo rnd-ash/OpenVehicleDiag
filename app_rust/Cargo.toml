@@ -27,7 +27,7 @@ serde_derive = "1.0.80"
 lazy_static="1.4.0"
 serde = {version = "1.0.80", features = ["derive"]}
 common = { path = "../common" }
-j2534_rust = {git = "https://github.com/rnd-ash/J2534-Rust", branch="main" }
+j2534_rust = {git = "https://github.com/rnd-ash/J2534-Rust", rev="3d14767cd2f3a766cd2eb9accd041acbfde202b2" }
 bitfield = "0.13.2"
 nfd = "0.0.4"
 hex-serde = "0.1.0"
