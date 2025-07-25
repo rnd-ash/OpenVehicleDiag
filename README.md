@@ -25,8 +25,8 @@ Directory of the OpenVehicleDiag app (See contained README)
 ### CBFParser
 Parses Mercedes CBF Files into OpenVehicleDiag's JSON
 
-### SMRParser
-Parses Mercedes SMR Files into JSON (**DOES NOT FUNCTION FULLY**)
+### ~~SMRParser~~
+REMOVED DUE TO DMCA TAKEDOWN NOTICE
 
 ### Common
 Common library for both parser and GUI Application
